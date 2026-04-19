@@ -866,10 +866,28 @@ class PortfolioReporter:
         self._config = config
         self._industry = industry_df
 
+    @staticmethod
+    def _empty_result() -> PortfolioRefreshResult:
+        empty_positions = pd.DataFrame(
+            columns=[
+                "Ticker",
+                "Quantity",
+                "AvgPrice",
+                "Last",
+                "MarketValue_kVND",
+                "CostBasis_kVND",
+                "Unrealized_kVND",
+                "PNLPct",
+            ]
+        )
+        empty_sector = pd.DataFrame(columns=["Sector", "MarketValue_kVND", "WeightPct", "PNLPct"])
+        return PortfolioRefreshResult({}, empty_positions, empty_sector, {})
+
     def refresh(self, snapshot: pd.DataFrame) -> PortfolioRefreshResult:
         portfolios_dir = self._config.portfolio_dir
         if not portfolios_dir.exists():
-            raise RuntimeError(f"Portfolio directory does not exist: {portfolios_dir}")
+            LOGGER.info("Portfolio directory does not exist: %s; positions.csv will be empty", portfolios_dir)
+            return self._empty_result()
         sector_lookup = {}
         if "Ticker" in self._industry.columns:
             for row in self._industry.itertuples(index=False):
@@ -879,23 +897,11 @@ class PortfolioReporter:
 
         file = portfolios_dir / "portfolio.csv"
         if not file.exists():
-            raise RuntimeError(f"Missing portfolio file: {file}")
+            LOGGER.info("Portfolio file not found: %s; positions.csv will be empty", file)
+            return self._empty_result()
         portfolio_df = pd.read_csv(file)
         if portfolio_df.empty:
-            empty_positions = pd.DataFrame(
-                columns=[
-                    "Ticker",
-                    "Quantity",
-                    "AvgPrice",
-                    "Last",
-                    "MarketValue_kVND",
-                    "CostBasis_kVND",
-                    "Unrealized_kVND",
-                    "PNLPct",
-                ]
-            )
-            empty_sector = pd.DataFrame(columns=["Sector", "MarketValue_kVND", "WeightPct", "PNLPct"])
-            return PortfolioRefreshResult({}, empty_positions, empty_sector, {})
+            return self._empty_result()
         if "Ticker" not in portfolio_df.columns or "Quantity" not in portfolio_df.columns or "AvgPrice" not in portfolio_df.columns:
             raise RuntimeError(f"Portfolio {file} missing required columns 'Ticker,Quantity,AvgPrice'")
 
@@ -910,38 +916,12 @@ class PortfolioReporter:
                     self._config.industry_ticker_filter_source or "unknown",
                 )
             if portfolio_df.empty:
-                empty_positions = pd.DataFrame(
-                    columns=[
-                        "Ticker",
-                        "Quantity",
-                        "AvgPrice",
-                        "Last",
-                        "MarketValue_kVND",
-                        "CostBasis_kVND",
-                        "Unrealized_kVND",
-                        "PNLPct",
-                    ]
-                )
-                empty_sector = pd.DataFrame(columns=["Sector", "MarketValue_kVND", "WeightPct", "PNLPct"])
-                return PortfolioRefreshResult({}, empty_positions, empty_sector, {})
+                return self._empty_result()
 
         report = self._build_report(portfolio_df, snapshot, sector_lookup)
         reports: Dict[str, PortfolioReport] = {"default": report} if report else {}
         if not report:
-            empty_positions = pd.DataFrame(
-                columns=[
-                    "Ticker",
-                    "Quantity",
-                    "AvgPrice",
-                    "Last",
-                    "MarketValue_kVND",
-                    "CostBasis_kVND",
-                    "Unrealized_kVND",
-                    "PNLPct",
-                ]
-            )
-            empty_sector = pd.DataFrame(columns=["Sector", "MarketValue_kVND", "WeightPct", "PNLPct"])
-            return PortfolioRefreshResult({}, empty_positions, empty_sector, {})
+            return self._empty_result()
 
         combined = report.positions.copy()
         combined["Sector"] = combined["Sector"].fillna("Không rõ")
@@ -2488,14 +2468,16 @@ class DataEngine:
 
         universe_df = market_df.merge(positions_for_merge, on="Ticker", how="left")
         if "PositionQuantity" in universe_df.columns:
-            universe_df["PositionQuantity"] = universe_df["PositionQuantity"].fillna(0.0)
+            universe_df["PositionQuantity"] = pd.to_numeric(
+                universe_df["PositionQuantity"], errors="coerce"
+            ).fillna(0.0)
         for col in [
             "PositionMarketValue_kVND",
             "PositionCostBasis_kVND",
             "PositionUnrealized_kVND",
         ]:
             if col in universe_df.columns:
-                universe_df[col] = universe_df[col].fillna(0.0)
+                universe_df[col] = pd.to_numeric(universe_df[col], errors="coerce").fillna(0.0)
 
         if "PositionQuantity" in universe_df.columns and "ADTV20_shares" in universe_df.columns:
             adtv_shares = pd.to_numeric(universe_df["ADTV20_shares"], errors="coerce")

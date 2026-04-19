@@ -1,8 +1,7 @@
 universe:
   csv: data/industry_map.csv
   include_indices: false
-  core_tickers:
-    - NVL
+
 technical_indicators:
   moving_averages: [20, 50, 200]
   ema_periods: [20, 50]
@@ -19,33 +18,34 @@ technical_indicators:
     fast: 12
     slow: 26
     signal: 9
+
 filters:
   shortlist:
     enabled: true
-    # Chỉ loại mã *rất yếu*: thỏa TẤT CẢ điều kiện dưới đây mới loại
-    rsi14_max: 25        # RSI_14 <= 25 (quá bán mạnh)
-    max_pct_to_lo_252: 2 # Cách đáy 52w <= 2%
-    return20_max: -15    # Return_20 <= -15%
-    return60_max: -25    # Return_60 <= -25%
-    require_below_sma50_and_200: true  # Giá dưới cả SMA50 và SMA200
-    min_adv_20: null     # Không lọc theo thanh khoản mặc định (có thể đặt, ví dụ 100000)
-    drop_logic_all: true # Yêu cầu hội tụ tất cả điều kiện để loại (bảo thủ)
-    keep: []             # Danh sách luôn giữ lại (mặc định để trống; ví dụ: [FPT])
-    exclude: []          # Danh sách luôn loại bỏ (tùy chọn)
-portfolio:
-  directory: data/portfolios
+    rsi14_max: 25
+    max_pct_to_lo_252: 2
+    return20_max: -15
+    return60_max: -25
+    require_below_sma50_and_200: true
+    min_adv_20: null
+    drop_logic_all: true
+    keep: []
+    exclude: []
+
 output:
   base_dir: out
   market_snapshot: technical.csv
   presets_dir: .
   portfolios_dir: .
   diagnostics_dir: .
+
 execution:
   aggressiveness: med
   max_order_pct_adv: 0.1
   slice_adv_ratio: 0.25
   min_lot: 100
   max_qty_per_order: 500000
+
 data:
   history_cache: out/data
   history_min_days: 400
