@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.playwright/
+
+# Data inputs/outputs
+.coverage
+*.xlsx
+out/
+archives/
+# Codex logs and working dir
+out/codex/
+codex_universe/
+codex_workspace/
+/research/
+/deep_dive_notes/
+data/portfolios/*
+!data/portfolios/
+!data/portfolios/.gitkeep
+
+# VSCode
+.vscode/
+
+# Scratch / local HTML test files
+scratch/
+/*.html
+
+# Python virtual environment
+venv/

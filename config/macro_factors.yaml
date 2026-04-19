@@ -1,0 +1,34 @@
+factors:
+  GOLD_USD:
+    label: Gold Spot USD
+    source: stooq
+    symbol: xauusd
+    value_column: Close
+  WTI_USD:
+    label: WTI Crude Oil
+    source: fred
+    series_id: DCOILWTICO
+  BRENT_USD:
+    label: Brent Crude Oil
+    source: fred
+    series_id: DCOILBRENTEU
+  VIX:
+    label: CBOE Volatility Index
+    source: fred
+    series_id: VIXCLS
+  USD_BROAD:
+    label: Broad Trade-Weighted USD
+    source: fred
+    series_id: DTWEXBGS
+  SP500:
+    label: S&P 500
+    source: fred
+    series_id: SP500
+  NASDAQ:
+    label: Nasdaq Composite
+    source: fred
+    series_id: NASDAQCOM
+  US10Y:
+    label: US 10Y Treasury Yield
+    source: fred
+    series_id: DGS10
