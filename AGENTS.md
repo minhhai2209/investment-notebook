@@ -1,4 +1,4 @@
-# Broker GPT Notebook — Agent Notes
+# Investment Notebook — Agent Notes
 
 ## Working Style
 
