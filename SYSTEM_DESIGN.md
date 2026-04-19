@@ -2,7 +2,7 @@
 
 ## Mục tiêu
 
-`broker-gpt-3-notebook` là spin-off interactive-only của repo cũ. Mục tiêu của repo này là:
+`investment-notebook` là spin-off interactive-only của repo cũ. Mục tiêu của repo này là:
 
 - dựng snapshot dữ liệu sạch cho screening và thesis review
 - build các report ML/heuristic theo từng mã

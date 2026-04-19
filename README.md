@@ -1,4 +1,4 @@
-# Broker GPT Notebook
+# Investment Notebook
 
 > Repo này là notebook tương tác cho nghiên cứu và screening cổ phiếu Việt Nam. Nó không còn flow đặt lệnh, không còn TCBS automation, và không còn wrapper chạy Codex theo kiểu `orders.csv`.
 
