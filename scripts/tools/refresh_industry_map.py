@@ -15,7 +15,7 @@ import requests
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from scripts.data_fetching.market_members import fetch_hose_members
+from scripts.data_fetching.market_members import fetch_hose_members, fetch_vn30_members
 from scripts.data_fetching.vietstock_industry import (
     fetch_vietstock_sector_levels,
     select_vietstock_sector,
@@ -291,6 +291,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         action="store_true",
         help="Fetch the live HOSE ticker list, then fetch each ticker's sector from Vietstock company profile pages.",
     )
+    src.add_argument(
+        "--from-vietstock-profiles-vn30",
+        action="store_true",
+        help="Fetch the live VN30 ticker list, then fetch each ticker's sector from Vietstock company profile pages.",
+    )
     parser.add_argument(
         "--merge-sectors-from",
         metavar="PATH",
@@ -402,6 +407,22 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
     elif args.from_vietstock_profiles_hose:
         tickers = sorted(fetch_hose_members(timeout=args.timeout))
+        cached_rows, missing_tickers = _split_cached_and_missing_tickers(
+            tickers,
+            existing_lookup=existing_output_lookup,
+            include_indices=bool(args.include_indices),
+            default_sector=args.default_sector,
+            refresh_existing=bool(args.refresh_existing),
+        )
+        rows = cached_rows + _fetch_rows_from_vietstock_profiles(
+            missing_tickers,
+            include_indices=True,
+            sector_level=args.sector_level,
+            timeout=args.timeout,
+            pause_seconds=args.pause_seconds,
+        )
+    elif args.from_vietstock_profiles_vn30:
+        tickers = sorted(fetch_vn30_members(timeout=args.timeout))
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,
             existing_lookup=existing_output_lookup,
