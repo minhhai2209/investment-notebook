@@ -1,0 +1,98 @@
+{
+  "SchemaVersion": 1,
+  "GeneratedAt": "2026-04-16T04:59:13.539475+00:00",
+  "EngineRunAt": "2026-04-16 11:56:53.463596+07:00",
+  "SnapshotDate": "2026-04-16",
+  "UniverseTickers": [
+    "NVL"
+  ],
+  "TotalCapitalKVND": 5000000,
+  "Tickers": {
+    "NVL": {
+      "Archetype": "special_situation",
+      "ProfilePath": "research/tickers/NVL/profile.md",
+      "WeeklyPath": "research/tickers/NVL/weekly/2026-W16.md",
+      "DailyPath": "research/tickers/NVL/daily/2026-04-16.md",
+      "StatePath": "research/tickers/NVL/state.json",
+      "PreferredHoldWindow": "3-10 phiên, chỉ kéo dài nếu follow-through sạch",
+      "DefaultAllowAddOnStrength": false,
+      "DefaultAllowAddOnWeakness": true,
+      "AllowAddOnStrength": false,
+      "AllowAddOnWeakness": true,
+      "TargetWeightMinPct": 55.0,
+      "TargetWeightMaxPct": 70.0,
+      "SuggestedNewCapitalPct": 8.37,
+      "DeferredBuildPct": 12.56,
+      "StrengthReservePct": 0.0,
+      "PersistentWeaknessBid": false,
+      "SessionBuyPlanSummary": "16.80: 15.74% session (shallow_core), 16.70: 27.51% session (mid_core), 16.30: 56.75% session (deep_core)",
+      "SessionBuyTranches": [
+        {
+          "Role": "shallow_core",
+          "LimitPrice": 16.8,
+          "EntryScoreRank": 3.0,
+          "BudgetSharePctOfSession": 15.74,
+          "CapitalPctOfPortfolio": 1.32,
+          "Reason": "core ladder theo EV sau khi điều chỉnh bởi xác suất chạm"
+        },
+        {
+          "Role": "mid_core",
+          "LimitPrice": 16.7,
+          "EntryScoreRank": 2.0,
+          "BudgetSharePctOfSession": 27.51,
+          "CapitalPctOfPortfolio": 2.3,
+          "Reason": "core ladder theo EV sau khi điều chỉnh bởi xác suất chạm"
+        },
+        {
+          "Role": "deep_core",
+          "LimitPrice": 16.3,
+          "EntryScoreRank": 1.0,
+          "BudgetSharePctOfSession": 56.75,
+          "CapitalPctOfPortfolio": 4.75,
+          "Reason": "core ladder theo EV sau khi điều chỉnh bởi xác suất chạm"
+        }
+      ],
+      "PortfolioSingleNameMode": true,
+      "HumanTargetPrice": null,
+      "ExecutionBias": "distribution",
+      "BurstExecutionBias": "respect_t25_supply",
+      "TrimAggression": "high",
+      "UrgentTrimMode": "frontload_sell",
+      "MustSellFractionPct": 30.0
+    }
+  },
+  "PortfolioAllocator": {
+    "CapitalBaseKVND": 5000000,
+    "SingleNameMode": true,
+    "CurrentEquityValueKVND": 1703295.0,
+    "TargetInvestedPct": 55.0,
+    "CurrentInvestedPct": 34.07,
+    "DeployableGapPct": 20.93,
+    "SessionBuildCapPct": 8.37,
+    "DeferredBuildPct": 12.56,
+    "StrengthBudgetPct": 0.0,
+    "WeaknessBudgetPct": 8.37,
+    "Rationale": "Market regime `cân bằng` => target invested `55.00%`; current invested `34.07%`; deployable gap `20.93%`. Capital base `5000000 kVND`, equity currently deployed `1703295 kVND`. Single-name mode chỉ cho phép dùng `8.37%` trong phiên kế tiếp và giữ lại `12.56%` cho các phiên sau.",
+    "GlobalBuyTranches": [],
+    "Tickers": {
+      "NVL": {
+        "CurrentWeightPct": 34.0659,
+        "TargetWeightMinPct": 55.0,
+        "TargetWeightMaxPct": 70.0,
+        "GapToMinWeightPct": 20.9341,
+        "GapToMaxWeightPct": 35.9341,
+        "AddOnStrengthAllowed": false,
+        "AddOnWeaknessAllowed": true,
+        "PersistentWeaknessBid": false,
+        "PreferredBuildStyle": "weakness_only",
+        "AllocatorReason": "Archetype `special situation / turnaround`; best timing edge +1.32%; không ưu tiên add-on-strength.",
+        "WeaknessBuildPct": 8.37,
+        "StrengthReservePct": 0.0,
+        "SuggestedNewCapitalPct": 8.37,
+        "DeferredBuildPct": 12.56,
+        "SessionBuyTranches": [],
+        "SessionBuyPlanSummary": null
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+Ticker,StrategyBucket,AllowNewBuy,AllowAvgDown,TargetState
+NVL,invest_normal,1,1,hold_or_add
