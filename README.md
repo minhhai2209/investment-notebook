@@ -60,6 +60,14 @@ Artifact sẽ nằm dưới `out/analysis/candidates/` với 2 mức:
 - `candidate_watchlist_core.*`: đủ để trả lời nhanh bằng snapshot + playbook
 - `candidate_watchlist_full.*`: thêm timing + OHLC + ladder + research state
 
+Nếu bạn muốn dùng artifact đã build trên GitHub Actions mà không commit snapshot vào repo:
+
+```bash
+./broker.sh sync_artifacts
+```
+
+Lệnh này sẽ tìm artifact mới nhất có prefix `core-artifacts-` trên branch `main`, chỉ download nếu `digest` chưa có trong cache local, cập nhật `.cache/gh-artifacts/latest/core-artifacts`, và prune cache local cũ.
+
 Ví dụ:
 
 - `Nếu artifact chưa có hoặc stale thì tự chạy và chờ xong rồi mới phân tích.`
@@ -81,6 +89,7 @@ Ví dụ:
 ./broker.sh refresh_vn30_map
 ./broker.sh refresh_vn30_nvl_map
 ./broker.sh refresh_hose_map
+./broker.sh sync_artifacts
 ./broker.sh prepare_default
 ./broker.sh candidates auto
 ./broker.sh deep VIC
