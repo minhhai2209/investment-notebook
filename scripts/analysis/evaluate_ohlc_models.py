@@ -91,6 +91,31 @@ def _series_return_pct(current: pd.Series, anchor: pd.Series) -> pd.Series:
     return ((aligned_current / aligned_anchor) - 1.0) * 100.0
 
 
+def _adaptive_abs_threshold(
+    series: pd.Series,
+    *,
+    window: int,
+    quantile: float,
+    floor: float,
+    std_multiplier: float = 1.0,
+) -> pd.Series:
+    absolute = series.astype(float).abs()
+    quantile_threshold = absolute.rolling(window, min_periods=window).quantile(quantile).shift(1)
+    std_threshold = absolute.rolling(window, min_periods=window).std().shift(1) * float(std_multiplier)
+    threshold = pd.concat([quantile_threshold, std_threshold], axis=1).max(axis=1)
+    return threshold.clip(lower=float(floor))
+
+
+def _three_state_signal(series: pd.Series, threshold: pd.Series) -> pd.Series:
+    values = series.astype(float)
+    limits = threshold.astype(float)
+    state = pd.Series(0.0, index=values.index, dtype=float)
+    valid = limits.notna()
+    state.loc[valid & (values >= limits)] = 1.0
+    state.loc[valid & (values <= -limits)] = -1.0
+    return state
+
+
 def _build_weekly_context_features(
     open_series: pd.Series,
     high_series: pd.Series,
@@ -154,6 +179,10 @@ def _build_feature_columns() -> List[str]:
         "TickerRangePos60",
         "TickerVolRatio20",
         "TickerVolatility10",
+        "TickerShockState1D",
+        "TickerImpulseState3D",
+        "TickerWideRangeState",
+        "TickerTrendRegimeState",
         "TickerWeekToDateRetPct",
         "TickerWeekToDateRangePct",
         "TickerWeekToDateVolumePctPrevWeek",
@@ -193,6 +222,10 @@ def _build_feature_columns() -> List[str]:
         "TickerRet1Pct",
         "TickerRangePct",
         "TickerVolRatio20",
+        "TickerShockState1D",
+        "TickerImpulseState3D",
+        "TickerWideRangeState",
+        "TickerTrendRegimeState",
         "Rel5Pct",
         "IndexRet1Pct",
         "IndexRangePct",
@@ -244,6 +277,22 @@ def build_ticker_ohlc_sample(
     ticker_volatility10 = ticker_close.pct_change(fill_method=None).rolling(10).std() * 100.0
     ticker_range_pos20 = _range_position(ticker_close, 20)
     ticker_range_pos60 = _range_position(ticker_close, 60)
+    ticker_ret3 = ticker_close.pct_change(3, fill_method=None) * 100.0
+    ticker_shock_threshold = _adaptive_abs_threshold(ticker_ret1, window=40, quantile=0.8, floor=3.0, std_multiplier=1.75)
+    ticker_impulse_threshold = _adaptive_abs_threshold(ticker_ret3, window=60, quantile=0.8, floor=5.0, std_multiplier=1.5)
+    signed_range_pct = ticker_range_pct.abs() * np.sign(ticker_body_pct.fillna(0.0))
+    ticker_range_state_threshold = _adaptive_abs_threshold(ticker_range_pct, window=40, quantile=0.75, floor=3.5, std_multiplier=1.25)
+    ticker_shock_state_1d = _three_state_signal(ticker_ret1, ticker_shock_threshold)
+    ticker_impulse_state_3d = _three_state_signal(ticker_ret3, ticker_impulse_threshold)
+    ticker_wide_range_state = _three_state_signal(signed_range_pct, ticker_range_state_threshold)
+    ticker_trend_threshold = _adaptive_abs_threshold(ticker_ret5, window=60, quantile=0.75, floor=4.0, std_multiplier=1.25)
+    ticker_trend_regime_state = pd.Series(0.0, index=merged.index, dtype=float)
+    ticker_trend_regime_state.loc[
+        (ticker_ret5 >= ticker_trend_threshold) & (ticker_range_pos20 >= 0.7)
+    ] = 1.0
+    ticker_trend_regime_state.loc[
+        (ticker_ret5 <= -ticker_trend_threshold) & (ticker_range_pos20 <= 0.3)
+    ] = -1.0
     ticker_weekly = _build_weekly_context_features(
         ticker_open,
         ticker_high,
@@ -296,6 +345,10 @@ def build_ticker_ohlc_sample(
         "TickerRangePos60": ticker_range_pos60,
         "TickerVolRatio20": ticker_vol_ratio20,
         "TickerVolatility10": ticker_volatility10,
+        "TickerShockState1D": ticker_shock_state_1d,
+        "TickerImpulseState3D": ticker_impulse_state_3d,
+        "TickerWideRangeState": ticker_wide_range_state,
+        "TickerTrendRegimeState": ticker_trend_regime_state,
         "TickerWeekToDateRetPct": ticker_weekly["WeekToDateRetPct"],
         "TickerWeekToDateRangePct": ticker_weekly["WeekToDateRangePct"],
         "TickerWeekToDateVolumePctPrevWeek": ticker_weekly["WeekToDateVolumePctPrevWeek"],
@@ -335,6 +388,10 @@ def build_ticker_ohlc_sample(
         "TickerRet1Pct",
         "TickerRangePct",
         "TickerVolRatio20",
+        "TickerShockState1D",
+        "TickerImpulseState3D",
+        "TickerWideRangeState",
+        "TickerTrendRegimeState",
         "Rel5Pct",
         "IndexRet1Pct",
         "IndexRangePct",

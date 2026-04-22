@@ -34,6 +34,12 @@ DEFAULT_MIN_TRAIN_DATES = 120
 DEFAULT_HOLDOUT_DATES = 30
 DEFAULT_HORIZON = 1
 OUTPUT_FILE_NAME = "ml_ohlc_next_session.csv"
+STATE_SIGNAL_COLUMNS = [
+    "TickerShockState1D",
+    "TickerImpulseState3D",
+    "TickerWideRangeState",
+    "TickerTrendRegimeState",
+]
 REQUIRED_OUTPUT_COLUMNS = [
     "SnapshotDate",
     "Ticker",
@@ -251,7 +257,9 @@ def generate_ohlc_next_session_predictions(
             out = _attach_actual_return_columns(out)
             history_frames.append(out)
 
-            forecast = current_row[["Date", "Ticker", "Horizon", "ForecastWindow", "BaseClose", "ForecastDate"]].copy()
+            forecast_columns = ["Date", "Ticker", "Horizon", "ForecastWindow", "BaseClose", "ForecastDate"]
+            forecast_columns.extend(column for column in STATE_SIGNAL_COLUMNS if column in current_row.columns)
+            forecast = current_row[forecast_columns].copy()
             forecast["Model"] = model_name
             for target_column in TARGET_COLUMNS:
                 forecast[f"Pred{target_column}"] = _fit_predict_target(factory, labeled, current_row, target_column)
@@ -302,6 +310,9 @@ def select_best_next_session_forecasts(
     current_scoped = current_forecasts[current_forecasts["Horizon"] == int(horizon)].copy()
     if current_scoped.empty:
         return pd.DataFrame(columns=REQUIRED_OUTPUT_COLUMNS)
+    for column in STATE_SIGNAL_COLUMNS:
+        if column not in current_scoped.columns:
+            current_scoped[column] = np.nan
 
     best_metrics = metrics_df.drop_duplicates(subset=["Ticker", "Horizon"], keep="first")
     merged = best_metrics.merge(
@@ -339,6 +350,10 @@ def select_best_next_session_forecasts(
             "ForecastCloseRetPct": merged["PredCloseRetPct"].astype(float),
             "ForecastRangePct": merged["PredRangePct"].astype(float),
             "ForecastCandleBias": merged["ForecastCandleBias"],
+            "TickerShockState1D": merged["TickerShockState1D"].astype(float),
+            "TickerImpulseState3D": merged["TickerImpulseState3D"].astype(float),
+            "TickerWideRangeState": merged["TickerWideRangeState"].astype(float),
+            "TickerTrendRegimeState": merged["TickerTrendRegimeState"].astype(float),
         }
     )
     _require_columns(report_df, REQUIRED_OUTPUT_COLUMNS, "OHLC next-session report")

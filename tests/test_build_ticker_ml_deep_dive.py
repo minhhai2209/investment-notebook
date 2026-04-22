@@ -53,6 +53,10 @@ class BuildTickerMlDeepDiveTest(unittest.TestCase):
                     "ForecastClose": 98.5,
                     "ForecastCloseRetPct": -1.5,
                     "ForecastCandleBias": "BEARISH",
+                    "TickerShockState1D": 1.0,
+                    "TickerImpulseState3D": 0.0,
+                    "TickerWideRangeState": 1.0,
+                    "TickerTrendRegimeState": 1.0,
                 }
             ]
         ).to_csv(self.analysis_dir / "ml_ohlc_next_session.csv", index=False)
@@ -216,6 +220,8 @@ class BuildTickerMlDeepDiveTest(unittest.TestCase):
         self.assertEqual(report["Sizing"]["NoChaseAbove"], 94.0)
         self.assertEqual(report["Sizing"]["InvalidationBelow"], 88.0)
         self.assertIn("42 mẫu", report["TimingRows"][0]["ValidationSummary"])
+        self.assertEqual(report["OHLCStateSignals"]["Summary"], "shock up, wide-range expansion, hot trend regime")
+        self.assertEqual(report["OHLCStateSignals"]["TickerShockState1D"], 1.0)
 
 
 if __name__ == "__main__":  # pragma: no cover
