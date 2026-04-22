@@ -11,11 +11,6 @@ on:
         required: true
         default: false
         type: boolean
-      include_ohlc:
-        description: Include next-session OHLC forecast in the core run
-        required: true
-        default: true
-        type: boolean
 
 permissions:
   contents: read
@@ -44,16 +39,19 @@ jobs:
         if: ${{ inputs.refresh_map }}
         run: ./broker.sh map
 
+      - name: Prepare Actions Config
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path("config/data_engine.yaml").read_text(encoding="utf-8")
+          patched = source.replace("  vietstock_overview_enabled: true", "  vietstock_overview_enabled: false")
+          Path("config/data_engine.actions.yaml").write_text(patched, encoding="utf-8")
+          PY
+
       - name: Build Core Artifacts
         run: |
-          if [ "${{ inputs.include_ohlc }}" = "true" ]; then
-            ./broker.sh prepare_core
-          else
-            ./broker.sh engine
-            rm -rf out/analysis research
-            ./broker.sh playbook
-            ./broker.sh candidates core
-          fi
+          ./broker.sh prepare_core config/data_engine.actions.yaml
 
       - name: Summarise Run
         run: |
