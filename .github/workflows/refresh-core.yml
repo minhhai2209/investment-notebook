@@ -1,6 +1,9 @@
 name: Refresh Core
 
 on:
+  push:
+    branches:
+      - codex/actions-bootstrap
   workflow_dispatch:
     inputs:
       refresh_map:
