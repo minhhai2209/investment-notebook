@@ -39,6 +39,10 @@ STATE_SIGNAL_COLUMNS = [
     "TickerImpulseState3D",
     "TickerWideRangeState",
     "TickerTrendRegimeState",
+    "TickerCompressionState",
+    "TickerReclaimState",
+    "TickerRelativeRotationState",
+    "TickerExhaustionState",
 ]
 REQUIRED_OUTPUT_COLUMNS = [
     "SnapshotDate",

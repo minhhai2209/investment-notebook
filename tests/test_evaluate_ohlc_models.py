@@ -247,6 +247,56 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             self.assertEqual(float(impulse_row["TickerImpulseState3D"]), 1.0)
             self.assertEqual(float(impulse_row["TickerTrendRegimeState"]), 1.0)
 
+    def test_build_ticker_ohlc_sample_adds_archetype_state_features(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            history_dir = Path(tmpdir)
+            dates = pd.bdate_range("2025-01-06", periods=100)
+            closes = [100.0 + (0.05 * idx) for idx in range(60)]
+            closes += [103.0 + (0.03 * ((idx % 4) - 1.5)) for idx in range(20)]
+            closes += [102.4, 104.4, 104.8, 105.1, 105.5, 105.9, 106.3, 106.8, 107.4, 108.1]
+            closes += [108.6, 109.1, 109.6, 110.1, 110.8, 111.4, 112.0, 112.6, 113.0, 112.4]
+            ticker_frame = pd.DataFrame(
+                {
+                    "date_vn": dates.strftime("%Y-%m-%d"),
+                    "open": [value - 0.35 for value in closes],
+                    "high": [value + 0.55 for value in closes],
+                    "low": [value - 0.55 for value in closes],
+                    "close": closes,
+                    "volume": [1000.0 + (5.0 * idx) for idx in range(len(closes))],
+                }
+            )
+            ticker_frame.loc[80, "open"] = closes[80] - 0.15
+            ticker_frame.loc[80, "high"] = closes[80] + 0.25
+            ticker_frame.loc[80, "low"] = closes[80] - 0.30
+            ticker_frame.loc[81, "open"] = closes[81] - 0.10
+            ticker_frame.loc[81, "high"] = closes[81] + 0.60
+            ticker_frame.loc[81, "low"] = closes[81] - 0.20
+            ticker_frame.loc[99, "open"] = 111.7
+            ticker_frame.loc[99, "high"] = 118.2
+            ticker_frame.loc[99, "low"] = 111.5
+            ticker_frame.loc[99, "close"] = 112.4
+            ticker_frame.to_csv(history_dir / "AAA_daily.csv", index=False)
+
+            index_closes = [1000.0 + (0.05 * idx) for idx in range(100)]
+            index_frame = pd.DataFrame(
+                {
+                    "date_vn": dates.strftime("%Y-%m-%d"),
+                    "open": [value - 0.30 for value in index_closes],
+                    "high": [value + 0.40 for value in index_closes],
+                    "low": [value - 0.40 for value in index_closes],
+                    "close": index_closes,
+                    "volume": [2000.0 + (4.0 * idx) for idx in range(len(index_closes))],
+                }
+            )
+            index_frame.to_csv(history_dir / "VNINDEX_daily.csv", index=False)
+
+            sample = build_ticker_ohlc_sample("AAA", history_dir, max_horizon=1)
+
+            self.assertTrue(sample["TickerCompressionState"].eq(1.0).any())
+            self.assertTrue(sample["TickerReclaimState"].eq(1.0).any())
+            self.assertIn("TickerRelativeRotationState", sample.columns)
+            self.assertIn("TickerExhaustionState", sample.columns)
+
 
 if __name__ == "__main__":
     unittest.main()

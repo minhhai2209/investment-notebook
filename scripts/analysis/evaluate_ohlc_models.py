@@ -183,6 +183,10 @@ def _build_feature_columns() -> List[str]:
         "TickerImpulseState3D",
         "TickerWideRangeState",
         "TickerTrendRegimeState",
+        "TickerCompressionState",
+        "TickerReclaimState",
+        "TickerRelativeRotationState",
+        "TickerExhaustionState",
         "TickerWeekToDateRetPct",
         "TickerWeekToDateRangePct",
         "TickerWeekToDateVolumePctPrevWeek",
@@ -226,6 +230,10 @@ def _build_feature_columns() -> List[str]:
         "TickerImpulseState3D",
         "TickerWideRangeState",
         "TickerTrendRegimeState",
+        "TickerCompressionState",
+        "TickerReclaimState",
+        "TickerRelativeRotationState",
+        "TickerExhaustionState",
         "Rel5Pct",
         "IndexRet1Pct",
         "IndexRangePct",
@@ -263,10 +271,11 @@ def build_ticker_ohlc_sample(
 
     ticker_prev_close = ticker_close.shift(1)
     index_prev_close = index_close.shift(1)
+    ticker_sma20 = ticker_close.rolling(20).mean()
     ticker_ret1 = ticker_close.pct_change(1, fill_method=None) * 100.0
     ticker_ret5 = ticker_close.pct_change(5, fill_method=None) * 100.0
     ticker_ret20 = ticker_close.pct_change(20, fill_method=None) * 100.0
-    ticker_dist_sma20 = ((ticker_close / ticker_close.rolling(20).mean()) - 1.0) * 100.0
+    ticker_dist_sma20 = ((ticker_close / ticker_sma20) - 1.0) * 100.0
     ticker_dist_sma50 = ((ticker_close / ticker_close.rolling(50).mean()) - 1.0) * 100.0
     ticker_range_pct = ((ticker_high - ticker_low) / ticker_prev_close) * 100.0
     ticker_body_pct = ((ticker_close - ticker_open) / ticker_prev_close) * 100.0
@@ -292,6 +301,27 @@ def build_ticker_ohlc_sample(
     ] = 1.0
     ticker_trend_regime_state.loc[
         (ticker_ret5 <= -ticker_trend_threshold) & (ticker_range_pos20 <= 0.3)
+    ] = -1.0
+    compression_vol_threshold = ticker_volatility10.rolling(60, min_periods=60).quantile(0.35).shift(1).clip(lower=0.8)
+    compression_range_threshold = ticker_range_pct.rolling(60, min_periods=60).quantile(0.35).shift(1).clip(lower=1.2)
+    compression_mask = (
+        (ticker_volatility10 <= compression_vol_threshold)
+        & (ticker_range_pct <= compression_range_threshold)
+    )
+    ticker_compression_state = pd.Series(0.0, index=merged.index, dtype=float)
+    ticker_compression_state.loc[
+        compression_mask & (ticker_close >= ticker_sma20) & (ticker_range_pos20 >= 0.45)
+    ] = 1.0
+    ticker_compression_state.loc[
+        compression_mask & (ticker_close < ticker_sma20) & (ticker_range_pos20 <= 0.55)
+    ] = -1.0
+    close_above_sma20 = ticker_close >= ticker_sma20
+    ticker_reclaim_state = pd.Series(0.0, index=merged.index, dtype=float)
+    ticker_reclaim_state.loc[
+        close_above_sma20 & (~close_above_sma20.shift(1, fill_value=False)) & (ticker_ret1 > 0.0)
+    ] = 1.0
+    ticker_reclaim_state.loc[
+        (~close_above_sma20) & close_above_sma20.shift(1, fill_value=False) & (ticker_ret1 < 0.0)
     ] = -1.0
     ticker_weekly = _build_weekly_context_features(
         ticker_open,
@@ -329,6 +359,24 @@ def build_ticker_ohlc_sample(
     index_ret_frac = index_close.pct_change(fill_method=None)
     corr20 = ticker_ret_frac.rolling(20).corr(index_ret_frac)
     beta20 = ticker_ret_frac.rolling(20).cov(index_ret_frac) / index_ret_frac.rolling(20).var()
+    rel_rotation_threshold = _adaptive_abs_threshold(rel5_pct, window=60, quantile=0.75, floor=1.0, std_multiplier=1.25)
+    ticker_relative_rotation_state = pd.Series(0.0, index=merged.index, dtype=float)
+    index_linked_mask = corr20 >= 0.45
+    ticker_relative_rotation_state.loc[index_linked_mask & (rel5_pct >= rel_rotation_threshold)] = 1.0
+    ticker_relative_rotation_state.loc[index_linked_mask & (rel5_pct <= -rel_rotation_threshold)] = -1.0
+    close_in_range = _series_ratio(ticker_close - ticker_low, ticker_high - ticker_low)
+    exhaustion_dist_threshold = _adaptive_abs_threshold(ticker_dist_sma20, window=80, quantile=0.8, floor=6.0, std_multiplier=1.0)
+    upper_wick_threshold = _adaptive_abs_threshold(ticker_upper_wick_pct, window=60, quantile=0.75, floor=1.5, std_multiplier=1.0)
+    lower_wick_threshold = _adaptive_abs_threshold(ticker_lower_wick_pct, window=60, quantile=0.75, floor=1.5, std_multiplier=1.0)
+    ticker_exhaustion_state = pd.Series(0.0, index=merged.index, dtype=float)
+    ticker_exhaustion_state.loc[
+        (ticker_dist_sma20 >= exhaustion_dist_threshold)
+        & ((close_in_range <= 0.35) | (ticker_upper_wick_pct >= upper_wick_threshold))
+    ] = 1.0
+    ticker_exhaustion_state.loc[
+        (ticker_dist_sma20 <= -exhaustion_dist_threshold)
+        & ((close_in_range >= 0.65) | (ticker_lower_wick_pct >= lower_wick_threshold))
+    ] = -1.0
 
     feature_map = {
         "TickerGapPct": ticker_gap_pct,
@@ -349,6 +397,10 @@ def build_ticker_ohlc_sample(
         "TickerImpulseState3D": ticker_impulse_state_3d,
         "TickerWideRangeState": ticker_wide_range_state,
         "TickerTrendRegimeState": ticker_trend_regime_state,
+        "TickerCompressionState": ticker_compression_state,
+        "TickerReclaimState": ticker_reclaim_state,
+        "TickerRelativeRotationState": ticker_relative_rotation_state,
+        "TickerExhaustionState": ticker_exhaustion_state,
         "TickerWeekToDateRetPct": ticker_weekly["WeekToDateRetPct"],
         "TickerWeekToDateRangePct": ticker_weekly["WeekToDateRangePct"],
         "TickerWeekToDateVolumePctPrevWeek": ticker_weekly["WeekToDateVolumePctPrevWeek"],
@@ -392,6 +444,10 @@ def build_ticker_ohlc_sample(
         "TickerImpulseState3D",
         "TickerWideRangeState",
         "TickerTrendRegimeState",
+        "TickerCompressionState",
+        "TickerReclaimState",
+        "TickerRelativeRotationState",
+        "TickerExhaustionState",
         "Rel5Pct",
         "IndexRet1Pct",
         "IndexRangePct",

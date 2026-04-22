@@ -20,6 +20,10 @@ OHLC_STATE_COLUMNS = [
     "TickerImpulseState3D",
     "TickerWideRangeState",
     "TickerTrendRegimeState",
+    "TickerCompressionState",
+    "TickerReclaimState",
+    "TickerRelativeRotationState",
+    "TickerExhaustionState",
 ]
 
 
@@ -140,6 +144,10 @@ def _summarise_ohlc_state(ohlc_row: pd.Series) -> str | None:
         _state_regime_label(ohlc_row.get("TickerImpulseState3D"), positive="3-day impulse up", negative="3-day impulse down"),
         _state_regime_label(ohlc_row.get("TickerWideRangeState"), positive="wide-range expansion", negative="wide-range breakdown"),
         _state_regime_label(ohlc_row.get("TickerTrendRegimeState"), positive="hot trend regime", negative="hot down regime"),
+        _state_regime_label(ohlc_row.get("TickerCompressionState"), positive="compression above base", negative="compression below base"),
+        _state_regime_label(ohlc_row.get("TickerReclaimState"), positive="sma20 reclaim", negative="sma20 loss"),
+        _state_regime_label(ohlc_row.get("TickerRelativeRotationState"), positive="relative rotation up", negative="relative rotation down"),
+        _state_regime_label(ohlc_row.get("TickerExhaustionState"), positive="upside exhaustion", negative="downside capitulation"),
     ]
     active = [label for label in labels if label and label != "neutral"]
     if active:
