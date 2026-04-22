@@ -212,6 +212,14 @@ run_refresh_hose_map() {
     "$@"
 }
 
+run_sync_artifacts() {
+  local prefix="${1:-core-artifacts-}"
+  shift || true
+  run_module sync_artifacts scripts.tools.sync_action_artifacts \
+    --artifact-prefix "$prefix" \
+    "$@"
+}
+
 run_eval_deterministic() {
   run_module eval_deterministic scripts.analysis.evaluate_deterministic_strategies "$@"
 }
@@ -289,6 +297,7 @@ Universe helpers:
   refresh_vn30_map     Rebuild data/industry_map.csv from the live VN30 basket via Vietstock profiles
   refresh_vn30_nvl_map Rebuild data/industry_map.csv from the live VN30 basket plus NVL
   refresh_hose_map     Rebuild data/industry_map.csv from the live HOSE basket via Vietstock profiles
+  sync_artifacts [prefix] Download/cache the latest GitHub Actions artifact matching a prefix
   prepare_default      Refresh VN30 + NVL scope, then run the full prepare pipeline sequentially
 
 Report builders:
@@ -346,6 +355,9 @@ main() {
       ;;
     refresh_hose_map)
       run_refresh_hose_map "$@"
+      ;;
+    sync_artifacts)
+      run_sync_artifacts "$@"
       ;;
     prepare_default)
       run_prepare_default "${1:-$DEFAULT_CONFIG_PATH}"

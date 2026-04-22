@@ -81,6 +81,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: core-artifacts-${{ github.run_number }}
+          retention-days: 14
           if-no-files-found: warn
           path: |
             data/industry_map.csv
