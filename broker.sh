@@ -69,6 +69,12 @@ run_module() {
   "$PY_BIN" -m "$@"
 }
 
+clean_notebook_artifacts() {
+  local analysis_dir="$ROOT_DIR/out/analysis"
+  local research_dir="$ROOT_DIR/research"
+  rm -rf "$analysis_dir" "$research_dir"
+}
+
 run_engine() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_module engine scripts.engine.data_engine --config "$config_path"
@@ -153,6 +159,26 @@ run_entry_ladder_report() {
     "$@"
 }
 
+run_candidate_report() {
+  local mode="${1:-auto}"
+  shift || true
+  run_module candidates scripts.analysis.build_candidate_watchlist_report \
+    --mode "$mode" \
+    "$@"
+}
+
+run_deep_dive_report() {
+  local ticker="${1:-}"
+  if [[ -z "$ticker" ]]; then
+    echo "[deep] ERROR: ticker is required, e.g. ./broker.sh deep VIC" >&2
+    exit 2
+  fi
+  shift || true
+  run_module deep scripts.analysis.build_ticker_ml_deep_dive \
+    --ticker "$ticker" \
+    "$@"
+}
+
 run_research_bundle() {
   run_module research scripts.research.build_research_bundle \
     --universe-csv out/universe.csv \
@@ -167,6 +193,14 @@ run_research_bundle() {
 run_refresh_vn30_map() {
   run_module refresh_vn30_map scripts.tools.refresh_industry_map \
     --from-vietstock-profiles-vn30 \
+    --output data/industry_map.csv \
+    "$@"
+}
+
+run_refresh_vn30_nvl_map() {
+  run_module refresh_vn30_nvl_map scripts.tools.refresh_industry_map \
+    --from-vietstock-profiles-vn30 \
+    --extra-ticker NVL \
     --output data/industry_map.csv \
     "$@"
 }
@@ -205,14 +239,32 @@ run_eval_bctt() {
 run_prepare() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_engine "$config_path"
-  run_range_report
-  run_cycle_report
+  clean_notebook_artifacts
   run_playbook_report
+  run_candidate_report core
   run_ohlc_report
-  run_intraday_report
   run_timing_report
+  run_cycle_report
+  run_range_report
+  run_intraday_report
   run_entry_ladder_report
   run_research_bundle
+  run_candidate_report full
+}
+
+run_prepare_core() {
+  local config_path="${1:-$DEFAULT_CONFIG_PATH}"
+  run_engine "$config_path"
+  clean_notebook_artifacts
+  run_playbook_report
+  run_candidate_report core
+  run_ohlc_report
+}
+
+run_prepare_default() {
+  local config_path="${1:-$DEFAULT_CONFIG_PATH}"
+  run_refresh_vn30_nvl_map
+  run_prepare "$config_path"
 }
 
 run_tests() {
@@ -228,14 +280,20 @@ Usage: ./broker.sh <command> [args]
 Core commands:
   tests                Run the unit test suite
   engine [config]      Build out/universe.csv, positions.csv, market_summary.json, sector_summary.csv
+  prepare_core [config] Run engine + core live reports for interactive screening
   prepare [config]     Run engine + all live report builders + research bundle
   research             Rebuild research/ from the current out/ snapshot
 
 Universe helpers:
+  map                  Short alias for refresh_vn30_nvl_map
   refresh_vn30_map     Rebuild data/industry_map.csv from the live VN30 basket via Vietstock profiles
+  refresh_vn30_nvl_map Rebuild data/industry_map.csv from the live VN30 basket plus NVL
   refresh_hose_map     Rebuild data/industry_map.csv from the live HOSE basket via Vietstock profiles
+  prepare_default      Refresh VN30 + NVL scope, then run the full prepare pipeline sequentially
 
 Report builders:
+  candidates [mode]    Build ranked candidate watchlist (`auto`, `core`, or `full`)
+  deep <ticker>        Build a deep per-ticker ML + research synthesis report
   range                Build range forecast reports
   cycle                Build cycle forecast reports
   playbook             Build per-ticker playbook report
@@ -268,6 +326,9 @@ main() {
     engine)
       run_engine "${1:-$DEFAULT_CONFIG_PATH}"
       ;;
+    prepare_core)
+      run_prepare_core "${1:-$DEFAULT_CONFIG_PATH}"
+      ;;
     prepare)
       run_prepare "${1:-$DEFAULT_CONFIG_PATH}"
       ;;
@@ -277,8 +338,23 @@ main() {
     refresh_vn30_map)
       run_refresh_vn30_map "$@"
       ;;
+    map)
+      run_refresh_vn30_nvl_map "$@"
+      ;;
+    refresh_vn30_nvl_map)
+      run_refresh_vn30_nvl_map "$@"
+      ;;
     refresh_hose_map)
       run_refresh_hose_map "$@"
+      ;;
+    prepare_default)
+      run_prepare_default "${1:-$DEFAULT_CONFIG_PATH}"
+      ;;
+    deep)
+      run_deep_dive_report "$@"
+      ;;
+    candidates)
+      run_candidate_report "$@"
       ;;
     range)
       run_range_report "$@"

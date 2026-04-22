@@ -50,7 +50,7 @@ data:
   history_cache: out/data
   history_min_days: 400
   intraday_window_minutes: 720
-  cafef_flow_enabled: true
+  cafef_flow_enabled: false
   cafef_flow_cache: out/cafef_flows
   cafef_flow_max_age_hours: 4
   vietstock_overview_enabled: true

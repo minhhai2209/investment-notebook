@@ -195,6 +195,10 @@ def _normalize_tickers(tickers: Iterable[str], *, include_indices: bool) -> list
     return normalized
 
 
+def _merge_extra_tickers(tickers: Iterable[str], extra_tickers: Iterable[str]) -> list[str]:
+    return _normalize_tickers([*tickers, *extra_tickers], include_indices=True)
+
+
 def _has_sector_lookup(sector: str, *, default_sector: str) -> bool:
     value = sector.strip()
     return bool(value) and value != default_sector
@@ -365,6 +369,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.from_tickers_csv:
         source_path = _resolve_path(args.from_tickers_csv)
         rows = _read_rows_from_csv(source_path, include_indices=bool(args.include_indices))
+        if args.extra_ticker:
+            rows = [
+                *rows,
+                *[IndustryRow(ticker=ticker, sector="") for ticker in _normalize_tickers(args.extra_ticker, include_indices=True)],
+            ]
         if rows and all(not r.sector for r in rows) and sector_lookup:
             rows = _merge_sectors((r.ticker for r in rows), sector_lookup=sector_lookup, default_sector=args.default_sector)
     elif args.from_live_vn100_portfolio_profiles:
@@ -373,7 +382,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             raise RefreshError(f"Expected {args.expect_count} tickers, got {len(tickers)} from Investing.com VN100.")
         if args.portfolio_csv:
             tickers.update(_read_tickers_from_csv(_resolve_path(args.portfolio_csv)))
-        tickers.update(str(ticker).strip().upper() for ticker in args.extra_ticker if str(ticker).strip())
+        tickers = set(_merge_extra_tickers(tickers, args.extra_ticker))
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,
             existing_lookup=existing_output_lookup,
@@ -391,8 +400,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     elif args.from_vietstock_profiles_csv:
         source_path = _resolve_path(args.from_vietstock_profiles_csv)
         input_rows = _read_rows_from_csv(source_path, include_indices=bool(args.include_indices))
+        input_tickers = _merge_extra_tickers((r.ticker for r in input_rows), args.extra_ticker)
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
-            (r.ticker for r in input_rows),
+            input_tickers,
             existing_lookup=existing_output_lookup,
             include_indices=bool(args.include_indices),
             default_sector=args.default_sector,
@@ -406,7 +416,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             pause_seconds=args.pause_seconds,
         )
     elif args.from_vietstock_profiles_hose:
-        tickers = sorted(fetch_hose_members(timeout=args.timeout))
+        tickers = _merge_extra_tickers(sorted(fetch_hose_members(timeout=args.timeout)), args.extra_ticker)
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,
             existing_lookup=existing_output_lookup,
@@ -422,7 +432,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             pause_seconds=args.pause_seconds,
         )
     elif args.from_vietstock_profiles_vn30:
-        tickers = sorted(fetch_vn30_members(timeout=args.timeout))
+        tickers = _merge_extra_tickers(sorted(fetch_vn30_members(timeout=args.timeout)), args.extra_ticker)
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,
             existing_lookup=existing_output_lookup,

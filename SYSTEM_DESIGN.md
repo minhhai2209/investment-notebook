@@ -21,6 +21,7 @@ Repo này không còn:
 
 - refresh `data/industry_map.csv`
 - hỗ trợ rebuild scope từ `VN30`, `HOSE`, `VN100`, hoặc CSV người dùng cung cấp
+- hỗ trợ force-include extra tickers như `NVL` vào scope live khi cần
 
 2. `scripts/engine/data_engine.py`
 
@@ -31,6 +32,7 @@ Repo này không còn:
 
 3. `scripts/analysis/*`
 
+- build candidate watchlist ở 2 mức `core` và `full`
 - build range forecast
 - build cycle forecast
 - build per-ticker playbook
@@ -38,6 +40,7 @@ Repo này không còn:
 - build intraday rest-of-session forecast
 - build single-name timing
 - build entry ladder evaluation
+- build single-ticker deep dive that fuses snapshot, ML layers, and research state into one deterministic report
 - giữ các harness offline để replay deterministic/ML baselines
 
 4. `scripts/research/build_research_bundle.py`
@@ -68,6 +71,9 @@ refresh_industry_map -> data/industry_map.csv
                          |
                          v
                Codex interactive session
+                         |
+                         v
+              live news overlay at answer time
 ```
 
 ## Portfolio handling
@@ -85,10 +91,13 @@ Danh mục không còn là dependency bắt buộc.
 
 - `engine`
 - `prepare`
+- `prepare_default`
 - `research`
 - các report builder riêng lẻ
 - các harness offline
 - `refresh_vn30_map`, `refresh_hose_map`
+- `map`, `refresh_vn30_nvl_map`
+- `candidates`, `deep`
 - `tests`
 
 Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
@@ -107,3 +116,8 @@ Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
 - mọi artifact generated nằm dưới `out/` hoặc `research/`
 - không mang giả định execution downstream
 - nếu cần thay workflow research, thay ngay ở tool/script trong repo thay vì vòng vo qua prompt bundle
+- contract của session tương tác là trả lời thực dụng theo `mua ngay / chờ / không mua`, liệt kê đầy đủ ứng viên khả thi thay vì ép đúng `1` mã
+- nếu artifact còn thiếu hoặc stale, Codex phải tự chạy batch và tự đợi xong rồi mới trả lời; không được dừng ở một câu trả lời trung gian kiểu `đang chờ artifact`
+- sau khi artifact đã sẵn sàng, Codex phải tự xem thêm tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy trước khi chốt câu trả lời `hôm nay mua gì`; lớp này nằm ở interactive session, không phải builder hay subcommand batch
+- chạy tuần tự là mặc định; chỉ song song hóa khi các job thật sự độc lập và không ghi/đọc chung cache hoặc history
+- `prepare` giữ nghĩa là rebuild tuần tự trên scope hiện có; `prepare_default` là shortcut tuần tự cho scope mặc định `VN30 + NVL`

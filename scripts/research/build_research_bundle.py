@@ -111,6 +111,21 @@ REQUIRED_LADDER_COLUMNS = [
     "CycleRewardRisk",
     "FillScoreComposite",
 ]
+
+TACTICAL_LADDER_ANCHORS = {
+    "valid_bid1",
+    "grid_below_t1",
+    "grid_below_t2",
+    "grid_below_t3",
+}
+HISTORICAL_LADDER_ANCHORS = {
+    "forecast_low_t1",
+    "range_low_blend_t5",
+    "range_low_blend_t10",
+    "cycle_drawdown",
+    "atr_1x_below",
+    "atr_1_5x_below",
+}
 REQUIRED_OHLC_COLUMNS = [
     "Ticker",
     "ForecastOpen",
@@ -543,7 +558,27 @@ def _summarise_best_ladders(ladder_df: pd.DataFrame) -> Dict[str, Any]:
             "buy_zone_high": None,
             "top_levels": [],
         }
-    ranked = ladder_df.sort_values(["EntryScoreRank", "PriceRank"]).head(3).copy()
+
+    def is_historical_row(row: pd.Series) -> bool:
+        category = str(row.get("EntryAnchorCategory") or "").strip().lower()
+        if category in {"historical", "mixed"}:
+            return True
+        if category == "tactical":
+            return False
+        anchors = {
+            str(part).strip()
+            for part in str(row.get("EntryAnchor") or "").split("|")
+            if str(part).strip()
+        }
+        if not anchors:
+            return True
+        has_historical = any(anchor in HISTORICAL_LADDER_ANCHORS for anchor in anchors)
+        has_tactical = any(anchor in TACTICAL_LADDER_ANCHORS for anchor in anchors)
+        return has_historical or not has_tactical
+
+    historical = ladder_df[ladder_df.apply(is_historical_row, axis=1)].copy()
+    ranked_source = historical if not historical.empty else ladder_df
+    ranked = ranked_source.sort_values(["EntryScoreRank", "PriceRank"]).head(3).copy()
     levels = [f"{_fmt_price(_to_float(row['LimitPrice']))} (rank {int(row['EntryScoreRank'])})" for _, row in ranked.iterrows()]
     prices = [_to_float(value) for value in ranked["LimitPrice"].tolist()]
     prices = [value for value in prices if value is not None]
@@ -556,6 +591,7 @@ def _summarise_best_ladders(ladder_df: pd.DataFrame) -> Dict[str, Any]:
                 "LimitPrice": _to_float(level.get("LimitPrice")),
                 "EntryScoreRank": _to_float(level.get("EntryScoreRank")),
                 "EntryScore": _to_float(level.get("EntryScore")),
+                "EntryAnchorCategory": str(level.get("EntryAnchorCategory") or ""),
                 "FillScoreComposite": _to_float(level.get("FillScoreComposite")),
             }
             for _, level in ranked.iterrows()
@@ -579,6 +615,12 @@ def _derive_session_buy_tranche_blueprint(
         }
 
     ranked = ladder_df.sort_values(["EntryScoreRank", "PriceRank"]).copy()
+    if "EntryAnchorCategory" in ranked.columns:
+        historical_ranked = ranked[
+            ranked["EntryAnchorCategory"].astype(str).str.lower().isin({"historical", "mixed"})
+        ].copy()
+        if not historical_ranked.empty:
+            ranked = historical_ranked
     core = ranked.head(3).reset_index(drop=True).copy()
     if core.empty:
         return {
