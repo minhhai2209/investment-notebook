@@ -117,6 +117,41 @@ class RefreshIndustryMapTest(unittest.TestCase):
             ],
         )
 
+    def test_refresh_from_vietstock_profiles_vn30_can_force_include_extra_ticker(self) -> None:
+        output = self.base / "industry_map.csv"
+        levels = {
+            "FPT": ["Công nghệ thông tin", "Phần mềm", "Phần mềm"],
+            "MBB": ["Tài chính", "Ngân hàng", "Ngân hàng thương mại"],
+            "NVL": ["Bất động sản", "Bất động sản", "Phát triển bất động sản"],
+        }
+
+        with mock.patch.object(refresh_industry_map, "fetch_vn30_members", return_value={"MBB", "FPT"}), mock.patch.object(
+            refresh_industry_map,
+            "fetch_vietstock_sector_levels",
+            side_effect=lambda ticker, **_: levels[ticker],
+        ):
+            exit_code = refresh_industry_map.main(
+                [
+                    "--from-vietstock-profiles-vn30",
+                    "--extra-ticker",
+                    "NVL",
+                    "--output",
+                    str(output),
+                ]
+            )
+
+        self.assertEqual(exit_code, 0)
+        with output.open(newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(
+            rows,
+            [
+                {"Ticker": "FPT", "Sector": "Công nghệ thông tin"},
+                {"Ticker": "MBB", "Sector": "Tài chính"},
+                {"Ticker": "NVL", "Sector": "Bất động sản"},
+            ],
+        )
+
     def test_refresh_from_vietstock_profiles_skips_cached_rows_by_default(self) -> None:
         source = self.base / "tickers.csv"
         source.write_text("Ticker\nDPM\nDGC\n", encoding="utf-8")

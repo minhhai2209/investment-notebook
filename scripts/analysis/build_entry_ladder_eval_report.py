@@ -41,6 +41,7 @@ REQUIRED_OUTPUT_COLUMNS = [
     "EntryScoreRank",
     "LimitPrice",
     "EntryAnchor",
+    "EntryAnchorCategory",
     "Base",
     "TickSize",
     "LotSize",
@@ -68,6 +69,21 @@ REQUIRED_OUTPUT_COLUMNS = [
     "FillScoreComposite",
     "EntryScore",
 ]
+
+TACTICAL_ENTRY_ANCHORS = {
+    "valid_bid1",
+    "grid_below_t1",
+    "grid_below_t2",
+    "grid_below_t3",
+}
+HISTORICAL_ENTRY_ANCHORS = {
+    "forecast_low_t1",
+    "range_low_blend_t5",
+    "range_low_blend_t10",
+    "cycle_drawdown",
+    "atr_1x_below",
+    "atr_1_5x_below",
+}
 
 
 def _require_columns(frame: pd.DataFrame, required: Sequence[str], label: str) -> None:
@@ -529,6 +545,23 @@ def _reward_risk_ratio(upside_pct: float, downside_pct: float) -> float:
     return float(upside_pct) / downside
 
 
+def _classify_entry_anchor(anchor_name: object) -> str:
+    anchors = {
+        str(part).strip()
+        for part in str(anchor_name or "").split("|")
+        if str(part).strip()
+    }
+    has_historical = any(anchor in HISTORICAL_ENTRY_ANCHORS for anchor in anchors)
+    has_tactical = any(anchor in TACTICAL_ENTRY_ANCHORS for anchor in anchors)
+    if has_historical and has_tactical:
+        return "mixed"
+    if has_historical:
+        return "historical"
+    if has_tactical:
+        return "tactical"
+    return "unknown"
+
+
 def _best_timing_metrics_for_entry(
     timing_frame: pd.DataFrame,
     entry_price: float,
@@ -739,6 +772,7 @@ def run_report(
                     "EntryScoreRank": 0,
                     "LimitPrice": float(entry_price),
                     "EntryAnchor": anchor_name,
+                    "EntryAnchorCategory": _classify_entry_anchor(anchor_name),
                     "Base": base,
                     "TickSize": tick_size,
                     "LotSize": int(float(universe_row["LotSize"])),
