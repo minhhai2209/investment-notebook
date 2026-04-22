@@ -15,6 +15,12 @@ DEFAULT_ANALYSIS_DIR = REPO_ROOT / "out" / "analysis"
 DEFAULT_RESEARCH_DIR = REPO_ROOT / "research"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "deep_dive"
 DEFAULT_BUDGET_VND = 5_000_000_000
+OHLC_STATE_COLUMNS = [
+    "TickerShockState1D",
+    "TickerImpulseState3D",
+    "TickerWideRangeState",
+    "TickerTrendRegimeState",
+]
 
 
 def _require_columns(frame: pd.DataFrame, required: Sequence[str], label: str) -> None:
@@ -115,6 +121,32 @@ def _validation_summary(row: Mapping[str, Any]) -> str | None:
     if close_mae is not None:
         parts.append(f"close MAE {close_mae:.2f}%")
     return " | ".join(parts) if parts else None
+
+
+def _state_regime_label(value: Any, *, positive: str, negative: str) -> str | None:
+    numeric = _safe_float(value)
+    if numeric is None:
+        return None
+    if numeric >= 0.5:
+        return positive
+    if numeric <= -0.5:
+        return negative
+    return "neutral"
+
+
+def _summarise_ohlc_state(ohlc_row: pd.Series) -> str | None:
+    labels = [
+        _state_regime_label(ohlc_row.get("TickerShockState1D"), positive="shock up", negative="shock down"),
+        _state_regime_label(ohlc_row.get("TickerImpulseState3D"), positive="3-day impulse up", negative="3-day impulse down"),
+        _state_regime_label(ohlc_row.get("TickerWideRangeState"), positive="wide-range expansion", negative="wide-range breakdown"),
+        _state_regime_label(ohlc_row.get("TickerTrendRegimeState"), positive="hot trend regime", negative="hot down regime"),
+    ]
+    active = [label for label in labels if label and label != "neutral"]
+    if active:
+        return ", ".join(active)
+    if any(label == "neutral" for label in labels):
+        return "neutral"
+    return None
 
 
 def _reference_budget_plan(
@@ -322,6 +354,10 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
         f"- Open `{ohlc['ForecastOpen']}`, High `{ohlc['ForecastHigh']}`, Low `{ohlc['ForecastLow']}`, "
         f"Close `{ohlc['ForecastClose']}` ({ohlc['ForecastCloseRetPct']}%), bias `{ohlc['ForecastCandleBias']}`"
     )
+    state_signals = report["OHLCStateSignals"]
+    lines.append(f"- Regime summary: `{state_signals['Summary']}`")
+    for key in OHLC_STATE_COLUMNS:
+        lines.append(f"- {key}: `{state_signals.get(key)}`")
     lines.append("")
     lines.append("## Entry Ladder")
     if report["TopLadderRows"]:
@@ -567,14 +603,25 @@ def build_deep_dive(
             "TickSize": _round_or_none(snapshot_row["TickSize"], 4),
             "LotSize": int(snapshot_row["LotSize"]),
         },
-        "NextSessionOHLC": {key: _json_safe(_round_or_none(ohlc_row[key], 4) if key != "ForecastCandleBias" else ohlc_row[key]) for key in [
-            "ForecastOpen",
-            "ForecastHigh",
-            "ForecastLow",
-            "ForecastClose",
-            "ForecastCloseRetPct",
-            "ForecastCandleBias",
-        ]},
+        "NextSessionOHLC": {
+            key: _json_safe(_round_or_none(ohlc_row[key], 4) if key != "ForecastCandleBias" else ohlc_row[key])
+            for key in [
+                "ForecastOpen",
+                "ForecastHigh",
+                "ForecastLow",
+                "ForecastClose",
+                "ForecastCloseRetPct",
+                "ForecastCandleBias",
+                *[column for column in OHLC_STATE_COLUMNS if column in ohlc_row.index],
+            ]
+        },
+        "OHLCStateSignals": {
+            "Summary": _summarise_ohlc_state(ohlc_row),
+            **{
+                column: _round_or_none(ohlc_row.get(column), 2)
+                for column in OHLC_STATE_COLUMNS
+            },
+        },
         "TimingRows": [
             {
                 "Horizon": int(row["Horizon"]),

@@ -161,6 +161,10 @@ class BuildOhlcNextSessionReportTest(unittest.TestCase):
                     "PredCloseRetPct": 2.0,
                     "PredRangePct": 6.0,
                     "ForecastCandleBias": "BULLISH",
+                    "TickerShockState1D": 1.0,
+                    "TickerImpulseState3D": 1.0,
+                    "TickerWideRangeState": 0.0,
+                    "TickerTrendRegimeState": 1.0,
                 },
                 {
                     "Date": "2026-03-30",
@@ -177,6 +181,10 @@ class BuildOhlcNextSessionReportTest(unittest.TestCase):
                     "PredCloseRetPct": 1.0,
                     "PredRangePct": 4.0,
                     "ForecastCandleBias": "BULLISH",
+                    "TickerShockState1D": 1.0,
+                    "TickerImpulseState3D": 1.0,
+                    "TickerWideRangeState": 0.0,
+                    "TickerTrendRegimeState": 1.0,
                 },
                 {
                     "Date": "2026-03-30",
@@ -193,6 +201,10 @@ class BuildOhlcNextSessionReportTest(unittest.TestCase):
                     "PredCloseRetPct": -1.0,
                     "PredRangePct": 3.0,
                     "ForecastCandleBias": "BEARISH",
+                    "TickerShockState1D": -1.0,
+                    "TickerImpulseState3D": -1.0,
+                    "TickerWideRangeState": 0.0,
+                    "TickerTrendRegimeState": -1.0,
                 },
             ]
         )
@@ -203,6 +215,8 @@ class BuildOhlcNextSessionReportTest(unittest.TestCase):
         aaa_row = report.loc[report["Ticker"] == "AAA"].iloc[0]
         self.assertEqual(str(aaa_row["Model"]), "random_forest")
         self.assertAlmostEqual(float(aaa_row["ForecastClose"]), 10.1)
+        self.assertAlmostEqual(float(aaa_row["TickerShockState1D"]), 1.0)
+        self.assertAlmostEqual(float(aaa_row["TickerTrendRegimeState"]), 1.0)
 
 
 if __name__ == "__main__":

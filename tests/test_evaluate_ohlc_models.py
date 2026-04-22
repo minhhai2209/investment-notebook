@@ -205,6 +205,48 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             self.assertAlmostEqual(float(row["RelWeekToDateRetPct"]), 3.1123397956)
             self.assertAlmostEqual(float(row["RelPrevWeekRetPct"]), 5.0575475874, places=6)
 
+    def test_build_ticker_ohlc_sample_adds_discrete_state_features_for_hot_regimes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            history_dir = Path(tmpdir)
+            dates = pd.bdate_range("2025-01-06", periods=90)
+            closes = [100.0 + (0.15 * idx) for idx in range(70)] + [111.0, 118.0, 126.0] + [124.0 + (0.1 * idx) for idx in range(17)]
+            ticker_frame = pd.DataFrame(
+                {
+                    "date_vn": dates.strftime("%Y-%m-%d"),
+                    "open": [value - 1.0 for value in closes],
+                    "high": [value + 2.0 for value in closes],
+                    "low": [value - 2.0 for value in closes],
+                    "close": closes,
+                    "volume": [1000.0 + (10.0 * idx) for idx in range(len(closes))],
+                }
+            )
+            ticker_frame.loc[71, "high"] = ticker_frame.loc[71, "close"] + 8.0
+            ticker_frame.loc[71, "low"] = ticker_frame.loc[71, "close"] - 3.0
+            ticker_frame.to_csv(history_dir / "AAA_daily.csv", index=False)
+
+            index_closes = [1000.0 + (0.5 * idx) for idx in range(90)]
+            index_frame = pd.DataFrame(
+                {
+                    "date_vn": dates.strftime("%Y-%m-%d"),
+                    "open": [value - 1.0 for value in index_closes],
+                    "high": [value + 2.0 for value in index_closes],
+                    "low": [value - 2.0 for value in index_closes],
+                    "close": index_closes,
+                    "volume": [2000.0 + (10.0 * idx) for idx in range(len(index_closes))],
+                }
+            )
+            index_frame.to_csv(history_dir / "VNINDEX_daily.csv", index=False)
+
+            sample = build_ticker_ohlc_sample("AAA", history_dir, max_horizon=1)
+
+            shock_row = sample.loc[sample["Date"] == pd.Timestamp(dates[71])].iloc[0]
+            impulse_row = sample.loc[sample["Date"] == pd.Timestamp(dates[72])].iloc[0]
+
+            self.assertEqual(float(shock_row["TickerShockState1D"]), 1.0)
+            self.assertEqual(float(shock_row["TickerWideRangeState"]), 1.0)
+            self.assertEqual(float(impulse_row["TickerImpulseState3D"]), 1.0)
+            self.assertEqual(float(impulse_row["TickerTrendRegimeState"]), 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
