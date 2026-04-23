@@ -76,6 +76,8 @@ Ví dụ:
 - `Liệt kê đầy đủ ứng viên theo format mua ngay / chờ / không mua.`
 - `Nếu chưa có mã đủ chuẩn thì nói thẳng không mua.`
 - `Nếu có mã mua được hoặc chờ được thì phải ghi rõ vùng giá cụ thể và size tham chiếu cho ngân sách 5 tỷ.`
+- `Ưu tiên nấc đẹp hơn nấc dễ khớp; nếu ladder có nhiều nấc thì phải chỉ rõ nấc thăm dò và nấc chính.`
+- `Khi hỏi cho phiên kế tiếp, phải nói rõ nên đặt trước phiên, chờ ATO, hay đợi sau ATO rồi mới hành động.`
 - `Nếu cần chạy batch thì tự chạy tuần tự xong rồi mới trả lời, không trả lời giữa chừng rằng vẫn đang đợi artifact.`
 
 ## Wrapper commands
@@ -160,7 +162,7 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - Sau bước refresh artifact, Codex phải tự browse tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy khi trả lời `hôm nay mua gì`; lớp này là bước hỏi đáp, không phải lệnh batch của repo
 - Không dùng flow nền hay nhiều builder chồng nhau, trừ khi từng job ghi ra output riêng và không dùng chung cache/history
 - Khẩu vị mặc định của repo này là: ngân sách tham chiếu khoảng `5 tỷ`, ưu tiên size lớn, và phải liệt kê đầy đủ ứng viên khả thi thay vì ép chọn đúng một mã
-- Contract đầu ra mặc định là: liệt kê ứng viên theo `mua ngay`, `chờ`, hoặc `không mua`; với mỗi mã `mua ngay` hoặc `chờ`, phải nêu `vùng giá cụ thể` và `quy mô vốn/số lượng` nếu chọn mã đó làm idea chính
+- Contract đầu ra mặc định là: liệt kê ứng viên theo `mua ngay`, `chờ`, hoặc `không mua`; với mỗi mã `mua ngay` hoặc `chờ`, phải nêu `vùng giá cụ thể`, `quy mô vốn/số lượng`, và `nên đặt trước phiên / chờ ATO / đợi sau ATO`
 
 ## Kiểm thử
 

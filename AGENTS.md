@@ -22,6 +22,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Scope mặc định là `VN30 + NVL`, trừ khi bạn nói khác.
 - Ngân sách tham chiếu mặc định là khoảng `5 tỷ`.
 - Ưu tiên xuống tiền lớn ở vùng giá đẹp; có thể chia vài nấc lớn, không chia micro-probe.
+- Ưu tiên chất lượng điểm vào hơn xác suất khớp; không được mặc định chọn nấc quá sát chỉ vì dễ khớp.
 - Không cần ép đúng `1` mã mỗi ngày; phải nêu đầy đủ ứng viên khả thi và thứ tự ưu tiên.
 - Nếu không có mã đủ sạch thì phải nói thẳng `không mua`.
 
@@ -32,8 +33,10 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
   - vùng giá cụ thể
   - size hoặc số lượng tham chiếu cho ngân sách mặc định
   - trade-off hoặc lý do chính
+- Nếu phải đặt ladder, phải nói rõ nấc nào là `starter`, nấc nào là `main`, và không được ngầm hiểu `all-in` vào một nấc nếu setup chưa sạch.
 - Phải nói rõ snapshot/artifact đang dùng là mốc thời gian nào và lớp tin tức live vừa check là mốc nào nếu hai mốc khác nhau.
 - Nếu là `chờ`, phải nói rõ tinh thần `không khớp thì thôi`, không đuổi giá.
+- Khi trả lời cho phiên kế tiếp hoặc sau khi hết phiên, phải nói rõ nên `đặt trước phiên`, `chờ ATO`, hay `đợi sau ATO/30 phút đầu` rồi mới hành động.
 
 ## Nguyên tắc kỹ thuật
 

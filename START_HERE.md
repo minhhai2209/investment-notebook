@@ -34,6 +34,8 @@ Prompt gợi ý:
 - `Đừng sinh orders; chỉ phân tích candidate, vùng giá, thesis và trade-off.`
 - `Giả định ngân sách khoảng 5 tỷ; với mỗi ứng viên mua ngay hoặc chờ thì phải nói rõ vùng giá và size tham chiếu.`
 - `Format mặc định: mua ngay / chờ / không mua. Nếu là chờ thì nêu vùng resting buy, không khớp thì thôi.`
+- `Đừng ưu tiên nấc sát chỉ vì dễ khớp; phải nói rõ nấc nào là thăm dò, nấc nào là nấc chính.`
+- `Nếu hỏi cho phiên kế tiếp thì phải chốt luôn nên đặt trước phiên, chờ ATO, hay đợi sau ATO rồi mới làm.`
 - `Nếu cần chạy batch thì tự chạy tuần tự rồi mới trả lời.`
 
 Nếu bạn đổi scope:
