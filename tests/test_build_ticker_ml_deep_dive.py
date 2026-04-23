@@ -193,6 +193,7 @@ class BuildTickerMlDeepDiveTest(unittest.TestCase):
             "DamageBelow": 88.0,
             "ExecutionBias": "unknown",
             "BurstExecutionBias": "wait_for_day2_confirmation",
+            "ExecutionNote": "state note",
             "TrimAggression": "moderate",
             "MustSellFractionPct": 15.0,
         }
@@ -222,6 +223,8 @@ class BuildTickerMlDeepDiveTest(unittest.TestCase):
         self.assertIn("42 mẫu", report["TimingRows"][0]["ValidationSummary"])
         self.assertEqual(report["OHLCStateSignals"]["Summary"], "shock up, wide-range expansion, hot trend regime")
         self.assertEqual(report["OHLCStateSignals"]["TickerShockState1D"], 1.0)
+        self.assertIn("SpecializedOverlay", report)
+        self.assertEqual(report["State"]["ExecutionNote"], "state note")
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -14,6 +14,7 @@ from scripts.analysis.ticker_color_overlay import (
     load_optional_overlay,
     summarise_ticker_overlay,
 )
+from scripts.analysis.ticker_specialization_overlay import summarise_specialized_ticker_setup
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
@@ -477,6 +478,9 @@ def _score_candidate(
     breakout_confirm_above = _safe_float(state.get("BullishConfirmAbove")) if state else None
     trend_overlay_score = int(color_overlay.get("OverlayScore") or 0) if color_overlay else 0
     trend_overlay_summary = color_overlay.get("Summary") if color_overlay else None
+    specialized_overlay = summarise_specialized_ticker_setup(ticker, state)
+    specialized_overlay_score = int(specialized_overlay.get("OverlayScore") or 0)
+    specialized_overlay_summary = specialized_overlay.get("Summary")
 
     market_crowded = (
         (_safe_float(market_summary.get("IndexRangePos20")) or 0.0) >= 0.95
@@ -536,6 +540,7 @@ def _score_candidate(
     if entry_score is not None:
         score += _clamp(entry_score * 1.5, 0.0, 10.0)
     score += _clamp(float(trend_overlay_score), -6.0, 6.0)
+    score += _clamp(float(specialized_overlay_score), -6.0, 6.0)
 
     if market_crowded:
         score -= 4.0
@@ -663,6 +668,8 @@ def _score_candidate(
         reasons.append(f"budget 5 tỷ tương đương {budget_pct_adv:.2f}% ADV20")
     if trend_overlay_summary:
         reasons.append(f"trend persistence {trend_overlay_summary}")
+    if specialized_overlay_summary:
+        reasons.append(f"specialized {specialized_overlay_summary}")
 
     return {
         "Ticker": ticker,
@@ -732,6 +739,10 @@ def _score_candidate(
         "SessionBuyPlanSummary": (state or {}).get("SessionBuyPlanSummary"),
         "TrendPersistenceOverlayScore": int(trend_overlay_score),
         "TrendPersistenceSummary": trend_overlay_summary,
+        "SpecializedOverlayScore": int(specialized_overlay_score),
+        "SpecializedRegime": specialized_overlay.get("Regime"),
+        "SpecializedActionBias": specialized_overlay.get("ActionBias"),
+        "SpecializedSummary": specialized_overlay_summary,
         "MarketCrowded": market_crowded,
         "ForeignNetValue20DBnVND": _round_or_none(foreign_20d_bn, 2),
     }
@@ -767,6 +778,8 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
                 extras.append(f"verify `{row['ValidationSummary']}`")
             if row.get("TrendPersistenceSummary"):
                 extras.append(f"trend `{row['TrendPersistenceSummary']}`")
+            if row.get("SpecializedSummary"):
+                extras.append(f"specialized `{row['SpecializedSummary']}`")
             if row.get("RecommendedDeployPctOfRefBudget") is not None:
                 extras.append(
                     f"deploy `~{row['RecommendedDeployPctOfRefBudget']}%` ref budget"
