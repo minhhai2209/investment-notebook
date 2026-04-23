@@ -72,6 +72,7 @@ Ví dụ:
 
 - `Nếu artifact chưa có hoặc stale thì tự chạy và chờ xong rồi mới phân tích.`
 - `Sau khi refresh artifact xong, tự check thêm tin tức live 12-24h gần nhất rồi mới chốt câu trả lời; không đưa news vào broker.sh.`
+- `Nếu tôi chỉ ra một lỗi lặp lại hoặc một rule mới về cách làm việc, hãy cập nhật contract/docs của repo, không chỉ sửa cho một câu trả lời.`
 - `Dựa trên snapshot mới nhất, VN30 + NVL hôm nay có những ứng viên nào?`
 - `Liệt kê đầy đủ ứng viên theo format mua ngay / chờ / không mua.`
 - `Nếu chưa có mã đủ chuẩn thì nói thẳng không mua.`

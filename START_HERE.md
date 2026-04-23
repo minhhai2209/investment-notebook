@@ -29,6 +29,7 @@ Prompt gợi ý:
 
 - `Nếu artifact chưa có hoặc stale thì tự chạy và đợi xong rồi mới phân tích.`
 - `Sau khi artifact xong thì tự check tin tức live 12-24h gần nhất rồi mới chốt mua ngay / chờ / không mua.`
+- `Nếu tôi chỉ ra một lỗi lặp lại hoặc một rule mới về cách làm việc, hãy cập nhật luôn contract/docs của repo.`
 - `Dùng snapshot mới nhất, lọc VN30 + NVL và liệt kê đầy đủ ứng viên hôm nay.`
 - `Nếu chưa có mã nào sạch thì nói thẳng không mua.`
 - `Đừng sinh orders; chỉ phân tích candidate, vùng giá, thesis và trade-off.`
