@@ -48,6 +48,26 @@ class TickerSpecializationOverlayTest(unittest.TestCase):
         self.assertGreater(overlay["OverlayScore"], 0)
         self.assertIn("giữ trend", overlay["Summary"])
 
+    def test_post_burst_t25_supply_regime_is_detected(self) -> None:
+        overlay = summarise_specialized_ticker_setup(
+            "VHM",
+            {
+                "Archetype": "momentum_high_beta",
+                "LatestBurstSignalAge": 2,
+                "ExecutionBias": "distribution",
+                "BurstExecutionBias": "respect_t25_supply",
+                "BurstNextDayPositiveRate": 70.97,
+                "BurstNextDayStrongRate": 35.48,
+                "BurstThirdDayNegativeRate": 40.0,
+                "BurstAvgThreeDayDrawdownPct": -2.95,
+                "ExecutionNote": "Burst đã sang nhịp dễ gặp cung T+2.5.",
+            },
+        )
+
+        self.assertEqual(overlay["Regime"], "post_burst_t25_supply")
+        self.assertLess(overlay["OverlayScore"], 0)
+        self.assertIn("cung T+2.5", overlay["Summary"])
+
 
 if __name__ == "__main__":
     unittest.main()

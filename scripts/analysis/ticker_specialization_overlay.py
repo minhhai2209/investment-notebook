@@ -77,12 +77,22 @@ def summarise_specialized_ticker_setup(
         if burst_age is not None and burst_age <= 1:
             score -= 2.0
             signals.append("burst còn rất mới")
+        if burst_age is not None and 2 <= burst_age <= 4:
+            regime = "post_burst_t25_supply"
+            action_bias = "ton_trong_cung_t25_trim_chu_dong"
+            score -= 1.0
+            signals.append("đang ở cửa sổ cung T+2.5")
         if execution_bias == "distribution":
             score -= 2.0
             signals.append("tape đang phân phối")
         if burst_execution_bias == "failed_day2_followthrough":
             score -= 2.0
             signals.append("fail follow-through sau burst")
+        if burst_execution_bias == "respect_t25_supply":
+            regime = "post_burst_t25_supply"
+            action_bias = "ton_trong_cung_t25_trim_chu_dong"
+            score -= 2.0
+            signals.append("phải tôn trọng cung T+2.5")
         if next_day_positive_rate is not None and next_day_positive_rate >= 65.0:
             signals.append(f"xác suất tăng ngày kế {next_day_positive_rate:.1f}%")
         if next_day_strong_rate is not None and next_day_strong_rate >= 40.0:
@@ -159,9 +169,14 @@ def summarise_specialized_ticker_setup(
 
     headline = None
     if archetype == "momentum_high_beta":
-        headline = (
-            f"{ticker} đang ở pha burst rất mới, hợp đọc như setup tốc độ chứ không phải trend sạch"
-        )
+        if regime == "post_burst_t25_supply":
+            headline = (
+                f"{ticker} đang ở nhịp hậu burst dễ gặp cung T+2.5, nên đọc như event tape hơn là trend bền"
+            )
+        else:
+            headline = (
+                f"{ticker} đang ở pha burst rất mới, hợp đọc như setup tốc độ chứ không phải trend sạch"
+            )
     elif archetype == "cyclical_beta":
         headline = (
             f"{ticker} hợp đánh theo nhịp chu kỳ và pullback hơn là chase breakout"
