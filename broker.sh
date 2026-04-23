@@ -232,6 +232,10 @@ run_eval_vnindex() {
   run_module eval_vnindex scripts.analysis.evaluate_vnindex_models "$@"
 }
 
+run_eval_deep_market() {
+  run_module eval_deep_market scripts.analysis.evaluate_deep_market_experiment "$@"
+}
+
 run_eval_ohlc() {
   run_module eval_ohlc scripts.analysis.evaluate_ohlc_models "$@"
 }
@@ -397,6 +401,9 @@ main() {
       ;;
     eval_vnindex)
       run_eval_vnindex "$@"
+      ;;
+    eval_deep_market)
+      run_eval_deep_market "$@"
       ;;
     eval_ohlc)
       run_eval_ohlc "$@"
