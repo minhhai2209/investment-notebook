@@ -8,6 +8,12 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 import pandas as pd
 
+from scripts.analysis.ticker_color_overlay import (
+    DEFAULT_TICKER_COLOR_DIR,
+    extract_ticker_overlay,
+    load_optional_overlay,
+    summarise_ticker_overlay,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
@@ -427,6 +433,7 @@ def _score_candidate(
     cycle_row: Mapping[str, Any] | None,
     ohlc_row: Mapping[str, Any] | None,
     ladder_row: Mapping[str, Any] | None,
+    color_overlay: Mapping[str, Any] | None,
 ) -> Dict[str, Any]:
     ticker = _normalise_ticker(snapshot_row["Ticker"])
     last_price = float(snapshot_row["Last"])
@@ -468,6 +475,8 @@ def _score_candidate(
     persistent_weakness_bid = bool(state.get("PersistentWeaknessBid")) if state else False
     invalidation_below = _safe_float(state.get("DamageBelow")) if state else None
     breakout_confirm_above = _safe_float(state.get("BullishConfirmAbove")) if state else None
+    trend_overlay_score = int(color_overlay.get("OverlayScore") or 0) if color_overlay else 0
+    trend_overlay_summary = color_overlay.get("Summary") if color_overlay else None
 
     market_crowded = (
         (_safe_float(market_summary.get("IndexRangePos20")) or 0.0) >= 0.95
@@ -526,6 +535,7 @@ def _score_candidate(
         score += _clamp(forecast_close_ret * 1.3, -6.0, 6.0)
     if entry_score is not None:
         score += _clamp(entry_score * 1.5, 0.0, 10.0)
+    score += _clamp(float(trend_overlay_score), -6.0, 6.0)
 
     if market_crowded:
         score -= 4.0
@@ -651,6 +661,8 @@ def _score_candidate(
         reasons.append(f"cycle {cycle_summary}")
     if budget_pct_adv is not None:
         reasons.append(f"budget 5 tỷ tương đương {budget_pct_adv:.2f}% ADV20")
+    if trend_overlay_summary:
+        reasons.append(f"trend persistence {trend_overlay_summary}")
 
     return {
         "Ticker": ticker,
@@ -718,6 +730,8 @@ def _score_candidate(
         "BreakoutConfirmAbove": _round_or_none(breakout_confirm_above, 2),
         "PersistentWeaknessBid": persistent_weakness_bid,
         "SessionBuyPlanSummary": (state or {}).get("SessionBuyPlanSummary"),
+        "TrendPersistenceOverlayScore": int(trend_overlay_score),
+        "TrendPersistenceSummary": trend_overlay_summary,
         "MarketCrowded": market_crowded,
         "ForeignNetValue20DBnVND": _round_or_none(foreign_20d_bn, 2),
     }
@@ -751,6 +765,8 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
                 extras.append(f"cycle `{row['CycleProfitSummary']}`")
             if row.get("ValidationSummary"):
                 extras.append(f"verify `{row['ValidationSummary']}`")
+            if row.get("TrendPersistenceSummary"):
+                extras.append(f"trend `{row['TrendPersistenceSummary']}`")
             if row.get("RecommendedDeployPctOfRefBudget") is not None:
                 extras.append(
                     f"deploy `~{row['RecommendedDeployPctOfRefBudget']}%` ref budget"
@@ -790,6 +806,7 @@ def build_candidate_watchlist(
     analysis_dir: Path,
     research_dir: Path,
     output_dir: Path,
+    ticker_color_dir: Path = DEFAULT_TICKER_COLOR_DIR,
 ) -> Dict[str, Any]:
     resolved_mode = _resolve_mode(analysis_dir, research_dir, mode)
 
@@ -821,6 +838,7 @@ def build_candidate_watchlist(
         ["Ticker", "LatestSignal", "AllScore", "RobustScore"],
         "Ticker playbook best configs",
     )
+    color_comparison_df, color_current_df = load_optional_overlay(ticker_color_dir)
 
     ohlc_df = None
     timing_df = None
@@ -881,6 +899,9 @@ def build_candidate_watchlist(
             scoped_ohlc = ohlc_df.loc[ohlc_df["Ticker"].eq(ticker)]
             if not scoped_ohlc.empty:
                 ohlc_row = scoped_ohlc.iloc[0].to_dict()
+        color_overlay = summarise_ticker_overlay(
+            extract_ticker_overlay(ticker, color_comparison_df, color_current_df)
+        )
 
         rows.append(
             _score_candidate(
@@ -894,6 +915,7 @@ def build_candidate_watchlist(
                 cycle_row=cycle_row,
                 ohlc_row=ohlc_row,
                 ladder_row=ladder_row,
+                color_overlay=color_overlay,
             )
         )
 
@@ -941,6 +963,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--analysis-dir", type=Path, default=DEFAULT_ANALYSIS_DIR)
     parser.add_argument("--research-dir", type=Path, default=DEFAULT_RESEARCH_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--ticker-color-dir", type=Path, default=DEFAULT_TICKER_COLOR_DIR)
     args = parser.parse_args(argv)
 
     report = build_candidate_watchlist(
@@ -952,6 +975,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         analysis_dir=args.analysis_dir,
         research_dir=args.research_dir,
         output_dir=args.output_dir,
+        ticker_color_dir=args.ticker_color_dir,
     )
     print(json.dumps(_json_safe(report), ensure_ascii=False))
     return 0

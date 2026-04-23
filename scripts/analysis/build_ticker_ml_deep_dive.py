@@ -8,6 +8,12 @@ from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 import pandas as pd
 
+from scripts.analysis.ticker_color_overlay import (
+    DEFAULT_TICKER_COLOR_DIR,
+    extract_ticker_overlay,
+    load_optional_overlay,
+    summarise_ticker_overlay,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
@@ -439,6 +445,21 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
             )
     else:
         lines.append("- No model-approved session budget plan for this ticker.")
+    lines.append("")
+    lines.append("## Trend Persistence")
+    overlay = report["TrendPersistence"]
+    lines.append(f"- OverlayScore: `{overlay['OverlayScore']}`")
+    lines.append(f"- Summary: `{overlay['Summary']}`")
+    if overlay["Rows"]:
+        for row in overlay["Rows"]:
+            lines.append(
+                "- "
+                f"{row['TargetName']} T+{row['Horizon']}: model `{row['BestModel']}`, "
+                f"AUC `{row['BestAUC']}`, hit `{row['BestStrongSignalHitPct']}%`, "
+                f"edge `{row['BestStrongSignalAvgSignedEdgePct']}%`, current `{row['CurrentBias']}` / `{row['ProbabilityPositive']}`, usable `{row['IsUsable']}`"
+            )
+    else:
+        lines.append("- No ticker color overlay available.")
     return "\n".join(lines) + "\n"
 
 
@@ -450,6 +471,7 @@ def build_deep_dive(
     analysis_dir: Path,
     research_dir: Path,
     output_dir: Path,
+    ticker_color_dir: Path = DEFAULT_TICKER_COLOR_DIR,
 ) -> Dict[str, Any]:
     ticker = _normalise_ticker(ticker)
     if not ticker:
@@ -555,6 +577,8 @@ def build_deep_dive(
     cycle_row = _select_single_row(cycle_df, ticker, "Cycle best horizon")
     playbook_row = _select_single_row(playbook_df, ticker, "Ticker playbook best configs")
     state = _load_state(research_dir, ticker)
+    color_comparison_df, color_current_df = load_optional_overlay(ticker_color_dir)
+    color_overlay = summarise_ticker_overlay(extract_ticker_overlay(ticker, color_comparison_df, color_current_df))
 
     ticker_timing = timing_df.loc[timing_df["Ticker"].eq(ticker)].sort_values("Horizon").reset_index(drop=True)
     if ticker_timing.empty:
@@ -766,9 +790,13 @@ def build_deep_dive(
             "InvalidationBelow": invalidation_below,
             "BreakoutConfirmAbove": breakout_confirm_above,
         },
+        "TrendPersistence": color_overlay,
         "ReferenceBudgetPlan": reference_budget_plan,
         "BudgetPlan": budget_plan,
     }
+    if color_overlay.get("Summary"):
+        prefix = "trend persistence ủng hộ" if int(color_overlay.get("OverlayScore") or 0) > 0 else "trend persistence thận trọng"
+        report["VerdictReasons"].append(f"{prefix}: {color_overlay['Summary']}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     json_path = output_dir / f"{ticker}_ml_deep_dive.json"
@@ -790,6 +818,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--analysis-dir", type=Path, default=DEFAULT_ANALYSIS_DIR)
     parser.add_argument("--research-dir", type=Path, default=DEFAULT_RESEARCH_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--ticker-color-dir", type=Path, default=DEFAULT_TICKER_COLOR_DIR)
     args = parser.parse_args(argv)
 
     report = build_deep_dive(
@@ -799,6 +828,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         analysis_dir=args.analysis_dir,
         research_dir=args.research_dir,
         output_dir=args.output_dir,
+        ticker_color_dir=args.ticker_color_dir,
     )
     print(json.dumps(_json_safe(report), ensure_ascii=False))
     return 0
