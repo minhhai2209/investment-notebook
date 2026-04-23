@@ -27,6 +27,8 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Nếu không có mã đủ sạch thì phải nói thẳng `không mua`.
 - Khi đề xuất lệnh/ladder, phải ưu tiên tuyệt đối các mức giá đến từ artifact ML/research (`entry ladder`, `range`, `cycle`, `session tranches`, `preferred buy zone`).
 - Không được tự bịa thêm nấc bằng cách trừ thủ công một khoảng từ giá hiện tại chỉ để đủ ladder; nếu artifact chưa cho mức giá đủ đẹp thì phải nói thẳng là chưa có lệnh đáng đặt.
+- Nếu người hỏi đã chuyển sang mode `ra lệnh` hoặc hỏi giá/số lượng cụ thể, tôi phải kiểm tra xem artifact dùng để ra lệnh có còn đồng bộ với snapshot giá hiện tại không.
+- Nếu giá hiện tại đã lệch materially làm cho ladder/timing không còn cùng mốc, tôi phải `rebuild lại artifact liên quan` hoặc nói thẳng `artifact đang stale, chưa đủ sạch để đặt lệnh`.
 
 ## Contract đầu ra
 
@@ -37,6 +39,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
   - trade-off hoặc lý do chính
 - Nếu phải đặt ladder, phải nói rõ nấc nào là `starter`, nấc nào là `main`, và không được ngầm hiểu `all-in` vào một nấc nếu setup chưa sạch.
 - Nếu có nhiều nấc, phải ghi rõ nấc nào đến trực tiếp từ ML/research artifact; tránh trộn nấc model-driven với nấc heuristic mà không nói rõ.
+- Không được dùng artifact cũ để đưa lệnh cụ thể như thể nó còn mới chỉ vì nó vẫn còn hữu ích cho phần thesis/phân tích.
 - Phải nói rõ snapshot/artifact đang dùng là mốc thời gian nào và lớp tin tức live vừa check là mốc nào nếu hai mốc khác nhau.
 - Nếu là `chờ`, phải nói rõ tinh thần `không khớp thì thôi`, không đuổi giá.
 - Khi trả lời cho phiên kế tiếp hoặc sau khi hết phiên, phải nói rõ nên `đặt trước phiên`, `chờ ATO`, hay `đợi sau ATO/30 phút đầu` rồi mới hành động.

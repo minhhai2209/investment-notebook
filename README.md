@@ -78,6 +78,7 @@ Ví dụ:
 - `Nếu có mã mua được hoặc chờ được thì phải ghi rõ vùng giá cụ thể và size tham chiếu cho ngân sách 5 tỷ.`
 - `Ưu tiên nấc đẹp hơn nấc dễ khớp; nếu ladder có nhiều nấc thì phải chỉ rõ nấc thăm dò và nấc chính.`
 - `Ladder phải ưu tiên lấy từ artifact ML/research; nếu model chưa có nấc đủ đẹp thì nói thẳng chưa có lệnh, không tự nội suy thêm nấc từ giá hiện tại.`
+- `Nếu đã hỏi tới mức giá/số lượng đặt lệnh cụ thể, Codex phải kiểm tra artifact còn cùng mốc với giá hiện tại; nếu stale thì phải rebuild hoặc nói rõ chưa đủ sạch để đặt.`
 - `Khi hỏi cho phiên kế tiếp, phải nói rõ nên đặt trước phiên, chờ ATO, hay đợi sau ATO rồi mới hành động.`
 - `Nếu cần chạy batch thì tự chạy tuần tự xong rồi mới trả lời, không trả lời giữa chừng rằng vẫn đang đợi artifact.`
 
