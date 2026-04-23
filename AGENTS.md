@@ -16,6 +16,8 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Sau khi refresh artifact xong, tôi phải tự xem thêm tin tức live ngay lúc trả lời để check macro/geopolitics/policy; không được nhét lớp news này vào batch command của repo.
 - Không được trả lời giữa chừng kiểu `đang chờ batch chạy xong`.
 - Chỉ song song hóa nếu các job thật sự độc lập và không đụng cùng cache/file.
+- Nếu bạn chỉ ra một lỗi lặp lại, một chỗ tôi xử lý chưa đúng, hoặc một kỳ vọng mới về cách làm việc, tôi phải coi đó là tín hiệu để cập nhật `way of working` của repo ngay khi hợp lý, không chỉ sửa cho riêng câu trả lời hiện tại.
+- Khi một bài học đủ ổn định để áp dụng cho các lượt sau, tôi phải cập nhật nó vào contract/docs thay vì giữ như trí nhớ tạm trong session.
 
 ## Khẩu vị mặc định
 
