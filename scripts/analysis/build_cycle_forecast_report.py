@@ -83,7 +83,7 @@ def refresh_history_cache(tickers: Sequence[str], history_dir: Path, history_cal
     history_dir.mkdir(parents=True, exist_ok=True)
 
     rows: List[Dict[str, object]] = []
-    for ticker in _ordered_unique(["VNINDEX", *tickers]):
+    for ticker in _ordered_unique(["VNINDEX", "VN30", *tickers]):
         ensure_ohlc_cache(ticker, outdir=str(history_dir), min_days=history_calendar_days, resolution="D")
         cache_path = history_dir / f"{ticker}_daily.csv"
         first_ts, count = first_timestamp_and_count(cache_path)

@@ -93,7 +93,7 @@ def _load_universe_tickers(universe_csv: Path) -> List[str]:
 
 def refresh_history_cache(tickers: Sequence[str], history_dir: Path, history_calendar_days: int) -> None:
     history_dir.mkdir(parents=True, exist_ok=True)
-    for ticker in ["VNINDEX", *tickers]:
+    for ticker in ["VNINDEX", "VN30", *tickers]:
         ensure_ohlc_cache(
             _normalise_ticker(ticker),
             outdir=str(history_dir),

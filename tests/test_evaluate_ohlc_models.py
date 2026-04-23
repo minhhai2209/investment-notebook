@@ -236,6 +236,12 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
                 }
             )
             index_frame.to_csv(history_dir / "VNINDEX_daily.csv", index=False)
+            vn30_frame = index_frame.copy()
+            vn30_frame["close"] = [900.0 + (0.4 * idx) for idx in range(90)]
+            vn30_frame["open"] = vn30_frame["close"] - 0.8
+            vn30_frame["high"] = vn30_frame["close"] + 1.6
+            vn30_frame["low"] = vn30_frame["close"] - 1.6
+            vn30_frame.to_csv(history_dir / "VN30_daily.csv", index=False)
 
             sample = build_ticker_ohlc_sample("AAA", history_dir, max_horizon=1)
 
@@ -243,9 +249,13 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             impulse_row = sample.loc[sample["Date"] == pd.Timestamp(dates[72])].iloc[0]
 
             self.assertEqual(float(shock_row["TickerShockState1D"]), 1.0)
+            self.assertEqual(float(shock_row["TickerColorStreakState"]), 1.0)
             self.assertEqual(float(shock_row["TickerWideRangeState"]), 1.0)
             self.assertEqual(float(impulse_row["TickerImpulseState3D"]), 1.0)
             self.assertEqual(float(impulse_row["TickerTrendRegimeState"]), 1.0)
+            self.assertEqual(float(impulse_row["TickerLimitProxyState"]), 1.0)
+            self.assertIn("VN30Ret5Pct", sample.columns)
+            self.assertIn("VN30ColorStreakState", sample.columns)
 
     def test_build_ticker_ohlc_sample_adds_archetype_state_features(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

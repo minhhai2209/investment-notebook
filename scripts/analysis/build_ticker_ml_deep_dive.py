@@ -16,6 +16,8 @@ DEFAULT_RESEARCH_DIR = REPO_ROOT / "research"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "deep_dive"
 DEFAULT_BUDGET_VND = 5_000_000_000
 OHLC_STATE_COLUMNS = [
+    "TickerColorStreakState",
+    "TickerLimitProxyState",
     "TickerShockState1D",
     "TickerImpulseState3D",
     "TickerWideRangeState",
@@ -24,6 +26,8 @@ OHLC_STATE_COLUMNS = [
     "TickerReclaimState",
     "TickerRelativeRotationState",
     "TickerExhaustionState",
+    "IndexColorStreakState",
+    "VN30ColorStreakState",
 ]
 
 
@@ -140,6 +144,8 @@ def _state_regime_label(value: Any, *, positive: str, negative: str) -> str | No
 
 def _summarise_ohlc_state(ohlc_row: pd.Series) -> str | None:
     labels = [
+        _state_regime_label(ohlc_row.get("TickerColorStreakState"), positive="green streak", negative="red streak"),
+        _state_regime_label(ohlc_row.get("TickerLimitProxyState"), positive="ceiling proxy", negative="floor proxy"),
         _state_regime_label(ohlc_row.get("TickerShockState1D"), positive="shock up", negative="shock down"),
         _state_regime_label(ohlc_row.get("TickerImpulseState3D"), positive="3-day impulse up", negative="3-day impulse down"),
         _state_regime_label(ohlc_row.get("TickerWideRangeState"), positive="wide-range expansion", negative="wide-range breakdown"),
@@ -148,6 +154,8 @@ def _summarise_ohlc_state(ohlc_row: pd.Series) -> str | None:
         _state_regime_label(ohlc_row.get("TickerReclaimState"), positive="sma20 reclaim", negative="sma20 loss"),
         _state_regime_label(ohlc_row.get("TickerRelativeRotationState"), positive="relative rotation up", negative="relative rotation down"),
         _state_regime_label(ohlc_row.get("TickerExhaustionState"), positive="upside exhaustion", negative="downside capitulation"),
+        _state_regime_label(ohlc_row.get("IndexColorStreakState"), positive="VNINDEX green streak", negative="VNINDEX red streak"),
+        _state_regime_label(ohlc_row.get("VN30ColorStreakState"), positive="VN30 green streak", negative="VN30 red streak"),
     ]
     active = [label for label in labels if label and label != "neutral"]
     if active:
