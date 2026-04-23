@@ -20,6 +20,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.analysis.evaluate_deterministic_strategies import build_feature_pack
+from scripts.data_fetching.fetch_ticker_data import ensure_ohlc_cache
 
 
 HORIZONS = (5, 10)
@@ -37,21 +38,62 @@ def _safe_auc(y_true: pd.Series, y_prob: pd.Series) -> float:
     return float(roc_auc_score(y_true, y_prob))
 
 
-def build_vnindex_sample(history_dir: Path, sector_map_path: Path) -> pd.DataFrame:
+def _normalise_symbol(symbol: object) -> str:
+    return str(symbol or "").strip().upper()
+
+
+def _load_daily_close(symbol: str, history_dir: Path) -> pd.Series:
+    path = history_dir / f"{_normalise_symbol(symbol)}_daily.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"Missing history file: {path}")
+    frame = pd.read_csv(path)
+    if frame.empty:
+        raise RuntimeError(f"Empty history file: {path}")
+    date_col = "date_vn" if "date_vn" in frame.columns else "t"
+    if date_col == "date_vn":
+        index = pd.to_datetime(frame[date_col], errors="coerce")
+    else:
+        index = pd.to_datetime(pd.to_numeric(frame[date_col], errors="coerce"), unit="s", errors="coerce")
+    close = pd.to_numeric(frame["close"], errors="coerce")
+    series = pd.Series(close.to_numpy(), index=index, name=_normalise_symbol(symbol))
+    return series[~series.index.isna()].sort_index()
+
+
+def _direction_streak_state(series: pd.Series, *, min_streak: int = 2) -> pd.Series:
+    values = series.astype(float)
+    positive = values.gt(0.0)
+    negative = values.lt(0.0)
+    positive_streak = positive.groupby((~positive).cumsum()).cumsum()
+    negative_streak = negative.groupby((~negative).cumsum()).cumsum()
+    state = pd.Series(0.0, index=values.index, dtype=float)
+    state.loc[positive_streak >= int(min_streak)] = 1.0
+    state.loc[negative_streak >= int(min_streak)] = -1.0
+    return state
+
+
+def build_vnindex_sample(history_dir: Path, sector_map_path: Path, market_symbol: str = "VNINDEX") -> pd.DataFrame:
     features = build_feature_pack(history_dir, sector_map_path)
-    index_close = features.index_close
+    market_symbol = _normalise_symbol(market_symbol) or "VNINDEX"
+    peer_symbol = "VN30" if market_symbol == "VNINDEX" else "VNINDEX"
+    market_close = _load_daily_close(market_symbol, history_dir)
+    peer_close = _load_daily_close(peer_symbol, history_dir)
+    market_close = market_close.reindex(features.index_close.index).ffill()
+    peer_close = peer_close.reindex(features.index_close.index).ffill()
+    market_ret1 = market_close.pct_change() * 100.0
+    peer_ret1 = peer_close.pct_change() * 100.0
 
     sample = pd.DataFrame(
         {
-            "Date": index_close.index,
-            "IndexClose": index_close,
-            "IndexRet5Pct": index_close.pct_change(5) * 100.0,
-            "IndexRet20Pct": index_close.pct_change(20) * 100.0,
-            "IndexRet60Pct": index_close.pct_change(60) * 100.0,
-            "IndexDistSMA20Pct": ((index_close / features.index_sma20) - 1.0) * 100.0,
-            "IndexDistSMA50Pct": ((index_close / features.index_sma50) - 1.0) * 100.0,
-            "IndexRange20": _range_position(index_close, 20),
-            "IndexRange60": features.index_range60,
+            "Date": market_close.index,
+            "IndexClose": market_close,
+            "IndexRet5Pct": market_close.pct_change(5) * 100.0,
+            "IndexRet20Pct": market_close.pct_change(20) * 100.0,
+            "IndexRet60Pct": market_close.pct_change(60) * 100.0,
+            "IndexDistSMA20Pct": ((market_close / market_close.rolling(20).mean()) - 1.0) * 100.0,
+            "IndexDistSMA50Pct": ((market_close / market_close.rolling(50).mean()) - 1.0) * 100.0,
+            "IndexRange20": _range_position(market_close, 20),
+            "IndexRange60": _range_position(market_close, 60),
+            "IndexColorStreakState": _direction_streak_state(market_ret1, min_streak=2),
             "Breadth20Pct": features.breadth20,
             "Breadth50Pct": features.breadth50,
             "BreadthPositive5Pct": features.breadth_positive5,
@@ -61,10 +103,16 @@ def build_vnindex_sample(history_dir: Path, sector_map_path: Path) -> pd.DataFra
             "MarketMeanBeta20": features.beta20.mean(axis=1),
             "SectorBreadthLeaderCount": (features.sector_breadth20 >= 50.0).sum(axis=1),
             "SectorBreadthWeakCount": (features.sector_breadth20 <= 30.0).sum(axis=1),
+            "PeerRet5Pct": peer_close.pct_change(5) * 100.0,
+            "PeerRet20Pct": peer_close.pct_change(20) * 100.0,
+            "PeerDistSMA20Pct": ((peer_close / peer_close.rolling(20).mean()) - 1.0) * 100.0,
+            "PeerRange20": _range_position(peer_close, 20),
+            "PeerColorStreakState": _direction_streak_state(peer_ret1, min_streak=2),
+            "IndexVsPeerRet5Pct": (market_close.pct_change(5) - peer_close.pct_change(5)) * 100.0,
         }
     )
     for horizon in HORIZONS:
-        sample[f"IndexFwd{horizon}Pct"] = ((index_close.shift(-horizon) / index_close) - 1.0) * 100.0
+        sample[f"IndexFwd{horizon}Pct"] = ((market_close.shift(-horizon) / market_close) - 1.0) * 100.0
         sample[f"TargetUp{horizon}d"] = np.where(
             sample[f"IndexFwd{horizon}Pct"].notna(),
             (sample[f"IndexFwd{horizon}Pct"] > 0).astype(int),
@@ -82,6 +130,7 @@ def numeric_feature_columns() -> List[str]:
         "IndexDistSMA50Pct",
         "IndexRange20",
         "IndexRange60",
+        "IndexColorStreakState",
         "Breadth20Pct",
         "Breadth50Pct",
         "BreadthPositive5Pct",
@@ -91,6 +140,12 @@ def numeric_feature_columns() -> List[str]:
         "MarketMeanBeta20",
         "SectorBreadthLeaderCount",
         "SectorBreadthWeakCount",
+        "PeerRet5Pct",
+        "PeerRet20Pct",
+        "PeerDistSMA20Pct",
+        "PeerRange20",
+        "PeerColorStreakState",
+        "IndexVsPeerRet5Pct",
     ]
 
 
@@ -273,8 +328,8 @@ def choose_best_vnindex_model(summary_df: pd.DataFrame, horizon_days: int) -> st
     return str(ordered.iloc[0]["Model"])
 
 
-def _print_stdout_summary(summary_df: pd.DataFrame, current_forecast: pd.DataFrame) -> None:
-    print("VNINDEXModels")
+def _print_stdout_summary(summary_df: pd.DataFrame, current_forecast: pd.DataFrame, market_symbol: str) -> None:
+    print(f"{_normalise_symbol(market_symbol)}Models")
     print(
         summary_df[
             [
@@ -315,9 +370,13 @@ def run_analysis(
     output_dir: Path,
     min_train_dates: int,
     retrain_every: int,
+    market_symbol: str = "VNINDEX",
 ) -> Dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
-    sample_df = build_vnindex_sample(history_dir, sector_map_path)
+    market_symbol = _normalise_symbol(market_symbol) or "VNINDEX"
+    ensure_ohlc_cache(market_symbol, outdir=str(history_dir), min_days=800, resolution="D")
+    ensure_ohlc_cache("VN30" if market_symbol == "VNINDEX" else "VNINDEX", outdir=str(history_dir), min_days=800, resolution="D")
+    sample_df = build_vnindex_sample(history_dir, sector_map_path, market_symbol=market_symbol)
     prediction_history, current_forecast = walk_forward_market_predictions(
         sample_df=sample_df,
         min_train_dates=min_train_dates,
@@ -334,19 +393,21 @@ def run_analysis(
     prediction_history_out["Date"] = prediction_history_out["Date"].dt.date.astype(str)
     current_forecast_out = current_forecast.copy()
     current_forecast_out["Date"] = current_forecast_out["Date"].dt.date.astype(str)
-    summary_df.to_csv(output_dir / "vnindex_ml_model_summary.csv", index=False)
-    prediction_history_out.to_csv(output_dir / "vnindex_ml_prediction_history.csv", index=False)
-    current_forecast_out.to_csv(output_dir / "vnindex_ml_current_forecast.csv", index=False)
+    file_prefix = "vnindex" if market_symbol == "VNINDEX" else market_symbol.lower()
+    summary_df.to_csv(output_dir / f"{file_prefix}_ml_model_summary.csv", index=False)
+    prediction_history_out.to_csv(output_dir / f"{file_prefix}_ml_prediction_history.csv", index=False)
+    current_forecast_out.to_csv(output_dir / f"{file_prefix}_ml_current_forecast.csv", index=False)
 
     payload = {
+        "market_symbol": market_symbol,
         "best_models": best_models,
         "min_train_dates": min_train_dates,
         "retrain_every": retrain_every,
         "model_summary": summary_df.to_dict(orient="records"),
         "current_forecast": current_forecast_out.to_dict(orient="records"),
     }
-    (output_dir / "vnindex_ml_summary.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    _print_stdout_summary(summary_df, current_forecast)
+    (output_dir / f"{file_prefix}_ml_summary.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _print_stdout_summary(summary_df, current_forecast, market_symbol)
     return payload
 
 
@@ -357,6 +418,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default="out/analysis", help="Directory to write evaluation reports.")
     parser.add_argument("--min-train-dates", default=80, type=int, help="Minimum labeled dates before walk-forward starts.")
     parser.add_argument("--retrain-every", default=5, type=int, help="Retrain cadence in trading days.")
+    parser.add_argument("--market-symbol", default="VNINDEX", help="Market index symbol to model, e.g. VNINDEX or VN30.")
     return parser.parse_args()
 
 
@@ -368,6 +430,7 @@ def main() -> None:
         output_dir=Path(args.output_dir),
         min_train_dates=int(args.min_train_dates),
         retrain_every=int(args.retrain_every),
+        market_symbol=args.market_symbol,
     )
 
 

@@ -35,6 +35,8 @@ DEFAULT_HOLDOUT_DATES = 30
 DEFAULT_HORIZON = 1
 OUTPUT_FILE_NAME = "ml_ohlc_next_session.csv"
 STATE_SIGNAL_COLUMNS = [
+    "TickerColorStreakState",
+    "TickerLimitProxyState",
     "TickerShockState1D",
     "TickerImpulseState3D",
     "TickerWideRangeState",
@@ -43,6 +45,8 @@ STATE_SIGNAL_COLUMNS = [
     "TickerReclaimState",
     "TickerRelativeRotationState",
     "TickerExhaustionState",
+    "IndexColorStreakState",
+    "VN30ColorStreakState",
 ]
 REQUIRED_OUTPUT_COLUMNS = [
     "SnapshotDate",
@@ -99,7 +103,7 @@ def _load_universe_tickers(universe_csv: Path) -> List[str]:
 
 def refresh_history_cache(tickers: Sequence[str], history_dir: Path, history_calendar_days: int) -> None:
     history_dir.mkdir(parents=True, exist_ok=True)
-    for ticker in ["VNINDEX", *tickers]:
+    for ticker in ["VNINDEX", "VN30", *tickers]:
         ensure_ohlc_cache(
             _normalise_ticker(ticker),
             outdir=str(history_dir),
@@ -354,10 +358,18 @@ def select_best_next_session_forecasts(
             "ForecastCloseRetPct": merged["PredCloseRetPct"].astype(float),
             "ForecastRangePct": merged["PredRangePct"].astype(float),
             "ForecastCandleBias": merged["ForecastCandleBias"],
+            "TickerColorStreakState": merged["TickerColorStreakState"].astype(float),
+            "TickerLimitProxyState": merged["TickerLimitProxyState"].astype(float),
             "TickerShockState1D": merged["TickerShockState1D"].astype(float),
             "TickerImpulseState3D": merged["TickerImpulseState3D"].astype(float),
             "TickerWideRangeState": merged["TickerWideRangeState"].astype(float),
             "TickerTrendRegimeState": merged["TickerTrendRegimeState"].astype(float),
+            "TickerCompressionState": merged["TickerCompressionState"].astype(float),
+            "TickerReclaimState": merged["TickerReclaimState"].astype(float),
+            "TickerRelativeRotationState": merged["TickerRelativeRotationState"].astype(float),
+            "TickerExhaustionState": merged["TickerExhaustionState"].astype(float),
+            "IndexColorStreakState": merged["IndexColorStreakState"].astype(float),
+            "VN30ColorStreakState": merged["VN30ColorStreakState"].astype(float),
         }
     )
     _require_columns(report_df, REQUIRED_OUTPUT_COLUMNS, "OHLC next-session report")

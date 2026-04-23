@@ -66,6 +66,13 @@ def _load_daily_ohlcv(ticker: str, history_dir: Path) -> pd.DataFrame:
     return df[~df.index.isna()].sort_index()
 
 
+def _load_optional_daily_ohlcv(ticker: str, history_dir: Path) -> pd.DataFrame:
+    path = history_dir / f"{_normalise_ticker(ticker)}_daily.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    return _load_daily_ohlcv(ticker, history_dir)
+
+
 def _range_position(series: pd.Series, window: int) -> pd.Series:
     rolling_min = series.rolling(window).min()
     rolling_max = series.rolling(window).max()
@@ -113,6 +120,26 @@ def _three_state_signal(series: pd.Series, threshold: pd.Series) -> pd.Series:
     valid = limits.notna()
     state.loc[valid & (values >= limits)] = 1.0
     state.loc[valid & (values <= -limits)] = -1.0
+    return state
+
+
+def _direction_streak_state(series: pd.Series, *, min_streak: int = 2) -> pd.Series:
+    values = series.astype(float)
+    positive = values.gt(0.0)
+    negative = values.lt(0.0)
+    positive_streak = positive.groupby((~positive).cumsum()).cumsum()
+    negative_streak = negative.groupby((~negative).cumsum()).cumsum()
+    state = pd.Series(0.0, index=values.index, dtype=float)
+    state.loc[positive_streak >= int(min_streak)] = 1.0
+    state.loc[negative_streak >= int(min_streak)] = -1.0
+    return state
+
+
+def _limit_proxy_state(series: pd.Series, *, limit_pct: float = 6.75) -> pd.Series:
+    values = series.astype(float)
+    state = pd.Series(0.0, index=values.index, dtype=float)
+    state.loc[values >= float(limit_pct)] = 1.0
+    state.loc[values <= -float(limit_pct)] = -1.0
     return state
 
 
@@ -179,6 +206,8 @@ def _build_feature_columns() -> List[str]:
         "TickerRangePos60",
         "TickerVolRatio20",
         "TickerVolatility10",
+        "TickerColorStreakState",
+        "TickerLimitProxyState",
         "TickerShockState1D",
         "TickerImpulseState3D",
         "TickerWideRangeState",
@@ -197,6 +226,7 @@ def _build_feature_columns() -> List[str]:
         "TickerPrevWeekVolRatio4",
         "Rel5Pct",
         "Rel20Pct",
+        "Rel5PctVsVN30",
         "RelWeekToDateRetPct",
         "RelPrevWeekRetPct",
         "Corr20",
@@ -213,6 +243,7 @@ def _build_feature_columns() -> List[str]:
         "IndexRangePos60",
         "IndexVolRatio20",
         "IndexVolatility10",
+        "IndexColorStreakState",
         "IndexWeekToDateRetPct",
         "IndexWeekToDateRangePct",
         "IndexWeekToDateVolumePctPrevWeek",
@@ -221,11 +252,22 @@ def _build_feature_columns() -> List[str]:
         "IndexPrevWeekRetPct",
         "IndexPrevWeekRangePct",
         "IndexPrevWeekVolRatio4",
+        "VN30Ret1Pct",
+        "VN30Ret5Pct",
+        "VN30Ret20Pct",
+        "VN30DistSMA20Pct",
+        "VN30RangePos20",
+        "VN30VolRatio20",
+        "VN30ColorStreakState",
+        "Corr20VN30",
+        "Beta20VN30",
     ]
     for base_name in (
         "TickerRet1Pct",
         "TickerRangePct",
         "TickerVolRatio20",
+        "TickerColorStreakState",
+        "TickerLimitProxyState",
         "TickerShockState1D",
         "TickerImpulseState3D",
         "TickerWideRangeState",
@@ -235,8 +277,12 @@ def _build_feature_columns() -> List[str]:
         "TickerRelativeRotationState",
         "TickerExhaustionState",
         "Rel5Pct",
+        "Rel5PctVsVN30",
         "IndexRet1Pct",
         "IndexRangePct",
+        "IndexColorStreakState",
+        "VN30Ret1Pct",
+        "VN30ColorStreakState",
     ):
         for lag in LAGS:
             columns.append(f"{base_name}_Lag{lag}")
@@ -254,7 +300,10 @@ def build_ticker_ohlc_sample(
     ticker = _normalise_ticker(ticker)
     ticker_df = _load_daily_ohlcv(ticker, history_dir).add_prefix("Ticker")
     index_df = _load_daily_ohlcv("VNINDEX", history_dir).add_prefix("Index")
+    vn30_df = _load_optional_daily_ohlcv("VN30", history_dir).add_prefix("VN30")
     merged = ticker_df.join(index_df, how="inner")
+    if not vn30_df.empty:
+        merged = merged.join(vn30_df, how="left")
     if merged.empty:
         raise RuntimeError(f"No overlapping dates for {ticker} and VNINDEX")
 
@@ -284,6 +333,8 @@ def build_ticker_ohlc_sample(
     ticker_lower_wick_pct = ((pd.concat([ticker_open, ticker_close], axis=1).min(axis=1) - ticker_low) / ticker_prev_close) * 100.0
     ticker_vol_ratio20 = ticker_volume / ticker_volume.rolling(20).mean()
     ticker_volatility10 = ticker_close.pct_change(fill_method=None).rolling(10).std() * 100.0
+    ticker_color_streak_state = _direction_streak_state(ticker_ret1, min_streak=2)
+    ticker_limit_proxy_state = _limit_proxy_state(ticker_ret1, limit_pct=6.75)
     ticker_range_pos20 = _range_position(ticker_close, 20)
     ticker_range_pos60 = _range_position(ticker_close, 60)
     ticker_ret3 = ticker_close.pct_change(3, fill_method=None) * 100.0
@@ -343,6 +394,7 @@ def build_ticker_ohlc_sample(
     index_volatility10 = index_close.pct_change(fill_method=None).rolling(10).std() * 100.0
     index_range_pos20 = _range_position(index_close, 20)
     index_range_pos60 = _range_position(index_close, 60)
+    index_color_streak_state = _direction_streak_state(index_ret1, min_streak=2)
     index_weekly = _build_weekly_context_features(
         index_open,
         index_high,
@@ -351,14 +403,32 @@ def build_ticker_ohlc_sample(
         index_volume,
     )
 
+    vn30_close = merged["VN30Close"] if "VN30Close" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    vn30_open = merged["VN30Open"] if "VN30Open" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    vn30_high = merged["VN30High"] if "VN30High" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    vn30_low = merged["VN30Low"] if "VN30Low" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    vn30_volume = merged["VN30Volume"] if "VN30Volume" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    vn30_prev_close = vn30_close.shift(1)
+    vn30_ret1 = vn30_close.pct_change(1, fill_method=None) * 100.0
+    vn30_ret5 = vn30_close.pct_change(5, fill_method=None) * 100.0
+    vn30_ret20 = vn30_close.pct_change(20, fill_method=None) * 100.0
+    vn30_dist_sma20 = ((vn30_close / vn30_close.rolling(20).mean()) - 1.0) * 100.0
+    vn30_range_pos20 = _range_position(vn30_close, 20)
+    vn30_vol_ratio20 = vn30_volume / vn30_volume.rolling(20).mean()
+    vn30_color_streak_state = _direction_streak_state(vn30_ret1, min_streak=2)
+
     rel5_pct = ticker_ret5 - index_ret5
     rel20_pct = ticker_ret20 - index_ret20
+    rel5_pct_vs_vn30 = ticker_ret5 - vn30_ret5
     rel_week_to_date_pct = ticker_weekly["WeekToDateRetPct"] - index_weekly["WeekToDateRetPct"]
     rel_prev_week_ret_pct = ticker_weekly["PrevWeekRetPct"] - index_weekly["PrevWeekRetPct"]
     ticker_ret_frac = ticker_close.pct_change(fill_method=None)
     index_ret_frac = index_close.pct_change(fill_method=None)
+    vn30_ret_frac = vn30_close.pct_change(fill_method=None)
     corr20 = ticker_ret_frac.rolling(20).corr(index_ret_frac)
     beta20 = ticker_ret_frac.rolling(20).cov(index_ret_frac) / index_ret_frac.rolling(20).var()
+    corr20_vn30 = ticker_ret_frac.rolling(20).corr(vn30_ret_frac)
+    beta20_vn30 = ticker_ret_frac.rolling(20).cov(vn30_ret_frac) / vn30_ret_frac.rolling(20).var()
     rel_rotation_threshold = _adaptive_abs_threshold(rel5_pct, window=60, quantile=0.75, floor=1.0, std_multiplier=1.25)
     ticker_relative_rotation_state = pd.Series(0.0, index=merged.index, dtype=float)
     index_linked_mask = corr20 >= 0.45
@@ -393,6 +463,8 @@ def build_ticker_ohlc_sample(
         "TickerRangePos60": ticker_range_pos60,
         "TickerVolRatio20": ticker_vol_ratio20,
         "TickerVolatility10": ticker_volatility10,
+        "TickerColorStreakState": ticker_color_streak_state,
+        "TickerLimitProxyState": ticker_limit_proxy_state,
         "TickerShockState1D": ticker_shock_state_1d,
         "TickerImpulseState3D": ticker_impulse_state_3d,
         "TickerWideRangeState": ticker_wide_range_state,
@@ -411,6 +483,7 @@ def build_ticker_ohlc_sample(
         "TickerPrevWeekVolRatio4": ticker_weekly["PrevWeekVolRatio4"],
         "Rel5Pct": rel5_pct,
         "Rel20Pct": rel20_pct,
+        "Rel5PctVsVN30": rel5_pct_vs_vn30,
         "RelWeekToDateRetPct": rel_week_to_date_pct,
         "RelPrevWeekRetPct": rel_prev_week_ret_pct,
         "Corr20": corr20,
@@ -427,6 +500,7 @@ def build_ticker_ohlc_sample(
         "IndexRangePos60": index_range_pos60,
         "IndexVolRatio20": index_vol_ratio20,
         "IndexVolatility10": index_volatility10,
+        "IndexColorStreakState": index_color_streak_state,
         "IndexWeekToDateRetPct": index_weekly["WeekToDateRetPct"],
         "IndexWeekToDateRangePct": index_weekly["WeekToDateRangePct"],
         "IndexWeekToDateVolumePctPrevWeek": index_weekly["WeekToDateVolumePctPrevWeek"],
@@ -435,11 +509,22 @@ def build_ticker_ohlc_sample(
         "IndexPrevWeekRetPct": index_weekly["PrevWeekRetPct"],
         "IndexPrevWeekRangePct": index_weekly["PrevWeekRangePct"],
         "IndexPrevWeekVolRatio4": index_weekly["PrevWeekVolRatio4"],
+        "VN30Ret1Pct": vn30_ret1,
+        "VN30Ret5Pct": vn30_ret5,
+        "VN30Ret20Pct": vn30_ret20,
+        "VN30DistSMA20Pct": vn30_dist_sma20,
+        "VN30RangePos20": vn30_range_pos20,
+        "VN30VolRatio20": vn30_vol_ratio20,
+        "VN30ColorStreakState": vn30_color_streak_state,
+        "Corr20VN30": corr20_vn30,
+        "Beta20VN30": beta20_vn30,
     }
     for base_name in (
         "TickerRet1Pct",
         "TickerRangePct",
         "TickerVolRatio20",
+        "TickerColorStreakState",
+        "TickerLimitProxyState",
         "TickerShockState1D",
         "TickerImpulseState3D",
         "TickerWideRangeState",
@@ -449,8 +534,12 @@ def build_ticker_ohlc_sample(
         "TickerRelativeRotationState",
         "TickerExhaustionState",
         "Rel5Pct",
+        "Rel5PctVsVN30",
         "IndexRet1Pct",
         "IndexRangePct",
+        "IndexColorStreakState",
+        "VN30Ret1Pct",
+        "VN30ColorStreakState",
     ):
         series = feature_map[base_name]
         for lag in LAGS:
