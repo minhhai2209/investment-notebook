@@ -240,6 +240,10 @@ run_eval_boosted_market() {
   run_module eval_boosted_market scripts.analysis.evaluate_boosted_market_experiment "$@"
 }
 
+run_eval_ticker_color() {
+  run_module eval_ticker_color scripts.analysis.evaluate_ticker_color_models "$@"
+}
+
 run_eval_ohlc() {
   run_module eval_ohlc scripts.analysis.evaluate_ohlc_models "$@"
 }
@@ -411,6 +415,9 @@ main() {
       ;;
     eval_boosted_market)
       run_eval_boosted_market "$@"
+      ;;
+    eval_ticker_color)
+      run_eval_ticker_color "$@"
       ;;
     eval_ohlc)
       run_eval_ohlc "$@"
