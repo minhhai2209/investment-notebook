@@ -14,6 +14,7 @@ from scripts.analysis.ticker_color_overlay import (
     load_optional_overlay,
     summarise_ticker_overlay,
 )
+from scripts.analysis.ticker_specialization_overlay import summarise_specialized_ticker_setup
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
@@ -460,6 +461,19 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
             )
     else:
         lines.append("- No ticker color overlay available.")
+    lines.append("")
+    lines.append("## Specialized Overlay")
+    specialized = report["SpecializedOverlay"]
+    lines.append(f"- Regime: `{specialized['Regime']}`")
+    lines.append(f"- ActionBias: `{specialized['ActionBias']}`")
+    lines.append(f"- OverlayScore: `{specialized['OverlayScore']}`")
+    lines.append(f"- Summary: `{specialized['Summary']}`")
+    if specialized["Signals"]:
+        for signal in specialized["Signals"]:
+            lines.append(f"- signal: `{signal}`")
+    metrics = specialized["Metrics"]
+    for key, value in metrics.items():
+        lines.append(f"- {key}: `{value}`")
     return "\n".join(lines) + "\n"
 
 
@@ -579,6 +593,7 @@ def build_deep_dive(
     state = _load_state(research_dir, ticker)
     color_comparison_df, color_current_df = load_optional_overlay(ticker_color_dir)
     color_overlay = summarise_ticker_overlay(extract_ticker_overlay(ticker, color_comparison_df, color_current_df))
+    specialized_overlay = summarise_specialized_ticker_setup(ticker, state)
 
     ticker_timing = timing_df.loc[timing_df["Ticker"].eq(ticker)].sort_values("Horizon").reset_index(drop=True)
     if ticker_timing.empty:
@@ -775,6 +790,7 @@ def build_deep_dive(
                 "DamageBelow",
                 "ExecutionBias",
                 "BurstExecutionBias",
+                "ExecutionNote",
                 "TrimAggression",
                 "MustSellFractionPct",
             ]
@@ -791,12 +807,16 @@ def build_deep_dive(
             "BreakoutConfirmAbove": breakout_confirm_above,
         },
         "TrendPersistence": color_overlay,
+        "SpecializedOverlay": specialized_overlay,
         "ReferenceBudgetPlan": reference_budget_plan,
         "BudgetPlan": budget_plan,
     }
     if color_overlay.get("Summary"):
         prefix = "trend persistence ủng hộ" if int(color_overlay.get("OverlayScore") or 0) > 0 else "trend persistence thận trọng"
         report["VerdictReasons"].append(f"{prefix}: {color_overlay['Summary']}")
+    if specialized_overlay.get("Summary"):
+        prefix = "specialized overlay ủng hộ" if int(specialized_overlay.get("OverlayScore") or 0) > 0 else "specialized overlay thận trọng"
+        report["VerdictReasons"].append(f"{prefix}: {specialized_overlay['Summary']}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     json_path = output_dir / f"{ticker}_ml_deep_dive.json"
