@@ -236,6 +236,10 @@ run_eval_deep_market() {
   run_module eval_deep_market scripts.analysis.evaluate_deep_market_experiment "$@"
 }
 
+run_eval_boosted_market() {
+  run_module eval_boosted_market scripts.analysis.evaluate_boosted_market_experiment "$@"
+}
+
 run_eval_ohlc() {
   run_module eval_ohlc scripts.analysis.evaluate_ohlc_models "$@"
 }
@@ -404,6 +408,9 @@ main() {
       ;;
     eval_deep_market)
       run_eval_deep_market "$@"
+      ;;
+    eval_boosted_market)
+      run_eval_boosted_market "$@"
       ;;
     eval_ohlc)
       run_eval_ohlc "$@"
