@@ -6,7 +6,7 @@ from scripts.analysis.ticker_color_overlay import summarise_ticker_overlay
 
 
 class TickerColorOverlayTest(unittest.TestCase):
-    def test_summarise_ticker_overlay_flags_usable_rows_and_scores_bias(self) -> None:
+    def test_summarise_ticker_overlay_flags_usable_rows_without_scoring_bias(self) -> None:
         rows = [
             {
                 "TargetName": "GREEN",
@@ -34,7 +34,7 @@ class TickerColorOverlayTest(unittest.TestCase):
 
         summary = summarise_ticker_overlay(rows)
 
-        self.assertEqual(summary["OverlayScore"], 4)
+        self.assertEqual(summary["OverlayScore"], 0)
         self.assertEqual(len(summary["UsableRows"]), 1)
         self.assertIn("green T+10 YES", summary["Summary"])
 

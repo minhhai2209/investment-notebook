@@ -5,10 +5,13 @@ import unittest
 from pathlib import Path
 
 from scripts.data_fetching.macro_factor_cache import (
+    MacroFactorSpec,
+    fetch_factor_frame,
     load_macro_factor_matrix,
     parse_fred_csv_text,
     parse_stooq_csv_text,
 )
+import scripts.data_fetching.macro_factor_cache as macro_factor_cache
 
 
 class MacroFactorCacheTest(unittest.TestCase):
@@ -45,6 +48,31 @@ class MacroFactorCacheTest(unittest.TestCase):
             matrix = load_macro_factor_matrix(cache_dir)
             self.assertEqual(list(matrix.columns), ["SP500", "VIX"])
             self.assertAlmostEqual(float(matrix.loc["2026-03-20", "VIX"]), 17.4, places=6)
+
+    def test_fetch_stooq_factor_url_encodes_index_symbol(self) -> None:
+        captured = {}
+        original = macro_factor_cache._download_text
+
+        def fake_download(url, session, timeout):
+            captured["url"] = url
+            return "Date,Open,High,Low,Close\n2026-03-20,1,2,1,1.5\n"
+
+        macro_factor_cache._download_text = fake_download
+        try:
+            frame = fetch_factor_frame(
+                MacroFactorSpec(
+                    name="DAX40",
+                    label="DAX 40",
+                    source="stooq",
+                    symbol="^dax",
+                    value_column="Close",
+                )
+            )
+        finally:
+            macro_factor_cache._download_text = original
+
+        self.assertIn("s=%5Edax", captured["url"])
+        self.assertAlmostEqual(float(frame.iloc[-1]["Value"]), 1.5, places=6)
 
 
 if __name__ == "__main__":

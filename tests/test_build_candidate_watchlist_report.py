@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.analysis.build_candidate_watchlist_report import build_candidate_watchlist
+from scripts.analysis.build_candidate_watchlist_report import build_candidate_watchlist, _timing_ohlc_consistency
 
 
 class BuildCandidateWatchlistReportTest(unittest.TestCase):
@@ -89,6 +89,55 @@ class BuildCandidateWatchlistReportTest(unittest.TestCase):
             ]
         ).to_csv(self.analysis_dir / "ticker_playbooks_live" / "ticker_playbook_best_configs.csv", index=False)
 
+    def test_timing_ohlc_consistency_flags_path_conflict(self) -> None:
+        result = _timing_ohlc_consistency(
+            timing_row={
+                "Horizon": 10,
+                "PredPeakRetPct": 26.88,
+                "PredPeakPrice": 278.49,
+            },
+            ohlc_multi_rows=[
+                {"Horizon": 1, "ForecastHigh": 222.01},
+                {"Horizon": 5, "ForecastHigh": 230.49},
+                {"Horizon": 10, "ForecastHigh": 224.54},
+                {"Horizon": 20, "ForecastHigh": 260.00},
+            ],
+            base_price=219.5,
+        )
+
+        self.assertEqual(result["status"], "conflict")
+        self.assertAlmostEqual(result["ohlc_max_high_ret_pct"], 5.01, places=2)
+        self.assertAlmostEqual(result["gap_pct"], 21.87, places=2)
+        self.assertIn("exceeds OHLC checkpoint high", result["summary"])
+
+    def test_timing_ohlc_consistency_prefers_cumulative_path_high(self) -> None:
+        result = _timing_ohlc_consistency(
+            timing_row={
+                "Horizon": 10,
+                "PredPeakRetPct": 20.0,
+                "PredPeakPrice": 120.0,
+            },
+            ohlc_multi_rows=[
+                {
+                    "Horizon": 5,
+                    "ForecastHigh": 104.0,
+                    "ForecastCumHigh": 118.0,
+                    "ForecastCumHighRetPct": 18.0,
+                },
+                {
+                    "Horizon": 10,
+                    "ForecastHigh": 105.0,
+                    "ForecastCumHigh": 119.0,
+                    "ForecastCumHighRetPct": 19.0,
+                },
+            ],
+            base_price=100.0,
+        )
+
+        self.assertEqual(result["status"], "aligned")
+        self.assertAlmostEqual(result["ohlc_max_high_ret_pct"], 19.0)
+        self.assertIn("OHLC cumulative high", result["summary"])
+
     def test_build_candidate_watchlist_core_keeps_grid_only_zone_as_wait(self) -> None:
         self._write_core_inputs()
 
@@ -120,10 +169,72 @@ class BuildCandidateWatchlistReportTest(unittest.TestCase):
 
         pd.DataFrame(
             [
-                {"Ticker": "AAA", "ForecastCloseRetPct": 1.2, "ForecastCandleBias": "BULLISH"},
-                {"Ticker": "BBB", "ForecastCloseRetPct": -2.0, "ForecastCandleBias": "BEARISH"},
+                {
+                    "Ticker": "AAA",
+                    "ForecastOpen": 49.9,
+                    "ForecastHigh": 51.0,
+                    "ForecastLow": 49.0,
+                    "ForecastClose": 50.4,
+                    "ForecastCloseRetPct": 1.2,
+                    "ForecastCandleBias": "BULLISH",
+                    "Model": "ridge",
+                    "EvalRows": 30,
+                    "CloseMAEPct": 0.8,
+                    "RangeMAEPct": 1.5,
+                    "CloseDirHitPct": 60.0,
+                },
+                {
+                    "Ticker": "BBB",
+                    "ForecastOpen": 119.0,
+                    "ForecastHigh": 121.0,
+                    "ForecastLow": 116.0,
+                    "ForecastClose": 117.6,
+                    "ForecastCloseRetPct": -2.0,
+                    "ForecastCandleBias": "BEARISH",
+                    "Model": "hist_gbm",
+                    "EvalRows": 30,
+                    "CloseMAEPct": 1.4,
+                    "RangeMAEPct": 2.1,
+                    "CloseDirHitPct": 52.0,
+                },
             ]
         ).to_csv(self.analysis_dir / "ml_ohlc_next_session.csv", index=False)
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "AAA",
+                    "Horizon": 1,
+                    "ForecastWindow": "T+1",
+                    "ForecastOpen": 49.9,
+                    "ForecastHigh": 51.0,
+                    "ForecastLow": 49.0,
+                    "ForecastClose": 50.4,
+                    "ForecastCloseRetPct": 1.2,
+                    "ForecastCandleBias": "BULLISH",
+                    "Model": "ridge",
+                    "EvalRows": 30,
+                    "CloseMAEPct": 0.8,
+                    "RangeMAEPct": 1.5,
+                    "CloseDirHitPct": 60.0,
+                },
+                {
+                    "Ticker": "AAA",
+                    "Horizon": 3,
+                    "ForecastWindow": "T+3",
+                    "ForecastOpen": 50.2,
+                    "ForecastHigh": 52.0,
+                    "ForecastLow": 49.2,
+                    "ForecastClose": 51.0,
+                    "ForecastCloseRetPct": 2.4,
+                    "ForecastCandleBias": "BULLISH",
+                    "Model": "ridge",
+                    "EvalRows": 30,
+                    "CloseMAEPct": 1.1,
+                    "RangeMAEPct": 1.9,
+                    "CloseDirHitPct": 56.7,
+                },
+            ]
+        ).to_csv(self.analysis_dir / "ml_ohlc_multi_session.csv", index=False)
 
         pd.DataFrame(
             [
@@ -305,6 +416,9 @@ class BuildCandidateWatchlistReportTest(unittest.TestCase):
         self.assertIn("48 mẫu", aaa["ValidationSummary"])
         self.assertEqual(aaa["ConservativePeakRetPct"], 3.4)
         self.assertEqual(aaa["ConservativeCloseRetPct"], 0.5)
+        self.assertEqual(aaa["ForecastCloseT1"], 50.4)
+        self.assertEqual(aaa["OHLCCloseMAEPctT1"], 0.8)
+        self.assertIn("T+3 close 2.40%", aaa["OHLCMultiSessionSummary"])
         self.assertEqual(aaa["ReferenceBudgetFullPlanPct"], 100.0)
         self.assertEqual(aaa["ReferenceBudgetDeployNowPct"], 40.0)
         self.assertEqual(aaa["ReferenceBudgetDeployNowVND"], 1_996_980_000)
@@ -314,6 +428,9 @@ class BuildCandidateWatchlistReportTest(unittest.TestCase):
         self.assertIn("timing `T+3: peak 4.50% trong ~2.0 phiên, close 1.40%`", markdown)
         self.assertIn("cycle `2M: peak 8.00% trong ~24.0 phiên`", markdown)
         self.assertIn("verify `48 mẫu | hit 62.0% | peak MAE 1.10% | close MAE 0.90%`", markdown)
+        self.assertIn("OHLC `O 49.9 / H 51.0 / L 49.0 / C 50.4 (1.2%)`", markdown)
+        self.assertIn("OHLC verify `ridge | close MAE 0.8% | dir hit 60.0%`", markdown)
+        self.assertIn("OHLC multi `T+1 close 1.20% | MAE 0.80% | hit 60.0%; T+3 close 2.40% | MAE 1.10% | hit 56.7%`", markdown)
         self.assertIn("deploy `~4.0%` ref budget", markdown)
         self.assertIn("full-plan `100.0%` ref budget", markdown)
         self.assertIn("now `40.0%` ref budget", markdown)

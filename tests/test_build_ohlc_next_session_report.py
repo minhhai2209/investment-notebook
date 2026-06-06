@@ -5,6 +5,7 @@ import unittest
 import pandas as pd
 
 from scripts.analysis.build_ohlc_next_session_report import (
+    select_best_multi_session_forecasts,
     select_best_next_session_forecasts,
     summarise_ohlc_model_metrics_by_ticker,
 )
@@ -217,6 +218,84 @@ class BuildOhlcNextSessionReportTest(unittest.TestCase):
         self.assertAlmostEqual(float(aaa_row["ForecastClose"]), 10.1)
         self.assertAlmostEqual(float(aaa_row["TickerShockState1D"]), 1.0)
         self.assertAlmostEqual(float(aaa_row["TickerTrendRegimeState"]), 1.0)
+
+    def test_select_best_multi_session_forecasts_exports_each_requested_horizon(self) -> None:
+        history = pd.DataFrame(
+            [
+                {
+                    "Ticker": "AAA",
+                    "Model": "ridge",
+                    "Horizon": 1,
+                    "ActualOpenRetPct": 0.2,
+                    "PredOpenRetPct": 0.1,
+                    "ActualHighRetPct": 1.0,
+                    "PredHighRetPct": 0.9,
+                    "ActualLowRetPct": -0.5,
+                    "PredLowRetPct": -0.4,
+                    "ActualCloseRetPct": 0.8,
+                    "PredCloseRetPct": 0.7,
+                    "ActualRangePct": 1.5,
+                    "PredRangePct": 1.3,
+                },
+                {
+                    "Ticker": "AAA",
+                    "Model": "ridge",
+                    "Horizon": 2,
+                    "ActualOpenRetPct": 0.4,
+                    "PredOpenRetPct": 0.3,
+                    "ActualHighRetPct": 2.0,
+                    "PredHighRetPct": 1.8,
+                    "ActualLowRetPct": -0.7,
+                    "PredLowRetPct": -0.6,
+                    "ActualCloseRetPct": 1.4,
+                    "PredCloseRetPct": 1.2,
+                    "ActualRangePct": 2.7,
+                    "PredRangePct": 2.4,
+                },
+            ]
+        )
+        current = pd.DataFrame(
+            [
+                {
+                    "Date": "2026-03-30",
+                    "Ticker": "AAA",
+                    "Horizon": 1,
+                    "ForecastWindow": "T+1",
+                    "ForecastDate": "2026-03-31",
+                    "BaseClose": 10.0,
+                    "Model": "ridge",
+                    "PredOpen": 10.0,
+                    "PredHigh": 10.2,
+                    "PredLow": 9.9,
+                    "PredClose": 10.1,
+                    "PredCloseRetPct": 1.0,
+                    "PredRangePct": 3.0,
+                    "ForecastCandleBias": "BULLISH",
+                },
+                {
+                    "Date": "2026-03-30",
+                    "Ticker": "AAA",
+                    "Horizon": 2,
+                    "ForecastWindow": "T+2",
+                    "ForecastDate": "2026-04-01",
+                    "BaseClose": 10.0,
+                    "Model": "ridge",
+                    "PredOpen": 10.1,
+                    "PredHigh": 10.5,
+                    "PredLow": 9.8,
+                    "PredClose": 10.3,
+                    "PredCloseRetPct": 3.0,
+                    "PredRangePct": 7.0,
+                    "ForecastCandleBias": "BULLISH",
+                },
+            ]
+        )
+
+        report = select_best_multi_session_forecasts(history, current, horizons=[1, 2])
+
+        self.assertEqual(report["Horizon"].tolist(), [1, 2])
+        self.assertEqual(report["ForecastWindow"].tolist(), ["T+1", "T+2"])
+        self.assertAlmostEqual(float(report.loc[report["Horizon"].eq(2), "ForecastClose"].iloc[0]), 10.3)
 
 
 if __name__ == "__main__":

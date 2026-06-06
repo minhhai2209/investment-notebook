@@ -1,6 +1,7 @@
 universe:
   csv: data/industry_map.csv
   include_indices: false
+  core_tickers: [VIC, VHM]
 
 technical_indicators:
   moving_averages: [20, 50, 200]

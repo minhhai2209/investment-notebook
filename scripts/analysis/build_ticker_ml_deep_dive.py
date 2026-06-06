@@ -156,7 +156,7 @@ def _summarise_ohlc_state(ohlc_row: pd.Series) -> str | None:
         _state_regime_label(ohlc_row.get("TickerShockState1D"), positive="shock up", negative="shock down"),
         _state_regime_label(ohlc_row.get("TickerImpulseState3D"), positive="3-day impulse up", negative="3-day impulse down"),
         _state_regime_label(ohlc_row.get("TickerWideRangeState"), positive="wide-range expansion", negative="wide-range breakdown"),
-        _state_regime_label(ohlc_row.get("TickerTrendRegimeState"), positive="hot trend regime", negative="hot down regime"),
+        _state_regime_label(ohlc_row.get("TickerTrendRegimeState"), positive="trend regime state +1", negative="trend regime state -1"),
         _state_regime_label(ohlc_row.get("TickerCompressionState"), positive="compression above base", negative="compression below base"),
         _state_regime_label(ohlc_row.get("TickerReclaimState"), positive="sma20 reclaim", negative="sma20 loss"),
         _state_regime_label(ohlc_row.get("TickerRelativeRotationState"), positive="relative rotation up", negative="relative rotation down"),
@@ -299,8 +299,6 @@ def _derive_verdict(
         and preferred_low <= last_price <= preferred_high
     )
 
-    deeply_extended = dist_sma20 >= 15.0 or rsi14 >= 74.0
-    extended = dist_sma20 >= 10.0 or rsi14 >= 68.0
     long_timing_negative = best_timing_edge < 0.0 and t10_edge < 0.0
 
     reasons: List[str] = []
@@ -311,23 +309,20 @@ def _derive_verdict(
             reasons.append("giá đang nằm trong vùng ưu tiên và timing ngắn hạn chưa phủ định")
         else:
             verdict = "RESTING_BUY_ONLY"
-            reasons.append("nên đặt resting bids theo ladder thay vì mua đuổi ở giá hiện tại")
+            reasons.append("current price chưa thỏa điều kiện zone/timing từ artifact")
     else:
-        if deeply_extended:
+        if long_timing_negative:
             verdict = "NO_BUY_NOW"
-            reasons.append("giá đang quá kéo dãn so với nền ngắn hạn")
-        elif long_timing_negative:
+            reasons.append("timing tốt nhất và T+10 đều âm theo model")
+        elif forecast_close_ret < 0 and best_timing_edge <= 0:
             verdict = "NO_BUY_NOW"
-            reasons.append("timing tốt nhất và T+10 đều âm, không phù hợp dồn vốn lớn")
-        elif extended and forecast_close_ret < 0:
-            verdict = "NO_BUY_NOW"
-            reasons.append("giá đang nóng trong khi OHLC T+1 không ủng hộ")
+            reasons.append("OHLC T+1 và timing edge không ủng hộ")
         elif preferred_high is not None and last_price > preferred_high:
             verdict = "WAIT_FOR_PULLBACK"
-            reasons.append("giá đã vượt vùng chờ tốt hơn do research state gợi ý")
+            reasons.append("current price trên preferred buy zone từ research state")
         else:
             verdict = "WATCH"
-            reasons.append("chưa có đủ xác nhận để xem như điểm vào lớn")
+            reasons.append("chưa có đủ model/artifact confirmation để xem như điểm vào lớn")
 
     reasons.append(f"BestTimingNetEdge {best_timing_edge:.2f}% | T10NetEdge {t10_edge:.2f}%")
     reasons.append(f"ForecastCloseRet T+1 {forecast_close_ret:.2f}% | DistSMA20 {dist_sma20:.2f}% | RSI14 {rsi14:.2f}")
@@ -368,14 +363,16 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
             "- "
             f"{row['ForecastWindow']}: peak `{row['PredPeakRetPct']}%`, drawdown `{row['PredDrawdownPct']}%`, "
             f"close `{row['PredCloseRetPct']}%`, conservative close `{row['ConservativeCloseRetPct']}%`, "
-            f"net edge `{row['PredNetEdgePct']}%`, RR `{row['PredRewardRisk']}`, verify `{row['ValidationSummary']}`"
+            f"net edge `{row['PredNetEdgePct']}%`, model `{row.get('ModelFamily') or row.get('Model')}` / `{row.get('Model')}`, "
+            f"RR `{row['PredRewardRisk']}`, verify `{row['ValidationSummary']}`"
         )
     lines.append("")
     lines.append("## OHLC T+1")
     ohlc = report["NextSessionOHLC"]
     lines.append(
         f"- Open `{ohlc['ForecastOpen']}`, High `{ohlc['ForecastHigh']}`, Low `{ohlc['ForecastLow']}`, "
-        f"Close `{ohlc['ForecastClose']}` ({ohlc['ForecastCloseRetPct']}%), bias `{ohlc['ForecastCandleBias']}`"
+        f"Close `{ohlc['ForecastClose']}` ({ohlc['ForecastCloseRetPct']}%), bias `{ohlc['ForecastCandleBias']}`, "
+        f"model `{ohlc.get('ModelFamily') or ohlc.get('Model')}` / `{ohlc.get('Model')}`"
     )
     state_signals = report["OHLCStateSignals"]
     lines.append(f"- Regime summary: `{state_signals['Summary']}`")
@@ -659,7 +656,11 @@ def build_deep_dive(
             "LotSize": int(snapshot_row["LotSize"]),
         },
         "NextSessionOHLC": {
-            key: _json_safe(_round_or_none(ohlc_row[key], 4) if key != "ForecastCandleBias" else ohlc_row[key])
+            key: _json_safe(
+                ohlc_row[key]
+                if key in {"ForecastCandleBias", "Model", "ModelFamily", "ModelClass"}
+                else _round_or_none(ohlc_row[key], 4)
+            )
             for key in [
                 "ForecastOpen",
                 "ForecastHigh",
@@ -667,6 +668,7 @@ def build_deep_dive(
                 "ForecastClose",
                 "ForecastCloseRetPct",
                 "ForecastCandleBias",
+                *[column for column in ["Model", "ModelFamily", "ModelClass"] if column in ohlc_row.index],
                 *[column for column in OHLC_STATE_COLUMNS if column in ohlc_row.index],
             ]
         },
@@ -681,6 +683,9 @@ def build_deep_dive(
             {
                 "Horizon": int(row["Horizon"]),
                 "ForecastWindow": row["ForecastWindow"],
+                "Model": row.get("Model"),
+                "ModelFamily": row.get("ModelFamily"),
+                "ModelClass": row.get("ModelClass"),
                 "EvalRows": _round_or_none(row["EvalRows"], 0),
                 "PeakRetMAEPct": _round_or_none(row["PeakRetMAEPct"], 2),
                 "PeakDayMAE": _round_or_none(row["PeakDayMAE"], 2),
@@ -812,11 +817,9 @@ def build_deep_dive(
         "BudgetPlan": budget_plan,
     }
     if color_overlay.get("Summary"):
-        prefix = "trend persistence ủng hộ" if int(color_overlay.get("OverlayScore") or 0) > 0 else "trend persistence thận trọng"
-        report["VerdictReasons"].append(f"{prefix}: {color_overlay['Summary']}")
+        report["VerdictReasons"].append(f"trend persistence context: {color_overlay['Summary']}")
     if specialized_overlay.get("Summary"):
-        prefix = "specialized overlay ủng hộ" if int(specialized_overlay.get("OverlayScore") or 0) > 0 else "specialized overlay thận trọng"
-        report["VerdictReasons"].append(f"{prefix}: {specialized_overlay['Summary']}")
+        report["VerdictReasons"].append(f"specialized overlay context: {specialized_overlay['Summary']}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     json_path = output_dir / f"{ticker}_ml_deep_dive.json"

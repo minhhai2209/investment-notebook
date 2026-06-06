@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Optional, Sequence
+from urllib.parse import urlencode
 
 import pandas as pd
 import requests
@@ -109,7 +110,8 @@ def fetch_factor_frame(spec: MacroFactorSpec, session: Optional[requests.Session
     elif spec.source == "stooq":
         if not spec.symbol:
             raise ValueError(f"Missing symbol for factor {spec.name}")
-        url = f"https://stooq.com/q/d/l/?s={spec.symbol}&i=d"
+        query = urlencode({"s": spec.symbol, "i": "d"})
+        url = f"https://stooq.com/q/d/l/?{query}"
         frame = parse_stooq_csv_text(_download_text(url, session, timeout), spec.value_column)
     else:
         raise ValueError(f"Unsupported factor source: {spec.source}")

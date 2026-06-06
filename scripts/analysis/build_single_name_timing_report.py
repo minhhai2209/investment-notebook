@@ -10,6 +10,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
+from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -31,7 +32,7 @@ DEFAULT_MIN_TRAIN_DATES = 120
 DEFAULT_HOLDOUT_DATES = 40
 DEFAULT_RECENT_FOCUS_DATES = 252
 DEFAULT_QUARTER_FOCUS_DATES = 63
-DEFAULT_HORIZONS = (3, 5, 10)
+DEFAULT_HORIZONS = (3, 5, 10, 15, 20)
 VARIANTS = ("full_2y", "recent_focus", "quarter_focus")
 TARGET_COLUMNS = (
     "TargetPeakRetPct",
@@ -49,6 +50,8 @@ REQUIRED_OUTPUT_COLUMNS = [
     "ForecastDate",
     "Variant",
     "Model",
+    "ModelFamily",
+    "ModelClass",
     "EvalRows",
     "PeakRetMAEPct",
     "PeakDayMAE",
@@ -70,6 +73,25 @@ REQUIRED_OUTPUT_COLUMNS = [
     "PredCapitalEfficiencyPctPerDay",
 ]
 TRADE_FEE_ROUND_TRIP_PCT = 0.06
+MODEL_METADATA = {
+    "ridge": {
+        "ModelFamily": "ML-linear",
+        "ModelClass": "Ridge",
+    },
+    "hist_gbm": {
+        "ModelFamily": "ML-tree-boosting",
+        "ModelClass": "HistGradientBoostingRegressor",
+    },
+    "mlp_deep": {
+        "ModelFamily": "DL-style-neural-network",
+        "ModelClass": "MLPRegressor(32)",
+    },
+}
+
+
+def _model_metadata(model_name: object) -> Dict[str, str]:
+    name = str(model_name)
+    return dict(MODEL_METADATA.get(name, {"ModelFamily": "ML", "ModelClass": name}))
 
 
 def _require_columns(frame: pd.DataFrame, required: Sequence[str], label: str) -> None:
@@ -212,6 +234,18 @@ def build_model_factories() -> Dict[str, Callable[[], Pipeline]]:
                 max_depth=3,
                 learning_rate=0.05,
                 max_iter=180,
+                random_state=42,
+            )
+        ),
+        "mlp_deep": lambda: make_numeric_pipeline(
+            MLPRegressor(
+                hidden_layer_sizes=(32,),
+                activation="relu",
+                alpha=0.001,
+                learning_rate_init=0.001,
+                max_iter=180,
+                early_stopping=True,
+                n_iter_no_change=8,
                 random_state=42,
             )
         ),
@@ -374,6 +408,8 @@ def run_report(
                     metric_row["Ticker"] = ticker_name
                     metric_row["Variant"] = variant
                     metric_row["Model"] = model_name
+                    for key, value in _model_metadata(model_name).items():
+                        metric_row[key] = value
                     metric_row["Horizon"] = int(horizon)
                     metric_row["ForecastWindow"] = f"T+{int(horizon)}"
                     metric_frames.append(metric_row)
@@ -461,6 +497,8 @@ def run_report(
             "ForecastDate": forecast_date,
             "Variant": merged["Variant"],
             "Model": merged["Model"],
+            "ModelFamily": merged["ModelFamily"],
+            "ModelClass": merged["ModelClass"],
             "EvalRows": merged["EvalRows"].astype(int),
             "PeakRetMAEPct": merged["PeakRetMAEPct"].astype(float),
             "PeakDayMAE": merged["PeakDayMAE"].astype(float),
@@ -559,7 +597,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         type=int,
         default=list(DEFAULT_HORIZONS),
-        help="Short horizons (in trading sessions) used to score single-name timing.",
+        help="Horizons in trading sessions used to score single-name timing (default: T+3 T+5 T+10 T+15 T+20).",
     )
     return parser.parse_args()
 

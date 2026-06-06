@@ -11,6 +11,7 @@ from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
+from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -33,7 +34,10 @@ DEFAULT_HISTORY_CALENDAR_DAYS = 800
 DEFAULT_MIN_TRAIN_DATES = 120
 DEFAULT_HOLDOUT_DATES = 30
 DEFAULT_HORIZON = 1
+DEFAULT_HORIZONS = (1, 2, 3, 5, 10, 15, 20)
 OUTPUT_FILE_NAME = "ml_ohlc_next_session.csv"
+MULTI_OUTPUT_FILE_NAME = "ml_ohlc_multi_session.csv"
+METRICS_OUTPUT_FILE_NAME = "ml_ohlc_model_metrics.csv"
 STATE_SIGNAL_COLUMNS = [
     "TickerColorStreakState",
     "TickerLimitProxyState",
@@ -56,10 +60,14 @@ REQUIRED_OUTPUT_COLUMNS = [
     "Base",
     "ForecastDate",
     "Model",
+    "ModelFamily",
+    "ModelClass",
     "EvalRows",
     "OpenMAEPct",
     "HighMAEPct",
     "LowMAEPct",
+    "CumHighMAEPct",
+    "CumLowMAEPct",
     "CloseMAEPct",
     "RangeMAEPct",
     "CloseDirHitPct",
@@ -67,11 +75,35 @@ REQUIRED_OUTPUT_COLUMNS = [
     "ForecastOpen",
     "ForecastHigh",
     "ForecastLow",
+    "ForecastCumHigh",
+    "ForecastCumLow",
     "ForecastClose",
     "ForecastCloseRetPct",
+    "ForecastCumHighRetPct",
+    "ForecastCumLowRetPct",
     "ForecastRangePct",
     "ForecastCandleBias",
 ]
+
+MODEL_METADATA = {
+    "ridge": {
+        "ModelFamily": "ML-linear",
+        "ModelClass": "Ridge",
+    },
+    "hist_gbm": {
+        "ModelFamily": "ML-tree-boosting",
+        "ModelClass": "HistGradientBoostingRegressor",
+    },
+    "mlp_deep": {
+        "ModelFamily": "DL-style-neural-network",
+        "ModelClass": "MLPRegressor(32)",
+    },
+}
+
+
+def _model_metadata(model_name: object) -> Dict[str, str]:
+    name = str(model_name)
+    return dict(MODEL_METADATA.get(name, {"ModelFamily": "ML", "ModelClass": name}))
 
 
 def _require_columns(frame: pd.DataFrame, required: Sequence[str], label: str) -> None:
@@ -141,6 +173,14 @@ def summarise_ohlc_model_metrics_by_ticker(
     scoped = prediction_history[prediction_history["Horizon"] == int(horizon)].copy()
     if scoped.empty:
         return pd.DataFrame()
+    if "ActualCumHighRetPct" not in scoped.columns:
+        scoped["ActualCumHighRetPct"] = scoped["ActualHighRetPct"].astype(float)
+    if "PredCumHighRetPct" not in scoped.columns:
+        scoped["PredCumHighRetPct"] = scoped["PredHighRetPct"].astype(float)
+    if "ActualCumLowRetPct" not in scoped.columns:
+        scoped["ActualCumLowRetPct"] = scoped["ActualLowRetPct"].astype(float)
+    if "PredCumLowRetPct" not in scoped.columns:
+        scoped["PredCumLowRetPct"] = scoped["PredLowRetPct"].astype(float)
 
     rows: List[Dict[str, object]] = []
     for (ticker, model_name), group in scoped.groupby(["Ticker", "Model"], sort=False):
@@ -148,18 +188,27 @@ def summarise_ohlc_model_metrics_by_ticker(
         range_mae = float(mean_absolute_error(group["ActualRangePct"], group["PredRangePct"]))
         upside_miss_mae = _mean_upside_miss_mae(group["ActualHighRetPct"], group["PredHighRetPct"])
         downside_miss_mae = _mean_downside_miss_mae(group["ActualLowRetPct"], group["PredLowRetPct"])
+        cum_high_mae = float(mean_absolute_error(group["ActualCumHighRetPct"], group["PredCumHighRetPct"]))
+        cum_low_mae = float(mean_absolute_error(group["ActualCumLowRetPct"], group["PredCumLowRetPct"]))
+        cum_upside_miss_mae = _mean_upside_miss_mae(group["ActualCumHighRetPct"], group["PredCumHighRetPct"])
+        cum_downside_miss_mae = _mean_downside_miss_mae(group["ActualCumLowRetPct"], group["PredCumLowRetPct"])
         row = {
             "Ticker": ticker,
             "Model": model_name,
+            **_model_metadata(model_name),
             "Horizon": int(horizon),
             "EvalRows": int(group.shape[0]),
             "OpenMAEPct": float(mean_absolute_error(group["ActualOpenRetPct"], group["PredOpenRetPct"])),
             "HighMAEPct": float(mean_absolute_error(group["ActualHighRetPct"], group["PredHighRetPct"])),
             "LowMAEPct": float(mean_absolute_error(group["ActualLowRetPct"], group["PredLowRetPct"])),
+            "CumHighMAEPct": cum_high_mae,
+            "CumLowMAEPct": cum_low_mae,
             "CloseMAEPct": close_mae,
             "RangeMAEPct": range_mae,
             "UpsideMissMAEPct": upside_miss_mae,
             "DownsideMissMAEPct": downside_miss_mae,
+            "CumUpsideMissMAEPct": cum_upside_miss_mae,
+            "CumDownsideMissMAEPct": cum_downside_miss_mae,
             "CloseDirHitPct": float(
                 (
                     np.sign(group["ActualCloseRetPct"].astype(float))
@@ -173,6 +222,8 @@ def summarise_ohlc_model_metrics_by_ticker(
             + (0.35 * row["RangeMAEPct"])
             + (0.90 * row["UpsideMissMAEPct"])
             + (0.60 * row["DownsideMissMAEPct"])
+            + (0.90 * row["CumUpsideMissMAEPct"])
+            + (0.60 * row["CumDownsideMissMAEPct"])
             - (0.01 * row["CloseDirHitPct"])
         )
         rows.append(row)
@@ -215,6 +266,18 @@ def build_live_model_factories():
                 max_depth=3,
                 learning_rate=0.05,
                 max_iter=120,
+                random_state=42,
+            )
+        ),
+        "mlp_deep": lambda: make_numeric_pipeline(
+            MLPRegressor(
+                hidden_layer_sizes=(32,),
+                activation="relu",
+                alpha=0.001,
+                learning_rate_init=0.001,
+                max_iter=180,
+                early_stopping=True,
+                n_iter_no_change=8,
                 random_state=42,
             )
         ),
@@ -295,6 +358,24 @@ def select_best_next_session_forecasts(
     if metrics_df.empty or current_forecasts.empty:
         return pd.DataFrame(columns=REQUIRED_OUTPUT_COLUMNS)
 
+    current_forecasts = current_forecasts.copy()
+    if "PredCumHigh" not in current_forecasts.columns and "PredHigh" in current_forecasts.columns:
+        current_forecasts["PredCumHigh"] = current_forecasts["PredHigh"].astype(float)
+    if "PredCumLow" not in current_forecasts.columns and "PredLow" in current_forecasts.columns:
+        current_forecasts["PredCumLow"] = current_forecasts["PredLow"].astype(float)
+    if "PredCumHighRetPct" not in current_forecasts.columns and "PredHighRetPct" in current_forecasts.columns:
+        current_forecasts["PredCumHighRetPct"] = current_forecasts["PredHighRetPct"].astype(float)
+    if "PredCumLowRetPct" not in current_forecasts.columns and "PredLowRetPct" in current_forecasts.columns:
+        current_forecasts["PredCumLowRetPct"] = current_forecasts["PredLowRetPct"].astype(float)
+    if "PredCumHighRetPct" not in current_forecasts.columns:
+        current_forecasts["PredCumHighRetPct"] = (
+            (current_forecasts["PredCumHigh"].astype(float) / current_forecasts["BaseClose"].astype(float)) - 1.0
+        ) * 100.0
+    if "PredCumLowRetPct" not in current_forecasts.columns:
+        current_forecasts["PredCumLowRetPct"] = (
+            (current_forecasts["PredCumLow"].astype(float) / current_forecasts["BaseClose"].astype(float)) - 1.0
+        ) * 100.0
+
     _require_columns(
         current_forecasts,
         [
@@ -308,8 +389,12 @@ def select_best_next_session_forecasts(
             "PredOpen",
             "PredHigh",
             "PredLow",
+            "PredCumHigh",
+            "PredCumLow",
             "PredClose",
             "PredCloseRetPct",
+            "PredCumHighRetPct",
+            "PredCumLowRetPct",
             "PredRangePct",
             "ForecastCandleBias",
         ],
@@ -343,10 +428,14 @@ def select_best_next_session_forecasts(
             "Base": merged["BaseClose"].astype(float),
             "ForecastDate": forecast_date,
             "Model": merged["Model"],
+            "ModelFamily": merged["ModelFamily"],
+            "ModelClass": merged["ModelClass"],
             "EvalRows": merged["EvalRows"].astype(int),
             "OpenMAEPct": merged["OpenMAEPct"].astype(float),
             "HighMAEPct": merged["HighMAEPct"].astype(float),
             "LowMAEPct": merged["LowMAEPct"].astype(float),
+            "CumHighMAEPct": merged["CumHighMAEPct"].astype(float),
+            "CumLowMAEPct": merged["CumLowMAEPct"].astype(float),
             "CloseMAEPct": merged["CloseMAEPct"].astype(float),
             "RangeMAEPct": merged["RangeMAEPct"].astype(float),
             "CloseDirHitPct": merged["CloseDirHitPct"].astype(float),
@@ -354,8 +443,12 @@ def select_best_next_session_forecasts(
             "ForecastOpen": merged["PredOpen"].astype(float),
             "ForecastHigh": merged["PredHigh"].astype(float),
             "ForecastLow": merged["PredLow"].astype(float),
+            "ForecastCumHigh": merged["PredCumHigh"].astype(float),
+            "ForecastCumLow": merged["PredCumLow"].astype(float),
             "ForecastClose": merged["PredClose"].astype(float),
             "ForecastCloseRetPct": merged["PredCloseRetPct"].astype(float),
+            "ForecastCumHighRetPct": merged["PredCumHighRetPct"].astype(float),
+            "ForecastCumLowRetPct": merged["PredCumLowRetPct"].astype(float),
             "ForecastRangePct": merged["PredRangePct"].astype(float),
             "ForecastCandleBias": merged["ForecastCandleBias"],
             "TickerColorStreakState": merged["TickerColorStreakState"].astype(float),
@@ -376,6 +469,26 @@ def select_best_next_session_forecasts(
     return report_df.sort_values(["Ticker"]).reset_index(drop=True)
 
 
+def select_best_multi_session_forecasts(
+    prediction_history: pd.DataFrame,
+    current_forecasts: pd.DataFrame,
+    *,
+    horizons: Sequence[int],
+) -> pd.DataFrame:
+    frames: List[pd.DataFrame] = []
+    for horizon in horizons:
+        frame = select_best_next_session_forecasts(
+            prediction_history,
+            current_forecasts,
+            horizon=int(horizon),
+        )
+        if not frame.empty:
+            frames.append(frame)
+    if not frames:
+        return pd.DataFrame(columns=REQUIRED_OUTPUT_COLUMNS)
+    return pd.concat(frames, ignore_index=True).sort_values(["Ticker", "Horizon"]).reset_index(drop=True)
+
+
 def _validate_coverage(report_df: pd.DataFrame, tickers: Sequence[str]) -> None:
     actual = {
         _normalise_ticker(ticker)
@@ -388,6 +501,28 @@ def _validate_coverage(report_df: pd.DataFrame, tickers: Sequence[str]) -> None:
         raise RuntimeError(
             f"OHLC next-session report does not cover every synced ticker. Missing: {', '.join(missing)}"
         )
+
+
+def _validate_horizon_coverage(report_df: pd.DataFrame, tickers: Sequence[str], horizons: Sequence[int]) -> None:
+    for horizon in horizons:
+        scoped = report_df.loc[pd.to_numeric(report_df["Horizon"], errors="coerce").eq(int(horizon))]
+        _validate_coverage(scoped, tickers)
+
+
+def _parse_horizons(values: Sequence[int] | None, fallback: int) -> List[int]:
+    raw_values = list(values or [])
+    if not raw_values:
+        raw_values = list(DEFAULT_HORIZONS)
+    if int(fallback) not in raw_values:
+        raw_values.append(int(fallback))
+    horizons: List[int] = []
+    for value in raw_values:
+        horizon = int(value)
+        if horizon <= 0:
+            raise ValueError("OHLC horizons must be positive integers")
+        if horizon not in horizons:
+            horizons.append(horizon)
+    return sorted(horizons)
 
 
 def parse_args() -> argparse.Namespace:
@@ -436,15 +571,23 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_HORIZON,
         help="Daily forecast horizon to export (default: T+1).",
     )
+    parser.add_argument(
+        "--horizons",
+        nargs="*",
+        type=int,
+        default=None,
+        help="Daily forecast horizons to export to the multi-session artifact (default: T+1 T+2 T+3 T+5 T+10 T+15 T+20).",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     tickers = _load_universe_tickers(args.universe_csv)
+    horizons = _parse_horizons(args.horizons, int(args.horizon))
     refresh_history_cache(tickers, args.history_dir, int(args.history_calendar_days))
 
-    sample_df = build_multi_ticker_sample(tickers, args.history_dir, max_horizon=int(args.horizon))
+    sample_df = build_multi_ticker_sample(tickers, args.history_dir, max_horizon=max(horizons))
     prediction_history, current_forecasts = generate_ohlc_next_session_predictions(
         sample_df,
         min_train_dates=int(args.min_train_dates),
@@ -458,11 +601,31 @@ def main() -> int:
     if report_df.empty:
         raise RuntimeError("OHLC next-session report is empty; no forecast rows were produced.")
     _validate_coverage(report_df, tickers)
+    multi_df = select_best_multi_session_forecasts(
+        prediction_history,
+        current_forecasts,
+        horizons=horizons,
+    )
+    if multi_df.empty:
+        raise RuntimeError("OHLC multi-session report is empty; no forecast rows were produced.")
+    _validate_horizon_coverage(multi_df, tickers, horizons)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = args.output_dir / OUTPUT_FILE_NAME
+    multi_output_path = args.output_dir / MULTI_OUTPUT_FILE_NAME
     report_df.to_csv(output_path, index=False)
+    multi_df.to_csv(multi_output_path, index=False)
+    metrics_frames = [
+        summarise_ohlc_model_metrics_by_ticker(prediction_history, horizon=int(horizon))
+        for horizon in horizons
+    ]
+    metrics_frames = [frame for frame in metrics_frames if not frame.empty]
+    metrics_df = pd.concat(metrics_frames, ignore_index=True) if metrics_frames else pd.DataFrame()
+    metrics_output_path = args.output_dir / METRICS_OUTPUT_FILE_NAME
+    metrics_df.to_csv(metrics_output_path, index=False)
     print(f"Wrote {output_path}")
+    print(f"Wrote {multi_output_path}")
+    print(f"Wrote {metrics_output_path}")
     return 0
 
 

@@ -134,7 +134,6 @@ def summarise_ticker_overlay(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
         return {"Rows": [], "UsableRows": [], "OverlayScore": 0, "Summary": None}
 
     usable_rows = [dict(row) for row in rows if bool(row.get("IsUsable"))]
-    overlay_score = 0
     summary_parts: List[str] = []
     for row in usable_rows:
         target_name = str(row.get("TargetName"))
@@ -144,17 +143,6 @@ def summarise_ticker_overlay(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
         hit_pct = _round_or_none(row.get("BestStrongSignalHitPct"), 1)
         signed_edge = _round_or_none(row.get("BestStrongSignalAvgSignedEdgePct"), 2)
 
-        if target_name == "GREEN":
-            if current_bias == "YES":
-                overlay_score += 4 if horizon >= 10 else 3
-            elif current_bias == "NO":
-                overlay_score -= 2 if horizon >= 10 else 1
-        elif target_name == "RED":
-            if current_bias == "YES":
-                overlay_score -= 4 if horizon >= 10 else 3
-            elif current_bias == "NO":
-                overlay_score += 2 if horizon >= 10 else 1
-
         summary_parts.append(
             f"{target_name.lower()} T+{horizon} {current_bias} (AUC {auc:.2f}, hit {hit_pct:.1f}%, edge {signed_edge:.2f}%)"
         )
@@ -162,6 +150,6 @@ def summarise_ticker_overlay(rows: list[Mapping[str, Any]]) -> dict[str, Any]:
     return {
         "Rows": [dict(row) for row in rows],
         "UsableRows": usable_rows,
-        "OverlayScore": int(overlay_score),
+        "OverlayScore": 0,
         "Summary": "; ".join(summary_parts[:4]) if summary_parts else None,
     }

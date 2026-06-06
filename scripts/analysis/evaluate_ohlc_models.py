@@ -21,11 +21,18 @@ DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "analysis"
 DEFAULT_CASE_TICKERS = ["HPG", "FPT", "SSI", "VCB", "NKG", "GAS", "PLX", "REE"]
 DEFAULT_MAX_HORIZON = 10
 LAGS = (1, 2, 3)
+PAIR_TICKERS = {
+    "VIC": "VHM",
+    "VHM": "VIC",
+}
+BREAKOUT_WINDOWS = (20, 60, 120, 252)
 TARGET_COLUMNS = [
     "TargetOpenRetPct",
     "TargetCloseRetPct",
     "TargetUpperWickPct",
     "TargetLowerWickPct",
+    "TargetCumHighRetPct",
+    "TargetCumLowRetPct",
 ]
 
 
@@ -135,6 +142,35 @@ def _direction_streak_state(series: pd.Series, *, min_streak: int = 2) -> pd.Ser
     return state
 
 
+def _positive_streak_length(mask: pd.Series) -> pd.Series:
+    values = mask.fillna(False).astype(bool)
+    return values.groupby((~values).cumsum()).cumsum().astype(float)
+
+
+def _build_breakout_level_features(
+    close_series: pd.Series,
+    high_series: pd.Series,
+    *,
+    prefix: str,
+    windows: Sequence[int] = BREAKOUT_WINDOWS,
+) -> Dict[str, pd.Series]:
+    features: Dict[str, pd.Series] = {}
+    for window in windows:
+        prior_high = high_series.rolling(window, min_periods=window).max().shift(1)
+        prior_close_high = close_series.rolling(window, min_periods=window).max().shift(1)
+        dist_prior_high = _series_return_pct(close_series, prior_high)
+        gap_to_prior_high = _series_return_pct(prior_high, close_series)
+        breakout_mask = close_series > prior_high
+        close_breakout_mask = close_series > prior_close_high
+
+        features[f"{prefix}DistPriorHigh{window}Pct"] = dist_prior_high
+        features[f"{prefix}GapToPriorHigh{window}Pct"] = gap_to_prior_high
+        features[f"{prefix}BreakoutHigh{window}State"] = breakout_mask.astype(float)
+        features[f"{prefix}BreakoutClose{window}State"] = close_breakout_mask.astype(float)
+        features[f"{prefix}BreakoutHigh{window}Age"] = _positive_streak_length(breakout_mask)
+    return features
+
+
 def _limit_proxy_state(series: pd.Series, *, limit_pct: float = 6.75) -> pd.Series:
     values = series.astype(float)
     state = pd.Series(0.0, index=values.index, dtype=float)
@@ -216,6 +252,26 @@ def _build_feature_columns() -> List[str]:
         "TickerReclaimState",
         "TickerRelativeRotationState",
         "TickerExhaustionState",
+        "TickerDistPriorHigh20Pct",
+        "TickerGapToPriorHigh20Pct",
+        "TickerBreakoutHigh20State",
+        "TickerBreakoutClose20State",
+        "TickerBreakoutHigh20Age",
+        "TickerDistPriorHigh60Pct",
+        "TickerGapToPriorHigh60Pct",
+        "TickerBreakoutHigh60State",
+        "TickerBreakoutClose60State",
+        "TickerBreakoutHigh60Age",
+        "TickerDistPriorHigh120Pct",
+        "TickerGapToPriorHigh120Pct",
+        "TickerBreakoutHigh120State",
+        "TickerBreakoutClose120State",
+        "TickerBreakoutHigh120Age",
+        "TickerDistPriorHigh252Pct",
+        "TickerGapToPriorHigh252Pct",
+        "TickerBreakoutHigh252State",
+        "TickerBreakoutClose252State",
+        "TickerBreakoutHigh252Age",
         "TickerWeekToDateRetPct",
         "TickerWeekToDateRangePct",
         "TickerWeekToDateVolumePctPrevWeek",
@@ -261,6 +317,47 @@ def _build_feature_columns() -> List[str]:
         "VN30ColorStreakState",
         "Corr20VN30",
         "Beta20VN30",
+        "PairRet1Pct",
+        "PairRet3Pct",
+        "PairRet5Pct",
+        "PairRet20Pct",
+        "PairGapPct",
+        "PairBodyPct",
+        "PairRangePct",
+        "PairDistSMA20Pct",
+        "PairDistSMA50Pct",
+        "PairRangePos20",
+        "PairRangePos60",
+        "PairVolRatio20",
+        "PairVolatility10",
+        "PairColorStreakState",
+        "PairLimitProxyState",
+        "PairShockState1D",
+        "PairImpulseState3D",
+        "PairDistPriorHigh20Pct",
+        "PairGapToPriorHigh20Pct",
+        "PairBreakoutHigh20State",
+        "PairBreakoutClose20State",
+        "PairBreakoutHigh20Age",
+        "PairDistPriorHigh60Pct",
+        "PairGapToPriorHigh60Pct",
+        "PairBreakoutHigh60State",
+        "PairBreakoutClose60State",
+        "PairBreakoutHigh60Age",
+        "PairDistPriorHigh120Pct",
+        "PairGapToPriorHigh120Pct",
+        "PairBreakoutHigh120State",
+        "PairBreakoutClose120State",
+        "PairBreakoutHigh120Age",
+        "PairDistPriorHigh252Pct",
+        "PairGapToPriorHigh252Pct",
+        "PairBreakoutHigh252State",
+        "PairBreakoutClose252State",
+        "PairBreakoutHigh252Age",
+        "PairCorr20",
+        "PairBeta20",
+        "PairRet1MinusTickerRet1Pct",
+        "PairRet5MinusTickerRet5Pct",
     ]
     for base_name in (
         "TickerRet1Pct",
@@ -276,6 +373,10 @@ def _build_feature_columns() -> List[str]:
         "TickerReclaimState",
         "TickerRelativeRotationState",
         "TickerExhaustionState",
+        "TickerBreakoutHigh20State",
+        "TickerBreakoutHigh60State",
+        "TickerBreakoutHigh120State",
+        "TickerBreakoutHigh252State",
         "Rel5Pct",
         "Rel5PctVsVN30",
         "IndexRet1Pct",
@@ -283,6 +384,15 @@ def _build_feature_columns() -> List[str]:
         "IndexColorStreakState",
         "VN30Ret1Pct",
         "VN30ColorStreakState",
+        "PairRet1Pct",
+        "PairRet5Pct",
+        "PairRangePct",
+        "PairVolRatio20",
+        "PairLimitProxyState",
+        "PairShockState1D",
+        "PairImpulseState3D",
+        "PairBreakoutHigh20State",
+        "PairBreakoutHigh60State",
     ):
         for lag in LAGS:
             columns.append(f"{base_name}_Lag{lag}")
@@ -301,9 +411,13 @@ def build_ticker_ohlc_sample(
     ticker_df = _load_daily_ohlcv(ticker, history_dir).add_prefix("Ticker")
     index_df = _load_daily_ohlcv("VNINDEX", history_dir).add_prefix("Index")
     vn30_df = _load_optional_daily_ohlcv("VN30", history_dir).add_prefix("VN30")
+    pair_ticker = PAIR_TICKERS.get(ticker)
+    pair_df = _load_optional_daily_ohlcv(pair_ticker, history_dir).add_prefix("Pair") if pair_ticker else pd.DataFrame()
     merged = ticker_df.join(index_df, how="inner")
     if not vn30_df.empty:
         merged = merged.join(vn30_df, how="left")
+    if not pair_df.empty:
+        merged = merged.join(pair_df, how="left")
     if merged.empty:
         raise RuntimeError(f"No overlapping dates for {ticker} and VNINDEX")
 
@@ -447,6 +561,37 @@ def build_ticker_ohlc_sample(
         (ticker_dist_sma20 <= -exhaustion_dist_threshold)
         & ((close_in_range >= 0.65) | (ticker_lower_wick_pct >= lower_wick_threshold))
     ] = -1.0
+    ticker_breakout_features = _build_breakout_level_features(ticker_close, ticker_high, prefix="Ticker")
+
+    pair_close = merged["PairClose"] if "PairClose" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    pair_open = merged["PairOpen"] if "PairOpen" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    pair_high = merged["PairHigh"] if "PairHigh" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    pair_low = merged["PairLow"] if "PairLow" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    pair_volume = merged["PairVolume"] if "PairVolume" in merged.columns else pd.Series(np.nan, index=merged.index, dtype=float)
+    pair_prev_close = pair_close.shift(1)
+    pair_sma20 = pair_close.rolling(20).mean()
+    pair_ret1 = pair_close.pct_change(1, fill_method=None) * 100.0
+    pair_ret3 = pair_close.pct_change(3, fill_method=None) * 100.0
+    pair_ret5 = pair_close.pct_change(5, fill_method=None) * 100.0
+    pair_ret20 = pair_close.pct_change(20, fill_method=None) * 100.0
+    pair_gap_pct = ((pair_open / pair_prev_close) - 1.0) * 100.0
+    pair_body_pct = ((pair_close - pair_open) / pair_prev_close) * 100.0
+    pair_range_pct = ((pair_high - pair_low) / pair_prev_close) * 100.0
+    pair_dist_sma20 = ((pair_close / pair_sma20) - 1.0) * 100.0
+    pair_dist_sma50 = ((pair_close / pair_close.rolling(50).mean()) - 1.0) * 100.0
+    pair_range_pos20 = _range_position(pair_close, 20)
+    pair_range_pos60 = _range_position(pair_close, 60)
+    pair_vol_ratio20 = pair_volume / pair_volume.rolling(20).mean()
+    pair_volatility10 = pair_close.pct_change(fill_method=None).rolling(10).std() * 100.0
+    pair_limit_proxy_state = _limit_proxy_state(pair_ret1, limit_pct=6.75)
+    pair_shock_threshold = _adaptive_abs_threshold(pair_ret1, window=40, quantile=0.8, floor=3.0, std_multiplier=1.75)
+    pair_impulse_threshold = _adaptive_abs_threshold(pair_ret3, window=60, quantile=0.8, floor=5.0, std_multiplier=1.5)
+    pair_shock_state_1d = _three_state_signal(pair_ret1, pair_shock_threshold)
+    pair_impulse_state_3d = _three_state_signal(pair_ret3, pair_impulse_threshold)
+    pair_ret_frac = pair_close.pct_change(fill_method=None)
+    pair_corr20 = ticker_ret_frac.rolling(20).corr(pair_ret_frac)
+    pair_beta20 = ticker_ret_frac.rolling(20).cov(pair_ret_frac) / pair_ret_frac.rolling(20).var()
+    pair_breakout_features = _build_breakout_level_features(pair_close, pair_high, prefix="Pair")
 
     feature_map = {
         "TickerGapPct": ticker_gap_pct,
@@ -473,6 +618,7 @@ def build_ticker_ohlc_sample(
         "TickerReclaimState": ticker_reclaim_state,
         "TickerRelativeRotationState": ticker_relative_rotation_state,
         "TickerExhaustionState": ticker_exhaustion_state,
+        **ticker_breakout_features,
         "TickerWeekToDateRetPct": ticker_weekly["WeekToDateRetPct"],
         "TickerWeekToDateRangePct": ticker_weekly["WeekToDateRangePct"],
         "TickerWeekToDateVolumePctPrevWeek": ticker_weekly["WeekToDateVolumePctPrevWeek"],
@@ -518,6 +664,28 @@ def build_ticker_ohlc_sample(
         "VN30ColorStreakState": vn30_color_streak_state,
         "Corr20VN30": corr20_vn30,
         "Beta20VN30": beta20_vn30,
+        "PairRet1Pct": pair_ret1,
+        "PairRet3Pct": pair_ret3,
+        "PairRet5Pct": pair_ret5,
+        "PairRet20Pct": pair_ret20,
+        "PairGapPct": pair_gap_pct,
+        "PairBodyPct": pair_body_pct,
+        "PairRangePct": pair_range_pct,
+        "PairDistSMA20Pct": pair_dist_sma20,
+        "PairDistSMA50Pct": pair_dist_sma50,
+        "PairRangePos20": pair_range_pos20,
+        "PairRangePos60": pair_range_pos60,
+        "PairVolRatio20": pair_vol_ratio20,
+        "PairVolatility10": pair_volatility10,
+        "PairColorStreakState": _direction_streak_state(pair_ret1, min_streak=2),
+        "PairLimitProxyState": pair_limit_proxy_state,
+        "PairShockState1D": pair_shock_state_1d,
+        "PairImpulseState3D": pair_impulse_state_3d,
+        **pair_breakout_features,
+        "PairCorr20": pair_corr20,
+        "PairBeta20": pair_beta20,
+        "PairRet1MinusTickerRet1Pct": pair_ret1 - ticker_ret1,
+        "PairRet5MinusTickerRet5Pct": pair_ret5 - ticker_ret5,
     }
     for base_name in (
         "TickerRet1Pct",
@@ -533,6 +701,10 @@ def build_ticker_ohlc_sample(
         "TickerReclaimState",
         "TickerRelativeRotationState",
         "TickerExhaustionState",
+        "TickerBreakoutHigh20State",
+        "TickerBreakoutHigh60State",
+        "TickerBreakoutHigh120State",
+        "TickerBreakoutHigh252State",
         "Rel5Pct",
         "Rel5PctVsVN30",
         "IndexRet1Pct",
@@ -540,6 +712,15 @@ def build_ticker_ohlc_sample(
         "IndexColorStreakState",
         "VN30Ret1Pct",
         "VN30ColorStreakState",
+        "PairRet1Pct",
+        "PairRet5Pct",
+        "PairRangePct",
+        "PairVolRatio20",
+        "PairLimitProxyState",
+        "PairShockState1D",
+        "PairImpulseState3D",
+        "PairBreakoutHigh20State",
+        "PairBreakoutHigh60State",
     ):
         series = feature_map[base_name]
         for lag in LAGS:
@@ -557,6 +738,16 @@ def build_ticker_ohlc_sample(
         next_high = ticker_high.shift(-horizon)
         next_low = ticker_low.shift(-horizon)
         next_close = ticker_close.shift(-horizon)
+        future_high_window = pd.concat(
+            [ticker_high.shift(-day) for day in range(1, horizon + 1)],
+            axis=1,
+        )
+        future_low_window = pd.concat(
+            [ticker_low.shift(-day) for day in range(1, horizon + 1)],
+            axis=1,
+        )
+        cum_high = future_high_window.max(axis=1)
+        cum_low = future_low_window.min(axis=1)
         next_anchor_high = pd.concat([next_open, next_close], axis=1).max(axis=1)
         next_anchor_low = pd.concat([next_open, next_close], axis=1).min(axis=1)
 
@@ -568,10 +759,14 @@ def build_ticker_ohlc_sample(
         frame["ActualHigh"] = next_high
         frame["ActualLow"] = next_low
         frame["ActualClose"] = next_close
+        frame["ActualCumHigh"] = cum_high
+        frame["ActualCumLow"] = cum_low
         frame["TargetOpenRetPct"] = ((next_open / ticker_close) - 1.0) * 100.0
         frame["TargetCloseRetPct"] = ((next_close / ticker_close) - 1.0) * 100.0
         frame["TargetUpperWickPct"] = (((next_high - next_anchor_high) / ticker_close) * 100.0).clip(lower=0.0)
         frame["TargetLowerWickPct"] = (((next_anchor_low - next_low) / ticker_close) * 100.0).clip(lower=0.0)
+        frame["TargetCumHighRetPct"] = ((cum_high / ticker_close) - 1.0) * 100.0
+        frame["TargetCumLowRetPct"] = ((cum_low / ticker_close) - 1.0) * 100.0
         horizon_frames.append(frame)
 
     sample = pd.concat(horizon_frames, ignore_index=False)
@@ -582,6 +777,8 @@ def build_ticker_ohlc_sample(
         "ActualHigh",
         "ActualLow",
         "ActualClose",
+        "ActualCumHigh",
+        "ActualCumLow",
     ] + TARGET_COLUMNS
     return sample[ordered_columns].sort_values(["Date", "Ticker", "Horizon"]).reset_index(drop=True)
 
@@ -639,6 +836,14 @@ def _reconstruct_ohlc_frame(frame: pd.DataFrame) -> pd.DataFrame:
     anchor_low = np.minimum(pred_open, pred_close)
     pred_high = anchor_high + (base_close * upper_wick / 100.0)
     pred_low = anchor_low - (base_close * lower_wick / 100.0)
+    pred_cum_high = pred_high.copy()
+    pred_cum_low = pred_low.copy()
+    if "PredTargetCumHighRetPct" in frame.columns:
+        pred_cum_high = base_close * (1.0 + (frame["PredTargetCumHighRetPct"].astype(float) / 100.0))
+        pred_cum_high = pd.Series(np.maximum(pred_cum_high, pred_high), index=frame.index)
+    if "PredTargetCumLowRetPct" in frame.columns:
+        pred_cum_low = base_close * (1.0 + (frame["PredTargetCumLowRetPct"].astype(float) / 100.0))
+        pred_cum_low = pd.Series(np.minimum(pred_cum_low, pred_low), index=frame.index)
 
     return pd.DataFrame(
         {
@@ -646,10 +851,14 @@ def _reconstruct_ohlc_frame(frame: pd.DataFrame) -> pd.DataFrame:
             "PredHigh": pred_high,
             "PredLow": pred_low,
             "PredClose": pred_close,
+            "PredCumHigh": pred_cum_high,
+            "PredCumLow": pred_cum_low,
             "PredOpenRetPct": ((pred_open / base_close) - 1.0) * 100.0,
             "PredHighRetPct": ((pred_high / base_close) - 1.0) * 100.0,
             "PredLowRetPct": ((pred_low / base_close) - 1.0) * 100.0,
             "PredCloseRetPct": ((pred_close / base_close) - 1.0) * 100.0,
+            "PredCumHighRetPct": ((pred_cum_high / base_close) - 1.0) * 100.0,
+            "PredCumLowRetPct": ((pred_cum_low / base_close) - 1.0) * 100.0,
             "PredRangePct": ((pred_high - pred_low) / base_close) * 100.0,
         },
         index=frame.index,
@@ -664,6 +873,10 @@ def _attach_actual_return_columns(frame: pd.DataFrame) -> pd.DataFrame:
     out["ActualLowRetPct"] = ((out["ActualLow"] / base_close) - 1.0) * 100.0
     out["ActualCloseRetPct"] = ((out["ActualClose"] / base_close) - 1.0) * 100.0
     out["ActualRangePct"] = ((out["ActualHigh"] - out["ActualLow"]) / base_close) * 100.0
+    if "ActualCumHigh" in out.columns:
+        out["ActualCumHighRetPct"] = ((out["ActualCumHigh"] / base_close) - 1.0) * 100.0
+    if "ActualCumLow" in out.columns:
+        out["ActualCumLowRetPct"] = ((out["ActualCumLow"] / base_close) - 1.0) * 100.0
     return out
 
 

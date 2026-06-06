@@ -96,6 +96,31 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
         self.assertAlmostEqual(float(summary.loc["ridge", "CloseDirHitPct"]), 100.0)
         self.assertAlmostEqual(float(summary.loc["random_forest", "CurrentBullishPct"]), 100.0)
 
+    def test_build_ticker_ohlc_sample_adds_cumulative_path_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            history_dir = Path(tmpdir)
+            self._write_daily_cache(
+                history_dir / "AAA_daily.csv",
+                closes=[100, 102, 104, 106, 108, 110, 111, 112, 113, 114, 116, 118],
+                volume_start=1000.0,
+            )
+            self._write_daily_cache(
+                history_dir / "VNINDEX_daily.csv",
+                closes=[1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1011, 1013],
+                volume_start=2000.0,
+            )
+
+            sample = build_ticker_ohlc_sample("AAA", history_dir, max_horizon=3)
+
+            row = sample.loc[
+                (sample["Date"] == pd.Timestamp("2025-01-06")) & (sample["Horizon"] == 3)
+            ].iloc[0]
+
+            self.assertAlmostEqual(float(row["ActualCumHigh"]), 108.0)
+            self.assertAlmostEqual(float(row["ActualCumLow"]), 100.0)
+            self.assertAlmostEqual(float(row["TargetCumHighRetPct"]), 8.0)
+            self.assertAlmostEqual(float(row["TargetCumLowRetPct"]), 0.0)
+
     def test_summarise_ohlc_models_keeps_horizon_rows_and_best_model_can_be_selected_per_horizon(self) -> None:
         history = pd.DataFrame(
             [
@@ -306,6 +331,46 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             self.assertTrue(sample["TickerReclaimState"].eq(1.0).any())
             self.assertIn("TickerRelativeRotationState", sample.columns)
             self.assertIn("TickerExhaustionState", sample.columns)
+
+    def test_build_ticker_ohlc_sample_adds_vic_vhm_pair_and_breakout_features(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            history_dir = Path(tmpdir)
+            dates = pd.bdate_range("2025-01-06", periods=280)
+            vic_closes = [100.0 + (0.05 * idx) for idx in range(240)] + [121.0, 129.5, 138.5] + [
+                139.0 + (0.08 * idx) for idx in range(37)
+            ]
+            vhm_closes = [80.0 + (0.04 * idx) for idx in range(240)] + [94.0, 100.6, 107.7] + [
+                108.0 + (0.06 * idx) for idx in range(37)
+            ]
+            index_closes = [1000.0 + (0.2 * idx) for idx in range(280)]
+
+            def write_cache(path: Path, closes: list[float], volume_base: float) -> None:
+                frame = pd.DataFrame(
+                    {
+                        "date_vn": dates.strftime("%Y-%m-%d"),
+                        "open": [value - 0.5 for value in closes],
+                        "high": [value + 1.0 for value in closes],
+                        "low": [value - 1.0 for value in closes],
+                        "close": closes,
+                        "volume": [volume_base + (10.0 * idx) for idx in range(len(closes))],
+                    }
+                )
+                frame.to_csv(path, index=False)
+
+            write_cache(history_dir / "VIC_daily.csv", vic_closes, 1000.0)
+            write_cache(history_dir / "VHM_daily.csv", vhm_closes, 1500.0)
+            write_cache(history_dir / "VNINDEX_daily.csv", index_closes, 3000.0)
+
+            sample = build_ticker_ohlc_sample("VIC", history_dir, max_horizon=1)
+            row = sample.loc[sample["Date"] == pd.Timestamp(dates[242])].iloc[0]
+            prev_vhm_close = vhm_closes[241]
+            expected_pair_ret1 = ((vhm_closes[242] / prev_vhm_close) - 1.0) * 100.0
+
+            self.assertAlmostEqual(float(row["PairRet1Pct"]), expected_pair_ret1)
+            self.assertEqual(float(row["TickerBreakoutHigh20State"]), 1.0)
+            self.assertEqual(float(row["PairBreakoutHigh20State"]), 1.0)
+            self.assertTrue(pd.notna(row["PairCorr20"]))
+            self.assertIn("PairBreakoutHigh60State_Lag1", sample.columns)
 
 
 if __name__ == "__main__":

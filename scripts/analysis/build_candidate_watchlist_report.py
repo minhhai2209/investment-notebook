@@ -187,6 +187,122 @@ def _extract_cycle_row(frame: pd.DataFrame | None, ticker: str) -> Dict[str, Any
     return scoped.iloc[0].to_dict()
 
 
+def _extract_ohlc_multi_rows(frame: pd.DataFrame | None, ticker: str) -> List[Dict[str, Any]]:
+    if frame is None:
+        return []
+    scoped = frame.loc[frame["Ticker"].eq(ticker)].copy()
+    if scoped.empty:
+        return []
+    scoped["Horizon"] = pd.to_numeric(scoped["Horizon"], errors="coerce")
+    scoped = scoped.dropna(subset=["Horizon"]).sort_values("Horizon")
+    rows: List[Dict[str, Any]] = []
+    for _, row in scoped.iterrows():
+        rows.append(row.to_dict())
+    return rows
+
+
+def _ohlc_multi_summary(rows: Sequence[Mapping[str, Any]]) -> str | None:
+    parts: List[str] = []
+    for row in rows:
+        horizon = _safe_float(row.get("Horizon"))
+        close_ret = _safe_float(row.get("ForecastCloseRetPct"))
+        close_mae = _safe_float(row.get("CloseMAEPct"))
+        dir_hit = _safe_float(row.get("CloseDirHitPct"))
+        model_family = row.get("ModelFamily")
+        if horizon is None or close_ret is None:
+            continue
+        model_part = f" | {model_family}" if model_family else ""
+        if close_mae is not None and dir_hit is not None:
+            parts.append(f"T+{int(horizon)} close {close_ret:.2f}% | MAE {close_mae:.2f}% | hit {dir_hit:.1f}%{model_part}")
+        elif close_mae is not None:
+            parts.append(f"T+{int(horizon)} close {close_ret:.2f}% | MAE {close_mae:.2f}%{model_part}")
+        else:
+            parts.append(f"T+{int(horizon)} close {close_ret:.2f}%{model_part}")
+    if not parts:
+        return None
+    return "; ".join(parts)
+
+
+def _timing_ohlc_consistency(
+    *,
+    timing_row: Mapping[str, Any] | None,
+    ohlc_multi_rows: Sequence[Mapping[str, Any]],
+    base_price: float,
+) -> Dict[str, Any]:
+    if timing_row is None or not ohlc_multi_rows or base_price <= 0:
+        return {
+            "status": "insufficient",
+            "summary": None,
+            "gap_pct": None,
+            "ohlc_max_high_ret_pct": None,
+            "ohlc_max_high": None,
+        }
+
+    timing_horizon = _safe_float(timing_row.get("Horizon"))
+    timing_peak_ret = _safe_float(timing_row.get("PredPeakRetPct"))
+    timing_peak_price = _safe_float(timing_row.get("PredPeakPrice"))
+    if timing_horizon is None or timing_peak_ret is None:
+        return {
+            "status": "insufficient",
+            "summary": None,
+            "gap_pct": None,
+            "ohlc_max_high_ret_pct": None,
+            "ohlc_max_high": None,
+        }
+
+    max_high: float | None = None
+    max_high_ret: float | None = None
+    max_horizon: float | None = None
+    used_cumulative_high = any(_safe_float(row.get("ForecastCumHigh")) is not None for row in ohlc_multi_rows)
+    for row in ohlc_multi_rows:
+        horizon = _safe_float(row.get("Horizon"))
+        high = _safe_float(row.get("ForecastCumHigh")) if used_cumulative_high else _safe_float(row.get("ForecastHigh"))
+        if horizon is None or high is None or horizon > timing_horizon:
+            continue
+        if max_high is None or high > max_high:
+            max_high = high
+            max_high_ret = (
+                _safe_float(row.get("ForecastCumHighRetPct"))
+                if used_cumulative_high
+                else ((high / base_price) - 1.0) * 100.0
+            )
+            max_horizon = horizon
+    if max_high is None:
+        return {
+            "status": "insufficient",
+            "summary": None,
+            "gap_pct": None,
+            "ohlc_max_high_ret_pct": None,
+            "ohlc_max_high": None,
+        }
+
+    ohlc_max_high_ret = max_high_ret if max_high_ret is not None else ((max_high / base_price) - 1.0) * 100.0
+    gap_pct = timing_peak_ret - ohlc_max_high_ret
+    tolerance_pct = max(5.0, abs(timing_peak_ret) * 0.35)
+    high_label = "OHLC cumulative high" if used_cumulative_high else "OHLC checkpoint high"
+    if gap_pct > tolerance_pct:
+        status = "conflict"
+        peak_ref = f"{timing_peak_price:.2f}" if timing_peak_price is not None else f"{timing_peak_ret:.2f}%"
+        summary = (
+            f"timing peak {timing_peak_ret:.2f}% ({peak_ref}) exceeds {high_label} "
+            f"{ohlc_max_high_ret:.2f}% ({max_high:.2f}, through T+{int(max_horizon or timing_horizon)}) "
+            f"by {gap_pct:.2f}pp"
+        )
+    else:
+        status = "aligned"
+        summary = (
+            f"timing peak {timing_peak_ret:.2f}% vs {high_label} "
+            f"{ohlc_max_high_ret:.2f}% through T+{int(max_horizon or timing_horizon)}"
+        )
+    return {
+        "status": status,
+        "summary": summary,
+        "gap_pct": gap_pct,
+        "ohlc_max_high_ret_pct": ohlc_max_high_ret,
+        "ohlc_max_high": max_high,
+    }
+
+
 def _extract_entry_row(frame: pd.DataFrame | None, ticker: str) -> Dict[str, Any] | None:
     if frame is None:
         return None
@@ -422,6 +538,73 @@ def _cycle_summary(cycle_row: Mapping[str, Any] | None) -> str | None:
     return ": ".join([parts[0], ", ".join(parts[1:])]) if len(parts) > 1 else parts[0]
 
 
+def _model_decision_from_forecast(
+    *,
+    zone_status: str,
+    anchored_zone: bool,
+    budget_pct_adv: float | None,
+    best_timing_edge: float | None,
+    best_timing_peak_ret: float | None,
+    best_timing_close_ret: float | None,
+    best_timing_peak_mae: float | None,
+    best_timing_close_mae: float | None,
+    t10_edge: float | None,
+    forecast_close_ret: float | None,
+) -> tuple[str, float, str]:
+    if budget_pct_adv is not None and budget_pct_adv > 20.0:
+        return "không_mua", 0.0, "liquidity_not_suitable_for_ref_budget"
+    if best_timing_peak_ret is None and best_timing_close_ret is None and best_timing_edge is None:
+        return "chờ", 0.0, "insufficient_per_ticker_ml"
+
+    conservative_peak = (
+        best_timing_peak_ret - best_timing_peak_mae
+        if best_timing_peak_ret is not None and best_timing_peak_mae is not None
+        else best_timing_peak_ret
+    )
+    conservative_close = (
+        best_timing_close_ret - best_timing_close_mae
+        if best_timing_close_ret is not None and best_timing_close_mae is not None
+        else best_timing_close_ret
+    )
+
+    edge_candidates = [
+        value
+        for value in (conservative_close, conservative_peak, best_timing_edge, t10_edge, forecast_close_ret)
+        if value is not None
+    ]
+    model_edge = max(edge_candidates) if edge_candidates else 0.0
+
+    has_close_edge = conservative_close is not None and conservative_close > 0.0
+    has_peak_edge = conservative_peak is not None and conservative_peak > 0.0
+    has_timing_edge = best_timing_edge is not None and best_timing_edge > 0.0
+    has_near_term_edge = forecast_close_ret is None or forecast_close_ret >= 0.0
+    has_long_edge = t10_edge is None or t10_edge >= 0.0
+    model_positive = has_close_edge or (has_peak_edge and has_timing_edge and has_near_term_edge and has_long_edge)
+
+    model_negative = (
+        (conservative_peak is not None and conservative_peak <= 0.0)
+        and (conservative_close is None or conservative_close <= 0.0)
+        and (best_timing_edge is None or best_timing_edge <= 0.0)
+    )
+    if not model_negative and best_timing_edge is not None and best_timing_edge < 0.0:
+        if (t10_edge is None or t10_edge < 0.0) and (forecast_close_ret is None or forecast_close_ret < 0.0):
+            model_negative = True
+
+    if not model_positive:
+        if model_negative:
+            return "không_mua", model_edge, "per_ticker_ml_negative"
+        return "chờ", model_edge, "per_ticker_ml_not_robust_enough"
+    if not anchored_zone:
+        return "chờ", model_edge, "ml_positive_but_no_research_ladder_zone"
+    if zone_status == "inside":
+        return "mua_ngay", model_edge, "per_ticker_ml_positive_inside_zone"
+    if zone_status == "above":
+        return "chờ", model_edge, "per_ticker_ml_positive_wait_for_zone"
+    if zone_status == "below":
+        return "chờ", model_edge, "per_ticker_ml_positive_wait_for_price_confirmation"
+    return "chờ", model_edge, "per_ticker_ml_positive_zone_unknown"
+
+
 def _score_candidate(
     snapshot_row: pd.Series,
     playbook_row: pd.Series,
@@ -433,6 +616,7 @@ def _score_candidate(
     t10_edge: float | None,
     cycle_row: Mapping[str, Any] | None,
     ohlc_row: Mapping[str, Any] | None,
+    ohlc_multi_rows: Sequence[Mapping[str, Any]],
     ladder_row: Mapping[str, Any] | None,
     color_overlay: Mapping[str, Any] | None,
 ) -> Dict[str, Any]:
@@ -456,6 +640,23 @@ def _score_candidate(
     robust_score = _safe_float(playbook_row.get("RobustScore")) or 0.0
     latest_signal = bool(playbook_row.get("LatestSignal"))
     forecast_close_ret = _safe_float(ohlc_row.get("ForecastCloseRetPct")) if ohlc_row is not None else None
+    forecast_open = _safe_float(ohlc_row.get("ForecastOpen")) if ohlc_row is not None else None
+    forecast_high = _safe_float(ohlc_row.get("ForecastHigh")) if ohlc_row is not None else None
+    forecast_low = _safe_float(ohlc_row.get("ForecastLow")) if ohlc_row is not None else None
+    forecast_close = _safe_float(ohlc_row.get("ForecastClose")) if ohlc_row is not None else None
+    ohlc_model = ohlc_row.get("Model") if ohlc_row is not None else None
+    ohlc_model_family = ohlc_row.get("ModelFamily") if ohlc_row is not None else None
+    ohlc_model_class = ohlc_row.get("ModelClass") if ohlc_row is not None else None
+    ohlc_eval_rows = _safe_float(ohlc_row.get("EvalRows")) if ohlc_row is not None else None
+    ohlc_close_mae = _safe_float(ohlc_row.get("CloseMAEPct")) if ohlc_row is not None else None
+    ohlc_range_mae = _safe_float(ohlc_row.get("RangeMAEPct")) if ohlc_row is not None else None
+    ohlc_close_dir_hit = _safe_float(ohlc_row.get("CloseDirHitPct")) if ohlc_row is not None else None
+    ohlc_multi_summary = _ohlc_multi_summary(ohlc_multi_rows)
+    forecast_consistency = _timing_ohlc_consistency(
+        timing_row=timing_row,
+        ohlc_multi_rows=ohlc_multi_rows,
+        base_price=last_price,
+    )
     best_timing_edge = _safe_float(timing_row.get("PredNetEdgePct")) if timing_row is not None else _safe_float(state.get("BestTimingNetEdgePct") if state else None)
     best_timing_peak_ret = _safe_float(timing_row.get("PredPeakRetPct")) if timing_row is not None else None
     best_timing_peak_day = _safe_float(timing_row.get("PredPeakDay")) if timing_row is not None else None
@@ -488,105 +689,24 @@ def _score_candidate(
         and (_safe_float(market_summary.get("BreadthPositive5dPct")) or 0.0) >= 55.0
     )
 
-    score = 50.0
-    score += _clamp(all_score * 0.30, -12.0, 12.0)
-    score += _clamp(robust_score * 0.30, -15.0, 15.0)
-    score += _clamp(ret20_vs_index * 0.25, -8.0, 8.0)
-    score += _clamp(ret60_vs_index * 0.15, -5.0, 5.0)
-    score += _clamp((sector_breadth_5d - 50.0) * 0.12, -6.0, 6.0)
-    score += _liquidity_score(budget_pct_adv)
-
     foreign_20d_bn = None
     if "NetBuySellForeign_kVND_20d" in snapshot_row.index:
         raw_foreign_20d = _safe_float(snapshot_row["NetBuySellForeign_kVND_20d"])
         if raw_foreign_20d is not None:
             foreign_20d_bn = raw_foreign_20d / 1_000_000.0
-            score += _clamp(foreign_20d_bn / 200.0, -4.0, 4.0)
 
-    if latest_signal:
-        score += 6.0
-
-    if anchored_zone:
-        if zone_status == "inside":
-            score += 10.0
-        elif zone_status == "above":
-            gap = zone_gap_pct or 0.0
-            if gap <= 3.0:
-                score += 2.0
-            elif gap <= 8.0:
-                score -= 2.0
-            else:
-                score -= 6.0
-        elif zone_status == "below":
-            gap = zone_gap_pct or 0.0
-            if gap <= 2.0:
-                score += 1.0
-            else:
-                score -= 4.0
-
-    if dist_sma20 > 8.0:
-        score -= _clamp((dist_sma20 - 8.0) * 1.3, 0.0, 16.0)
-    if rsi14 > 65.0:
-        score -= _clamp((rsi14 - 65.0) * 0.9, 0.0, 12.0)
-    if pos52w is not None and pos52w >= 0.75:
-        score -= _clamp((pos52w - 0.75) * 36.0, 0.0, 9.0)
-
-    if best_timing_edge is not None:
-        score += _clamp(best_timing_edge * 0.8, -12.0, 12.0)
-    if t10_edge is not None:
-        score += _clamp(t10_edge * 0.3, -6.0, 6.0)
-    if forecast_close_ret is not None:
-        score += _clamp(forecast_close_ret * 1.3, -6.0, 6.0)
-    if entry_score is not None:
-        score += _clamp(entry_score * 1.5, 0.0, 10.0)
-    score += _clamp(float(trend_overlay_score), -6.0, 6.0)
-    score += _clamp(float(specialized_overlay_score), -6.0, 6.0)
-
-    if market_crowded:
-        score -= 4.0
-        if zone_status == "above":
-            score -= 4.0
-
-    score = _clamp(score, 0.0, 100.0)
-
-    very_stretched = dist_sma20 >= 18.0 or rsi14 >= 74.0
-    stretched = dist_sma20 >= 12.0 or rsi14 >= 68.0
-    timing_bad = best_timing_edge is not None and best_timing_edge < -1.5 and (t10_edge is None or t10_edge < 0.0)
-    ohlc_bad = forecast_close_ret is not None and forecast_close_ret < -1.0
-    liquidity_bad = budget_pct_adv is not None and budget_pct_adv > 20.0
-    playbook_bad = robust_score < 0.0 and all_score < 20.0
-
-    if liquidity_bad or (very_stretched and timing_bad) or (playbook_bad and timing_bad):
-        decision = "không_mua"
-    elif zone_status == "inside":
-        if anchored_zone and score >= 62.0 and not very_stretched and not timing_bad and not ohlc_bad:
-            decision = "mua_ngay"
-        elif anchored_zone and score >= 58.0 and best_timing_edge is None and forecast_close_ret is None and not stretched:
-            decision = "mua_ngay"
-        elif score >= 52.0:
-            decision = "chờ"
-        else:
-            decision = "không_mua"
-    elif zone_status == "above":
-        decision = "chờ" if score >= 48.0 and not (very_stretched and timing_bad) else "không_mua"
-    elif zone_status == "below":
-        decision = "chờ" if score >= 55.0 else "không_mua"
-    else:
-        if score >= 65.0 and not stretched and (latest_signal or (best_timing_edge or 0.0) > 4.0):
-            decision = "mua_ngay"
-        elif score >= 52.0:
-            decision = "chờ"
-        else:
-            decision = "không_mua"
-
-    if market_crowded and decision == "mua_ngay" and zone_status != "inside":
-        decision = "chờ"
-    if decision == "mua_ngay" and not anchored_zone:
-        decision = "chờ"
-    if very_stretched and decision == "mua_ngay":
-        decision = "chờ"
-    if timing_bad and decision == "mua_ngay":
-        decision = "chờ"
+    decision, score, model_decision_basis = _model_decision_from_forecast(
+        zone_status=zone_status,
+        anchored_zone=anchored_zone,
+        budget_pct_adv=budget_pct_adv,
+        best_timing_edge=best_timing_edge,
+        best_timing_peak_ret=best_timing_peak_ret,
+        best_timing_close_ret=best_timing_close_ret,
+        best_timing_peak_mae=best_timing_peak_mae,
+        best_timing_close_mae=best_timing_close_mae,
+        t10_edge=t10_edge,
+        forecast_close_ret=forecast_close_ret,
+    )
 
     reference_price = _reference_buy_price(
         decision=decision,
@@ -650,10 +770,6 @@ def _score_candidate(
 
     if market_crowded:
         reasons.append("thị trường chung đang sát mép trên ngắn hạn")
-    if very_stretched:
-        reasons.append("mã đang kéo dãn mạnh so với nền ngắn hạn")
-    elif stretched:
-        reasons.append("mã đã hơi nóng, không phù hợp đuổi giá")
     if best_timing_edge is not None:
         reasons.append(f"timing edge tốt nhất {best_timing_edge:.2f}%")
     timing_summary = _timing_summary(timing_row, edge_pct=best_timing_edge)
@@ -661,6 +777,8 @@ def _score_candidate(
         reasons.append(f"kỳ vọng ngắn hạn {timing_summary}")
     if forecast_close_ret is not None:
         reasons.append(f"OHLC T+1 kỳ vọng close {forecast_close_ret:.2f}%")
+    if forecast_consistency.get("status") == "conflict" and forecast_consistency.get("summary"):
+        reasons.append(f"forecast conflict {forecast_consistency['summary']}")
     cycle_summary = _cycle_summary(cycle_row)
     if cycle_summary is not None:
         reasons.append(f"cycle {cycle_summary}")
@@ -676,6 +794,7 @@ def _score_candidate(
         "Sector": snapshot_row["Sector"],
         "Decision": decision,
         "CandidateScore": round(score, 2),
+        "ModelDecisionBasis": model_decision_basis,
         "ReasonSummary": "; ".join(reasons[:4]),
         "CurrentPrice": round(last_price, 2),
         "PreferredBuyZoneLow": _round_or_none(zone_low, 2),
@@ -718,6 +837,23 @@ def _score_candidate(
         "BestCyclePeakDays": _round_or_none(cycle_peak_days, 1),
         "CycleProfitSummary": cycle_summary,
         "ForecastCloseRetPctT1": _round_or_none(forecast_close_ret, 2),
+        "ForecastOpenT1": _round_or_none(forecast_open, 2),
+        "ForecastHighT1": _round_or_none(forecast_high, 2),
+        "ForecastLowT1": _round_or_none(forecast_low, 2),
+        "ForecastCloseT1": _round_or_none(forecast_close, 2),
+        "OHLCModelT1": ohlc_model,
+        "OHLCModelFamilyT1": ohlc_model_family,
+        "OHLCModelClassT1": ohlc_model_class,
+        "OHLCEvalRowsT1": _round_or_none(ohlc_eval_rows, 0),
+        "OHLCCloseMAEPctT1": _round_or_none(ohlc_close_mae, 2),
+        "OHLCRangeMAEPctT1": _round_or_none(ohlc_range_mae, 2),
+        "OHLCCloseDirHitPctT1": _round_or_none(ohlc_close_dir_hit, 2),
+        "OHLCMultiSessionSummary": ohlc_multi_summary,
+        "ForecastConsistencyStatus": forecast_consistency.get("status"),
+        "ForecastConsistencySummary": forecast_consistency.get("summary"),
+        "ForecastConsistencyGapPct": _round_or_none(forecast_consistency.get("gap_pct"), 2),
+        "OHLCMaxHighRetThroughBestTimingPct": _round_or_none(forecast_consistency.get("ohlc_max_high_ret_pct"), 2),
+        "OHLCMaxHighThroughBestTiming": _round_or_none(forecast_consistency.get("ohlc_max_high"), 2),
         "ForecastCandleBias": (ohlc_row or {}).get("ForecastCandleBias"),
         "TopEntryScore": _round_or_none(entry_score, 4),
         "TopEntryLimitPrice": _round_or_none((ladder_row or {}).get("LimitPrice"), 2),
@@ -772,10 +908,31 @@ def _render_markdown(report: Mapping[str, Any]) -> str:
             extras: List[str] = []
             if row.get("TimingProfitSummary"):
                 extras.append(f"timing `{row['TimingProfitSummary']}`")
+            if row.get("ForecastCloseT1") is not None:
+                extras.append(
+                    "OHLC "
+                    f"`O {row.get('ForecastOpenT1')} / H {row.get('ForecastHighT1')} / "
+                    f"L {row.get('ForecastLowT1')} / C {row.get('ForecastCloseT1')} "
+                    f"({row.get('ForecastCloseRetPctT1')}%)`"
+                )
             if row.get("CycleProfitSummary"):
                 extras.append(f"cycle `{row['CycleProfitSummary']}`")
             if row.get("ValidationSummary"):
                 extras.append(f"verify `{row['ValidationSummary']}`")
+            if row.get("OHLCCloseMAEPctT1") is not None:
+                model_label = (
+                    f"{row.get('OHLCModelFamilyT1')} / {row.get('OHLCModelT1')}"
+                    if row.get("OHLCModelFamilyT1")
+                    else row.get("OHLCModelT1")
+                )
+                extras.append(
+                    f"OHLC verify `{model_label} | close MAE {row.get('OHLCCloseMAEPctT1')}% | "
+                    f"dir hit {row.get('OHLCCloseDirHitPctT1')}%`"
+                )
+            if row.get("OHLCMultiSessionSummary"):
+                extras.append(f"OHLC multi `{row['OHLCMultiSessionSummary']}`")
+            if row.get("ForecastConsistencyStatus") == "conflict" and row.get("ForecastConsistencySummary"):
+                extras.append(f"forecast conflict `{row['ForecastConsistencySummary']}`")
             if row.get("TrendPersistenceSummary"):
                 extras.append(f"trend `{row['TrendPersistenceSummary']}`")
             if row.get("SpecializedSummary"):
@@ -854,14 +1011,48 @@ def build_candidate_watchlist(
     color_comparison_df, color_current_df = load_optional_overlay(ticker_color_dir)
 
     ohlc_df = None
+    ohlc_multi_df = None
     timing_df = None
     ladder_df = None
     cycle_df = None
     if resolved_mode == FULL_MODE:
         ohlc_df = _load_csv(
             analysis_dir / "ml_ohlc_next_session.csv",
-            ["Ticker", "ForecastCloseRetPct", "ForecastCandleBias"],
+            [
+                "Ticker",
+                "ForecastOpen",
+                "ForecastHigh",
+                "ForecastLow",
+                "ForecastClose",
+                "ForecastCloseRetPct",
+                "ForecastCandleBias",
+                "Model",
+                "EvalRows",
+                "CloseMAEPct",
+                "RangeMAEPct",
+                "CloseDirHitPct",
+            ],
             "Next-session OHLC",
+        )
+        ohlc_multi_df = _load_optional_csv(
+            analysis_dir / "ml_ohlc_multi_session.csv",
+            [
+                "Ticker",
+                "Horizon",
+                "ForecastWindow",
+                "ForecastOpen",
+                "ForecastHigh",
+                "ForecastLow",
+                "ForecastClose",
+                "ForecastCloseRetPct",
+                "ForecastCandleBias",
+                "Model",
+                "EvalRows",
+                "CloseMAEPct",
+                "RangeMAEPct",
+                "CloseDirHitPct",
+            ],
+            "Multi-session OHLC",
         )
         timing_df = _load_csv(
             analysis_dir / "ml_single_name_timing.csv",
@@ -912,6 +1103,7 @@ def build_candidate_watchlist(
             scoped_ohlc = ohlc_df.loc[ohlc_df["Ticker"].eq(ticker)]
             if not scoped_ohlc.empty:
                 ohlc_row = scoped_ohlc.iloc[0].to_dict()
+        ohlc_multi_rows = _extract_ohlc_multi_rows(ohlc_multi_df, ticker)
         color_overlay = summarise_ticker_overlay(
             extract_ticker_overlay(ticker, color_comparison_df, color_current_df)
         )
@@ -927,6 +1119,7 @@ def build_candidate_watchlist(
                 t10_edge=t10_edge,
                 cycle_row=cycle_row,
                 ohlc_row=ohlc_row,
+                ohlc_multi_rows=ohlc_multi_rows,
                 ladder_row=ladder_row,
                 color_overlay=color_overlay,
             )

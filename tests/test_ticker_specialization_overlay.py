@@ -6,7 +6,7 @@ from scripts.analysis.ticker_specialization_overlay import summarise_specialized
 
 
 class TickerSpecializationOverlayTest(unittest.TestCase):
-    def test_vic_style_momentum_burst_distribution_scores_negative(self) -> None:
+    def test_vic_style_momentum_overlay_describes_without_scoring(self) -> None:
         overlay = summarise_specialized_ticker_setup(
             "VIC",
             {
@@ -23,10 +23,31 @@ class TickerSpecializationOverlayTest(unittest.TestCase):
             },
         )
 
-        self.assertEqual(overlay["Regime"], "fresh_burst_distribution")
-        self.assertLess(overlay["OverlayScore"], 0)
-        self.assertIn("burst rất mới", overlay["Summary"])
+        self.assertEqual(overlay["Regime"], "momentum_high_beta")
+        self.assertEqual(overlay["OverlayScore"], 0)
+        self.assertIn("momentum high beta", overlay["Summary"])
         self.assertIn("fail follow-through", " | ".join(overlay["Signals"]))
+
+    def test_clean_momentum_high_beta_still_has_zero_overlay_score(self) -> None:
+        overlay = summarise_specialized_ticker_setup(
+            "VIC",
+            {
+                "Archetype": "momentum_high_beta",
+                "BestTimingNetEdgePct": 5.2,
+                "T10NetEdgePct": 2.4,
+                "LatestBurstSignalAge": 5,
+                "BurstNextDayPositiveRate": 72.0,
+                "BurstNextDayStrongRate": 44.0,
+                "BurstAvgThreeDayDrawdownPct": -0.6,
+                "ExecutionBias": "accumulation",
+                "BurstExecutionBias": "clean_followthrough",
+                "ExecutionNote": "Continuation sạch sau burst.",
+            },
+        )
+
+        self.assertEqual(overlay["Regime"], "momentum_high_beta")
+        self.assertEqual(overlay["OverlayScore"], 0)
+        self.assertIn("OverlayScore", overlay)
 
     def test_quality_trend_scores_positive(self) -> None:
         overlay = summarise_specialized_ticker_setup(
@@ -45,8 +66,8 @@ class TickerSpecializationOverlayTest(unittest.TestCase):
         )
 
         self.assertEqual(overlay["Regime"], "trend_persistence_pullback_add")
-        self.assertGreater(overlay["OverlayScore"], 0)
-        self.assertIn("giữ trend", overlay["Summary"])
+        self.assertEqual(overlay["OverlayScore"], 0)
+        self.assertIn("quality_trend", overlay["Summary"])
 
     def test_post_burst_t25_supply_regime_is_detected(self) -> None:
         overlay = summarise_specialized_ticker_setup(
@@ -65,7 +86,7 @@ class TickerSpecializationOverlayTest(unittest.TestCase):
         )
 
         self.assertEqual(overlay["Regime"], "post_burst_t25_supply")
-        self.assertLess(overlay["OverlayScore"], 0)
+        self.assertEqual(overlay["OverlayScore"], 0)
         self.assertIn("cung T+2.5", overlay["Summary"])
 
 

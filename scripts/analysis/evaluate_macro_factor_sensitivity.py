@@ -102,6 +102,7 @@ def run_analysis(
     top_factors: int,
     max_age_hours: int,
     refresh_factors: bool,
+    timeout: int,
 ) -> Dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
     specs = load_macro_specs(config_path)
@@ -112,6 +113,7 @@ def run_analysis(
             cache_dir=cache_dir,
             factor_names=factor_names,
             max_age_hours=max_age_hours,
+            timeout=timeout,
         )
     factor_values = load_macro_factor_matrix(cache_dir, factor_names=factor_names)
     if factor_values.empty:
@@ -219,6 +221,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--case-tickers", nargs="*", default=DEFAULT_MACRO_CASE_TICKERS, help="Tickers to highlight in case studies.")
     parser.add_argument("--top-factors", type=int, default=3, help="How many factors to keep per case ticker.")
     parser.add_argument("--max-age-hours", type=int, default=24, help="Refresh factor caches older than this many hours.")
+    parser.add_argument("--timeout", type=int, default=8, help="HTTP timeout in seconds when refreshing factor caches.")
     parser.add_argument("--no-refresh-factors", action="store_true", help="Use cached factor CSVs only.")
     return parser.parse_args()
 
@@ -235,6 +238,7 @@ def main() -> int:
         top_factors=args.top_factors,
         max_age_hours=args.max_age_hours,
         refresh_factors=not args.no_refresh_factors,
+        timeout=args.timeout,
     )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0

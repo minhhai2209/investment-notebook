@@ -1,10 +1,15 @@
 name: Refresh Core
 
 on:
+  schedule:
+    # UTC cron. Vietnam market checkpoints: 09:20, 11:45, 15:05 ICT on weekdays.
+    - cron: "20 2 * * 1-5"
+    - cron: "45 4 * * 1-5"
+    - cron: "5 8 * * 1-5"
   workflow_dispatch:
     inputs:
       refresh_map:
-        description: Refresh VN30 + NVL scope before building artifacts
+        description: Refresh VIC/VHM scope before building artifacts
         required: true
         default: false
         type: boolean
@@ -33,7 +38,7 @@ jobs:
           cache-dependency-path: requirements.txt
 
       - name: Refresh Working Universe
-        if: ${{ inputs.refresh_map }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.refresh_map }}
         run: ./broker.sh map
 
       - name: Prepare Actions Config
@@ -46,9 +51,13 @@ jobs:
           Path("config/data_engine.actions.yaml").write_text(patched, encoding="utf-8")
           PY
 
-      - name: Build Core Artifacts
+      - name: Build Analysis Artifacts
         run: |
-          ./broker.sh prepare_core config/data_engine.actions.yaml
+          ./broker.sh prepare config/data_engine.actions.yaml
+          ./broker.sh momentum
+          ./broker.sh refresh_macro
+          ./broker.sh eval_macro --no-refresh-factors --case-tickers VIC VHM --top-factors 5
+          ./broker.sh eval_macro_lift --case-tickers VIC VHM --top-k 2 --retrain-every 10 --factor-names SP500 NASDAQ DJIA NIKKEI225 WTI_USD BRENT_USD VIX US10Y USD_BROAD
 
       - name: Summarise Run
         run: |
@@ -75,6 +84,18 @@ jobs:
               print(f"- Buy now: `{', '.join(buy_now) if buy_now else 'none'}`")
               print(f"- Wait count: `{len(waiting)}`")
               print(f"- Avoid count: `{len(avoid)}`")
+
+          momentum_path = Path("out/analysis/momentum/momentum_continuation.json")
+          if momentum_path.exists():
+              momentum = json.loads(momentum_path.read_text(encoding="utf-8"))
+              print("## Momentum Continuation")
+              print(f"- Event risk: `{momentum.get('EventRisk', 'n/a')}`")
+              print(f"- Event summary: `{momentum.get('EventRiskSummary', 'n/a')}`")
+              for row in momentum.get("Rows", []):
+                  print(
+                      f"- {row.get('Ticker')}: `{row.get('DirectionCall')}` / "
+                      f"`{row.get('Urgency')}` @ `{row.get('CurrentPrice')}`"
+                  )
           PY
 
       - name: Upload Core Artifacts
@@ -91,5 +112,26 @@ jobs:
             out/analysis/candidates/candidate_watchlist_core.csv
             out/analysis/candidates/candidate_watchlist_core.json
             out/analysis/candidates/candidate_watchlist_core.md
+            out/analysis/candidates/candidate_watchlist_full.csv
+            out/analysis/candidates/candidate_watchlist_full.json
+            out/analysis/candidates/candidate_watchlist_full.md
+            out/analysis/momentum/momentum_continuation.csv
+            out/analysis/momentum/momentum_continuation.json
+            out/analysis/momentum/momentum_continuation.md
+            out/analysis/macro_factor_*.csv
+            out/analysis/macro_factor_*.json
+            out/analysis/ml_macro_*.csv
+            out/analysis/ml_macro_*.json
+            out/macro_factors/**
             out/analysis/ticker_playbooks_live/**
             out/analysis/ml_ohlc_next_session.csv
+            out/analysis/ml_ohlc_multi_session.csv
+            out/analysis/ml_ohlc_model_metrics.csv
+            out/analysis/ml_single_name_timing.csv
+            out/analysis/ml_single_name_timing_model_metrics.csv
+            out/analysis/ml_single_name_timing_selected_models.csv
+            out/analysis/ml_cycle_forecast/**
+            out/analysis/ml_range_predictions_full_2y.csv
+            out/analysis/ml_range_predictions_recent_focus.csv
+            out/analysis/ml_entry_ladder_eval.csv
+            research/**

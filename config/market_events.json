@@ -1,0 +1,37 @@
+{
+  "SchemaVersion": 1,
+  "Events": [
+    {
+      "Date": "2026-04-27",
+      "Label": "Nghi le Gio To Hung Vuong",
+      "MarketClosed": true,
+      "Impact": "high",
+      "Scope": ["VN"],
+      "Note": "HOSE nghi giao dich ngay Gio To Hung Vuong; can tinh rui ro gap lich truoc khi mua duoi gia."
+    },
+    {
+      "Date": "2026-04-30",
+      "Label": "Nghi le 30/4",
+      "MarketClosed": true,
+      "Impact": "high",
+      "Scope": ["VN"],
+      "Note": "Ngay nghi le co the tao gap lich va lam giam khau vi mua duoi gia."
+    },
+    {
+      "Date": "2026-05-01",
+      "Label": "Nghi le 1/5",
+      "MarketClosed": true,
+      "Impact": "high",
+      "Scope": ["VN"],
+      "Note": "Ngay nghi le co the tao gap lich va lam giam khau vi mua duoi gia."
+    },
+    {
+      "Date": "2026-09-02",
+      "Label": "Nghi le Quoc khanh",
+      "MarketClosed": true,
+      "Impact": "high",
+      "Scope": ["VN"],
+      "Note": "Ngay nghi le; can kiem tra lich nghi bu chinh thuc truoc khi ra quyet dinh."
+    }
+  ]
+}

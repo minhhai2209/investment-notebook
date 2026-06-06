@@ -24,10 +24,43 @@ factors:
     label: S&P 500
     source: fred
     series_id: SP500
+  DJIA:
+    label: Dow Jones Industrial Average
+    source: fred
+    series_id: DJIA
   NASDAQ:
     label: Nasdaq Composite
     source: fred
     series_id: NASDAQCOM
+  EUROSTOXX50:
+    label: Euro Stoxx 50
+    source: stooq
+    symbol: ^sx5e
+    value_column: Close
+  DAX40:
+    label: DAX 40
+    source: stooq
+    symbol: ^dax
+    value_column: Close
+  FTSE100:
+    label: FTSE 100
+    source: stooq
+    symbol: ^ukx
+    value_column: Close
+  CAC40:
+    label: CAC 40
+    source: stooq
+    symbol: ^cac
+    value_column: Close
+  NIKKEI225:
+    label: Nikkei 225
+    source: fred
+    series_id: NIKKEI225
+  KOSPI:
+    label: Korea Composite Stock Price Index
+    source: stooq
+    symbol: ^kospi
+    value_column: Close
   US10Y:
     label: US 10Y Treasury Yield
     source: fred

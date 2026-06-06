@@ -60,7 +60,6 @@ def summarise_specialized_ticker_setup(
     execution_note = state.get("ExecutionNote")
 
     signals: List[str] = []
-    score = 0.0
     regime = "generic"
     action_bias = "neutral"
 
@@ -72,122 +71,72 @@ def summarise_specialized_ticker_setup(
         signals.append(f"burst age D+{int(round(burst_age))}")
 
     if archetype == "momentum_high_beta":
-        regime = "fresh_burst_distribution"
-        action_bias = "khong_duoi_burst_cho_deep_pullback"
+        regime = "momentum_high_beta"
+        action_bias = "read_ml_forecast_not_overlay_score"
         if burst_age is not None and burst_age <= 1:
-            score -= 2.0
             signals.append("burst còn rất mới")
         if burst_age is not None and 2 <= burst_age <= 4:
             regime = "post_burst_t25_supply"
-            action_bias = "ton_trong_cung_t25_trim_chu_dong"
-            score -= 1.0
             signals.append("đang ở cửa sổ cung T+2.5")
         if execution_bias == "distribution":
-            score -= 2.0
             signals.append("tape đang phân phối")
         if burst_execution_bias == "failed_day2_followthrough":
-            score -= 2.0
             signals.append("fail follow-through sau burst")
         if burst_execution_bias == "respect_t25_supply":
             regime = "post_burst_t25_supply"
-            action_bias = "ton_trong_cung_t25_trim_chu_dong"
-            score -= 2.0
             signals.append("phải tôn trọng cung T+2.5")
         if next_day_positive_rate is not None and next_day_positive_rate >= 65.0:
             signals.append(f"xác suất tăng ngày kế {next_day_positive_rate:.1f}%")
         if next_day_strong_rate is not None and next_day_strong_rate >= 40.0:
-            signals.append(f"xác suất tăng mạnh ngày kế {next_day_strong_rate:.1f}%")
-        if t10_edge is not None and t10_edge < 0.0:
-            score -= 2.0
+            signals.append(f"xác suất vượt ngưỡng positive ngày kế {next_day_strong_rate:.1f}%")
         if avg_three_day_drawdown is not None and avg_three_day_drawdown <= -2.0:
-            score -= 1.0
             signals.append(f"burst drawdown 3 ngày {avg_three_day_drawdown:.2f}%")
 
     elif archetype == "cyclical_beta":
         regime = "cycle_pullback_build"
-        action_bias = "uu_tien_add_on_pullback_khong_duoi_breakout"
-        if best_timing_edge is not None:
-            if best_timing_edge >= 3.0:
-                score += 3.0
-                signals.append("timing chu kỳ đủ mạnh")
-            elif best_timing_edge > 0.0:
-                score += 1.0
-        if t10_edge is not None and t10_edge >= 0.0:
-            score += 1.0
+        action_bias = "read_ml_forecast_not_overlay_score"
         if burst_age is not None and burst_age >= 10:
-            score += 1.0
             signals.append("đã qua pha burst đầu")
-        if next_day_positive_rate is not None and next_day_positive_rate >= 70.0:
-            score += 1.0
-        if avg_three_day_drawdown is not None and avg_three_day_drawdown > -1.0:
-            score += 1.0
         if burst_sample_count is not None and burst_sample_count < 5:
             signals.append("mẫu burst lịch sử còn ít")
 
     elif archetype == "quality_trend":
         regime = "trend_persistence_pullback_add"
-        action_bias = "giu_trend_add_co_chon_loc"
-        if best_timing_edge is not None and best_timing_edge > 0.0:
-            score += 1.0
-        if t10_edge is not None and t10_edge > 0.0:
-            score += 2.0
+        action_bias = "read_ml_forecast_not_overlay_score"
         if burst_age is not None and burst_age >= 10:
-            score += 1.0
-            signals.append("trend đang đứng ngoài pha burst nóng")
-        if next_day_positive_rate is not None and next_day_positive_rate >= 75.0:
-            score += 1.0
-        if avg_three_day_drawdown is not None and avg_three_day_drawdown > -1.0:
-            score += 1.0
+            signals.append("trend ngoài cửa sổ burst gần nhất")
 
     elif archetype == "special_situation":
         regime = "event_swing_only"
-        action_bias = "chi_hop_swing_ngan_mua_sau_trim_hung_phan"
-        if best_timing_edge is not None and best_timing_edge >= 2.0:
-            score += 2.0
-        if t10_edge is not None and t10_edge < 0.0:
-            score -= 3.0
-            signals.append("khung giữ dài không đẹp")
+        action_bias = "read_ml_forecast_not_overlay_score"
         if burst_age is not None and burst_age <= 10:
-            score -= 1.0
             signals.append("vẫn còn trong vùng hậu burst")
         if third_day_negative_rate is not None and third_day_negative_rate >= 35.0:
-            score -= 1.0
             signals.append(f"xác suất âm lại T+3 {third_day_negative_rate:.1f}%")
         if avg_three_day_drawdown is not None and avg_three_day_drawdown <= -2.0:
-            score -= 1.0
             signals.append(f"drawdown burst 3 ngày {avg_three_day_drawdown:.2f}%")
-
-    else:
-        regime = "generic"
-        action_bias = "neutral"
-        if best_timing_edge is not None:
-            score += _clamp(best_timing_edge * 0.3, -2.0, 2.0)
-        if t10_edge is not None:
-            score += _clamp(t10_edge * 0.2, -2.0, 2.0)
-
-    score = _clamp(score, -6.0, 6.0)
 
     headline = None
     if archetype == "momentum_high_beta":
         if regime == "post_burst_t25_supply":
             headline = (
-                f"{ticker} đang ở nhịp hậu burst dễ gặp cung T+2.5, nên đọc như event tape hơn là trend bền"
+                f"{ticker} đang ở nhịp hậu burst; quyết định mua/bán phải lấy từ model riêng của mã, không lấy từ overlay"
             )
         else:
             headline = (
-                f"{ticker} đang ở pha burst rất mới, hợp đọc như setup tốc độ chứ không phải trend sạch"
+                f"{ticker} là momentum high beta; overlay chỉ mô tả trạng thái, không chấm điểm quyết định"
             )
     elif archetype == "cyclical_beta":
         headline = (
-            f"{ticker} hợp đánh theo nhịp chu kỳ và pullback hơn là chase breakout"
+            f"{ticker}: cyclical_beta archetype; overlay chỉ mô tả context, không chấm điểm quyết định"
         )
     elif archetype == "quality_trend":
         headline = (
-            f"{ticker} phù hợp logic giữ trend và add có chọn lọc ở pullback sạch"
+            f"{ticker}: quality_trend archetype; action phải lấy từ forecast/zone/action-sizing"
         )
     elif archetype == "special_situation":
         headline = (
-            f"{ticker} nên đọc như special situation, ưu tiên swing ngắn thay vì hold máy móc"
+            f"{ticker}: special_situation archetype; action phải lấy từ forecast/zone/action-sizing"
         )
 
     summary_parts: List[str] = []
@@ -207,7 +156,7 @@ def summarise_specialized_ticker_setup(
 
     overlay["Regime"] = regime
     overlay["ActionBias"] = action_bias
-    overlay["OverlayScore"] = int(round(score))
+    overlay["OverlayScore"] = 0
     overlay["Summary"] = "; ".join(summary_parts[:4]) if summary_parts else None
     overlay["Signals"] = signals[:8]
     overlay["Metrics"] = {

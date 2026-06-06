@@ -221,7 +221,7 @@ class BuildTickerMlDeepDiveTest(unittest.TestCase):
         self.assertEqual(report["Sizing"]["NoChaseAbove"], 94.0)
         self.assertEqual(report["Sizing"]["InvalidationBelow"], 88.0)
         self.assertIn("42 mẫu", report["TimingRows"][0]["ValidationSummary"])
-        self.assertEqual(report["OHLCStateSignals"]["Summary"], "shock up, wide-range expansion, hot trend regime")
+        self.assertEqual(report["OHLCStateSignals"]["Summary"], "shock up, wide-range expansion, trend regime state +1")
         self.assertEqual(report["OHLCStateSignals"]["TickerShockState1D"], 1.0)
         self.assertIn("SpecializedOverlay", report)
         self.assertEqual(report["State"]["ExecutionNote"], "state note")

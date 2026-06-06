@@ -167,6 +167,18 @@ run_candidate_report() {
     "$@"
 }
 
+run_momentum_report() {
+  run_module momentum scripts.analysis.build_momentum_continuation_report "$@"
+}
+
+run_position_ml_review() {
+  run_module position_ml scripts.analysis.build_position_ml_review "$@"
+}
+
+run_sequence_dl_report() {
+  run_module sequence_dl scripts.analysis.build_sequence_dl_forecast_report "$@"
+}
+
 run_deep_dive_report() {
   local ticker="${1:-}"
   if [[ -z "$ticker" ]]; then
@@ -203,6 +215,22 @@ run_refresh_vn30_nvl_map() {
     --extra-ticker NVL \
     --output data/industry_map.csv \
     "$@"
+}
+
+run_refresh_vic_vhm_map() {
+  ensure_venv
+  echo "[refresh_vic_vhm_map] Using: $PY_BIN"
+  "$PY_BIN" - <<'PY'
+from pathlib import Path
+
+Path("data").mkdir(parents=True, exist_ok=True)
+Path("data/industry_map.csv").write_text(
+    "Ticker,Sector\n"
+    "VHM,Bất động sản\n"
+    "VIC,Bất động sản\n",
+    encoding="utf-8",
+)
+PY
 }
 
 run_refresh_hose_map() {
@@ -252,6 +280,20 @@ run_eval_macro() {
   run_module eval_macro scripts.analysis.evaluate_macro_factor_sensitivity "$@"
 }
 
+run_eval_macro_lift() {
+  run_module eval_macro_lift scripts.analysis.evaluate_macro_feature_lift "$@"
+}
+
+run_refresh_macro() {
+  run_module refresh_macro scripts.data_fetching.macro_factor_cache \
+    --config config/macro_factors.yaml \
+    --cache-dir out/macro_factors \
+    --max-age-hours 24 \
+    --timeout 8 \
+    --summary-out out/analysis/macro_factor_cache_summary.csv \
+    "$@"
+}
+
 run_eval_bctt() {
   run_module eval_bctt scripts.analysis.evaluate_bctt_feature_lift "$@"
 }
@@ -283,7 +325,7 @@ run_prepare_core() {
 
 run_prepare_default() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
-  run_refresh_vn30_nvl_map
+  run_refresh_vic_vhm_map
   run_prepare "$config_path"
 }
 
@@ -305,12 +347,14 @@ Core commands:
   research             Rebuild research/ from the current out/ snapshot
 
 Universe helpers:
-  map                  Short alias for refresh_vn30_nvl_map
+  map                  Short alias for refresh_vic_vhm_map
+  refresh_vic_vhm_map  Rebuild data/industry_map.csv for the focused VIC/VHM universe
   refresh_vn30_map     Rebuild data/industry_map.csv from the live VN30 basket via Vietstock profiles
   refresh_vn30_nvl_map Rebuild data/industry_map.csv from the live VN30 basket plus NVL
   refresh_hose_map     Rebuild data/industry_map.csv from the live HOSE basket via Vietstock profiles
   sync_artifacts [prefix] Download/cache the latest GitHub Actions artifact matching a prefix
-  prepare_default      Refresh VN30 + NVL scope, then run the full prepare pipeline sequentially
+  prepare_default      Refresh VIC/VHM scope, then run the full prepare pipeline sequentially
+  refresh_macro        Refresh cached macro/global equity factors
 
 Report builders:
   candidates [mode]    Build ranked candidate watchlist (`auto`, `core`, or `full`)
@@ -318,17 +362,21 @@ Report builders:
   range                Build range forecast reports
   cycle                Build cycle forecast reports
   playbook             Build per-ticker playbook report
-  ohlc                 Build next-session OHLC report
+  ohlc                 Build next-session and multi-session OHLC reports
   intraday             Build rest-of-session intraday report when the current timestamp allows it
   timing               Build single-name timing report
   entry_ladder         Build entry ladder evaluation report
+  momentum             Build focused continuation/urgency report for default tickers
+  position_ml          Build ML-only review for an existing position
+  sequence_dl          Build true LSTM/Transformer sequence forecast artifacts
 
 Offline evaluation:
-  eval_deterministic   Replay deterministic market/ticker strategies
+  eval_deterministic   Legacy replay harness; not a recommendation source
   eval_ml              Run cross-sectional ML baseline
   eval_vnindex         Run VNINDEX ML baseline
   eval_ohlc            Run multi-horizon OHLC ML baseline
   eval_macro           Run macro-factor sensitivity evaluation
+  eval_macro_lift      Compare ML prediction with/without macro/global equity features
   eval_bctt            Run BCTT feature-lift evaluation
 EOF
 }
@@ -360,7 +408,10 @@ main() {
       run_refresh_vn30_map "$@"
       ;;
     map)
-      run_refresh_vn30_nvl_map "$@"
+      run_refresh_vic_vhm_map "$@"
+      ;;
+    refresh_vic_vhm_map)
+      run_refresh_vic_vhm_map "$@"
       ;;
     refresh_vn30_nvl_map)
       run_refresh_vn30_nvl_map "$@"
@@ -371,6 +422,9 @@ main() {
     sync_artifacts)
       run_sync_artifacts "$@"
       ;;
+    refresh_macro)
+      run_refresh_macro "$@"
+      ;;
     prepare_default)
       run_prepare_default "${1:-$DEFAULT_CONFIG_PATH}"
       ;;
@@ -379,6 +433,15 @@ main() {
       ;;
     candidates)
       run_candidate_report "$@"
+      ;;
+    momentum)
+      run_momentum_report "$@"
+      ;;
+    position_ml)
+      run_position_ml_review "$@"
+      ;;
+    sequence_dl)
+      run_sequence_dl_report "$@"
       ;;
     range)
       run_range_report "$@"
@@ -424,6 +487,9 @@ main() {
       ;;
     eval_macro)
       run_eval_macro "$@"
+      ;;
+    eval_macro_lift)
+      run_eval_macro_lift "$@"
       ;;
     eval_bctt)
       run_eval_bctt "$@"
