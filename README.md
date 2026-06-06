@@ -25,19 +25,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-1. Refresh universe map nếu bạn muốn chạy nhanh scope `VIC/VHM`:
-
-```bash
-./broker.sh refresh_vic_vhm_map
-```
-
-2. Hoặc chạy một phát toàn bộ warm-up cần thiết:
+1. Scope mặc định đã được pin vào `VIC` trong `config/data_engine.yaml`; không cần refresh map nếu chỉ phân tích VIC.
 
 ```bash
 ./broker.sh prepare_default
 ```
 
-Lệnh trên sẽ refresh scope thành `VIC/VHM` rồi build snapshot/report tuần tự cho session. Nếu map đã đúng sẵn và bạn chỉ muốn rebuild artifact thì vẫn có thể dùng `./broker.sh prepare`.
+2. Hoặc nếu chỉ muốn rebuild artifact từ map hiện có:
+
+```bash
+./broker.sh prepare
+```
+
+Scope phân tích mặc định hiện chỉ là `VIC`; các mã khác chỉ vào phân tích khi bạn hỏi rõ.
 
 3. Mở Codex ngay trong repo này và hỏi trực tiếp.
 
@@ -82,7 +82,7 @@ Ví dụ:
 - `Nếu rebuild/fetch/full ML cần cho khuyến nghị hoặc lệnh cụ thể đang chạy lâu, Codex không được tự ý dừng. Nếu command lỗi, bị interrupt, hoặc đã dừng, phải nói rõ chưa có artifact đủ sạch và không đưa khuyến nghị/lệnh dựa trên phần chạy dở.`
 - `Sau khi refresh artifact xong, tự check thêm tin tức live 12-24h gần nhất rồi mới chốt câu trả lời; không đưa news vào broker.sh.`
 - `Nếu tôi chỉ ra một lỗi lặp lại hoặc một rule mới về cách làm việc, hãy cập nhật contract/docs của repo, không chỉ sửa cho một câu trả lời.`
-- `Dựa trên snapshot mới nhất, VIC/VHM hôm nay xử lý thế nào?`
+- `Dựa trên snapshot mới nhất, VIC hôm nay xử lý thế nào?`
 - `Liệt kê đầy đủ ứng viên theo format mua ngay / chờ / không mua.`
 - `Nếu chưa có mã đủ chuẩn thì nói thẳng không mua.`
 - `Nếu có mã mua được hoặc chờ được thì phải ghi rõ vùng giá cụ thể và size tham chiếu cho ngân sách 5 tỷ.`
@@ -115,8 +115,8 @@ Ví dụ:
 ./broker.sh momentum
 ./broker.sh position_ml --ticker VIC --quantity 20000 --avg-price 214.53 --current-price <live_price>
 ./broker.sh refresh_macro
-./broker.sh eval_macro --no-refresh-factors --case-tickers VIC VHM
-./broker.sh eval_macro_lift --case-tickers VIC VHM
+./broker.sh eval_macro --no-refresh-factors --case-tickers VIC
+./broker.sh eval_macro_lift --case-tickers VIC
 ./broker.sh deep VIC
 ./broker.sh range
 ./broker.sh cycle
@@ -169,16 +169,15 @@ Nếu bạn muốn dùng thêm context vị thế nội bộ thì chỉ cần t�
 ```csv
 Ticker,Quantity,AvgPrice
 VIC,20000,214.53
-VHM,1000,148.0
 ```
 
 ## Universe mặc định
 
-`config/data_engine.yaml` pin working universe mặc định vào `VIC,VHM` để trả lời nhanh. Scope thực tế vẫn có thể mở rộng bằng `data/industry_map.csv` và các lệnh refresh map khi cần.
+`config/data_engine.yaml` pin working universe mặc định vào `VIC` để trả lời nhanh. Scope thực tế vẫn có thể mở rộng bằng `data/industry_map.csv` và các lệnh refresh map khi cần.
 
 Khuyến nghị:
 
-- dùng `./broker.sh refresh_vic_vhm_map` nếu repo này chủ yếu để xử lý nhanh cặp `VIC/VHM`
+- dùng `./broker.sh refresh_vic_vhm_map` chỉ khi bạn chủ động muốn đưa lại cặp lịch sử `VIC/VHM` vào map; không dùng cho phân tích mặc định
 - dùng `./broker.sh refresh_vn30_map` hoặc `./broker.sh refresh_vn30_nvl_map` nếu bạn muốn mở rộng universe tạm thời
 - dùng `./broker.sh refresh_hose_map` nếu muốn screen rộng hơn
 
@@ -193,10 +192,10 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - Không tự dừng batch vì lâu nếu batch đó là điều kiện để ra khuyến nghị/lệnh. Nếu batch chưa xong, lỗi, bị interrupt, hoặc đã bị dừng, output phải là `chưa đủ artifact sạch để khuyến nghị`, không được chốt lệnh từ dữ liệu chạy dở.
 - Khi đang trong intraday, nghỉ trưa, ngoài phiên, sau ATO/gần ATC, hoặc người dùng đưa giá live lệch snapshot, Codex phải coi artifact lệnh là stale cho tới khi fetch/rebuild lại snapshot giá; không dùng ladder/no-chase cũ để chốt LO cụ thể.
 - Sau bước refresh artifact, Codex phải tự browse tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy khi trả lời `hôm nay mua gì`; lớp này là bước hỏi đáp, không phải lệnh batch của repo
-- Khi macro/geopolitics/oil/global market có thể ảnh hưởng HOSE, chạy hoặc đọc `./broker.sh eval_macro --no-refresh-factors --case-tickers VIC VHM` sau khi cache đã refresh để xem correlation không nhất thiết cùng chiều, rồi đọc `./broker.sh eval_macro_lift --case-tickers VIC VHM` để kiểm tra macro/global equity features có cải thiện predict so với baseline không.
-- Với `VIC/VHM`, các model dùng thêm pair features: rolling corr/beta, return/range/volume, limit-proxy, shock/impulse và breakout-level 20/60/120/252 của mã còn lại. Breakout/high không còn là rule chặn lệnh; chúng là feature để model học follow-through.
+- Khi macro/geopolitics/oil/global market có thể ảnh hưởng HOSE, chạy hoặc đọc `./broker.sh eval_macro --no-refresh-factors --case-tickers VIC` sau khi cache đã refresh để xem correlation không nhất thiết cùng chiều, rồi đọc `./broker.sh eval_macro_lift --case-tickers VIC` để kiểm tra macro/global equity features có cải thiện predict so với baseline không.
+- Với `VIC`, nếu artifact còn pair features lịch sử thì chỉ đọc như input/model context; không tự kéo `VHM` vào phân tích mặc định.
 - Khi trả lời `hiện tại thì sao`, Codex phải chạy/đọc thêm momentum report sau candidate full để đánh giá continuation/sideways/downside, rồi check lịch nghỉ lễ/sự kiện/tin tức live trước khi chốt độ gấp.
-- Khi trả lời câu hỏi mua một mã cụ thể ngay hay chờ, Codex phải đặt mã đó vào so sánh cơ hội với các mã trọng tâm còn lại trong scope trả lời mặc định, rồi mới chốt size/thời điểm.
+- Khi trả lời câu hỏi mua một mã cụ thể ngay hay chờ, Codex chỉ so sánh với mã khác nếu người hỏi nêu rõ mã đó; scope mặc định không còn mã đối chứng ngoài `VIC`.
 - Lớp quyết định không được cộng/trừ điểm thủ công; nếu có overlay ticker/archetype thì chỉ dùng làm mô tả context, còn mua/chờ/không mua phải đến từ forecast/validation per-ticker và vùng giá từ artifact.
 - `eval_deterministic` chỉ là harness replay/feature legacy; không dùng nó làm nguồn ra quyết định trong câu trả lời tương tác.
 - Khi xử lý vị thế đã mua, không được tự chế mốc bán/cắt/size. Phải dùng `./broker.sh position_ml` để đọc forecast P/L và error band; nếu chưa có model action-sizing thì nói rõ chưa đủ sạch để đưa lệnh định lượng.

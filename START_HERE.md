@@ -39,7 +39,7 @@ Prompt gợi ý:
 - `Nếu rebuild/fetch/full ML cần cho khuyến nghị hoặc lệnh cụ thể đang chạy lâu, không được tự ý dừng. Nếu command lỗi, bị interrupt, hoặc đã dừng, phải nói chưa có artifact đủ sạch và không đưa khuyến nghị/lệnh dựa trên phần chạy dở.`
 - `Sau khi artifact xong thì tự check tin tức live 12-24h gần nhất rồi mới chốt mua ngay / chờ / không mua.`
 - `Nếu tôi chỉ ra một lỗi lặp lại hoặc một rule mới về cách làm việc, hãy cập nhật luôn contract/docs của repo.`
-- `Dùng snapshot mới nhất, chỉ phân tích VIC/VHM hôm nay.`
+- `Dùng snapshot mới nhất, chỉ phân tích VIC hôm nay.`
 - `Nếu chưa có mã nào sạch thì nói thẳng không mua.`
 - `Đừng sinh orders; chỉ phân tích candidate, vùng giá, thesis và trade-off.`
 - `Giả định ngân sách khoảng 5 tỷ; với mỗi ứng viên mua ngay hoặc chờ thì phải nói rõ vùng giá và size tham chiếu.`
@@ -50,12 +50,12 @@ Prompt gợi ý:
 - `Nếu tôi đưa giá live mới, hỏi trong giờ nghỉ trưa, ngoài phiên, sau ATO, gần ATC, hoặc snapshot đã cũ so với thị trường hiện tại, phải fetch/rebuild lại snapshot giá và artifact liên quan trước khi nói lệnh cụ thể; nếu full ML chạy chậm thì tiếp tục chạy cho xong trừ khi tôi yêu cầu dừng, không tự ý chuyển sang khuyến nghị tạm cho lệnh/size lớn.`
 - `Nếu hỏi hiện tại thì sao, phải trả lời thêm đà các phiên tới là tăng tiếp / đi ngang / giảm, độ gấp mua ngay hay có thể chờ, và overlay lịch nghỉ lễ/sự kiện/tin tức live.`
 - `Khi đưa khuyến nghị, phải đọc các chỉ số ML theo từng mã: timing forecast, OHLC T+1/multi-session tới T+20 nếu có, model name/family/class, MAE và direction hit; không chỉ nói mua được hay không.`
-- `Khi có tin dầu/Iran/global market, chạy hoặc đọc eval_macro ở chế độ cache sau khi refresh factor cho VIC/VHM để xem correlation từng mã với dầu, USD, VIX, lợi suất Mỹ và các chỉ số Mỹ/Âu/Anh/Nhật/Hàn; sau đó chạy hoặc đọc eval_macro_lift để kiểm tra các feature này có cải thiện predict so với baseline không.`
-- `Với VIC/VHM, phải đọc pair-feature ML: rolling corr/beta, lead-lag return/range/volume, limit-proxy/shock/impulse và breakout-level 20/60/120/252. Breakout là feature cho model, không phải tiêu chí hard-code.`
+- `Khi có tin dầu/Iran/global market, chạy hoặc đọc eval_macro ở chế độ cache sau khi refresh factor cho VIC để xem correlation với dầu, USD, VIX, lợi suất Mỹ và các chỉ số Mỹ/Âu/Anh/Nhật/Hàn; sau đó chạy hoặc đọc eval_macro_lift để kiểm tra các feature này có cải thiện predict so với baseline không.`
+- `Với VIC, nếu artifact còn pair-feature ML lịch sử thì chỉ đọc như input/model context; không tự kéo VHM vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
 - `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc timing T+15/T+20 và cycle/range thay vì chỉ nhìn T+1/T+3.`
 - `Nếu hỏi xử lý vị thế đã mua, phải dùng ML-only position review; không tự chế số lượng bán/cắt/mua thêm nếu artifact không có action-sizing.`
 - `Không dùng nhãn cảm tính như nóng/khỏe/yếu/mạnh làm lý do; nếu nhắc RSI/SMA/ret5d thì phải là feature hoặc validation metric, không phải rule hành động.`
-- `Nếu hỏi có nên mua một mã cụ thể ngay không, phải so sánh với việc chờ các mã trọng tâm còn lại rồi mới chốt size/thời điểm.`
+- `Nếu hỏi có nên mua một mã cụ thể ngay không, chỉ so sánh với mã khác khi tôi nêu rõ mã đó; mặc định không kéo thêm VHM hay mã đối chứng.`
 - `Decision cuối cùng phải dựa vào forecast/validation riêng từng mã, không dùng score cộng/trừ thủ công hay overlay hard-code.`
 - `Nếu hỏi cho phiên kế tiếp thì phải chốt luôn nên đặt trước phiên, chờ ATO, hay đợi sau ATO rồi mới làm.`
 - `Nếu cần chạy batch thì tự chạy tuần tự rồi mới trả lời.`
@@ -63,5 +63,5 @@ Prompt gợi ý:
 Nếu bạn đổi scope:
 
 - `./broker.sh refresh_hose_map` để mở rộng hơn `VN30`
-- `./broker.sh refresh_vic_vhm_map` để quay lại scope nhanh `VIC/VHM`
+- `./broker.sh refresh_vic_vhm_map` chỉ khi muốn chủ động quay lại scope lịch sử `VIC/VHM`; không dùng cho phân tích mặc định
 - hoặc tự thay `data/industry_map.csv` rồi chạy lại `./broker.sh prepare`

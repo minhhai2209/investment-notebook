@@ -22,14 +22,14 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 
 ## Khẩu vị mặc định
 
-- Scope mặc định từ bây giờ là `VIC` và `VHM`; các mã khác chỉ phân tích khi bạn hỏi rõ.
-- Scope trả lời mặc định chỉ gồm `VIC`, `VHM`; không lôi `HPG`, `MBB`, `NVL` vào so sánh mặc định nữa.
+- Scope mặc định từ bây giờ chỉ là `VIC`; các mã khác, kể cả `VHM`, chỉ phân tích khi bạn hỏi rõ.
+- Scope trả lời mặc định chỉ gồm `VIC`; không lôi `VHM`, `HPG`, `MBB`, `NVL` vào so sánh mặc định nữa.
 - Ngân sách tham chiếu mặc định là khoảng `5 tỷ`.
 - Ưu tiên xuống tiền lớn ở vùng giá đẹp; có thể chia vài nấc lớn, không chia micro-probe.
 - Ưu tiên chất lượng điểm vào hơn xác suất khớp; không được mặc định chọn nấc quá sát chỉ vì dễ khớp.
 - Không cần ép đúng `1` mã mỗi ngày; phải nêu đầy đủ ứng viên khả thi và thứ tự ưu tiên.
 - Nếu không có mã đủ sạch thì phải nói thẳng `không mua`.
-- Khi bạn hỏi có nên mua một mã cụ thể ngay không, tôi phải so sánh với phương án giữ tiền chờ mã còn lại trong scope mặc định (`VIC`, `VHM`) trước khi chốt size/thời điểm; không được đánh giá mã đó trong chân không.
+- Khi bạn hỏi có nên mua một mã cụ thể ngay không, tôi chỉ so sánh với mã khác nếu bạn nêu rõ mã đó; scope mặc định không còn mã đối chứng ngoài `VIC`.
 - Khi đề xuất lệnh/ladder, phải ưu tiên tuyệt đối các mức giá đến từ artifact ML/research (`entry ladder`, `range`, `cycle`, `session tranches`, `preferred buy zone`).
 - Không được tự bịa thêm nấc bằng cách trừ thủ công một khoảng từ giá hiện tại chỉ để đủ ladder; nếu artifact chưa cho mức giá đủ đẹp thì phải nói thẳng là chưa có lệnh đáng đặt.
 - Nếu người hỏi đã chuyển sang mode `ra lệnh` hoặc hỏi giá/số lượng cụ thể, tôi phải kiểm tra xem artifact dùng để ra lệnh có còn đồng bộ với snapshot giá hiện tại không.
@@ -39,7 +39,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Khi trả lời `hiện tại thì sao`, `hôm nay mua gì`, hoặc câu hỏi tương tự, tôi không được chỉ nói mã nào mua được; tôi phải đánh giá thêm `ML direction/urgency` theo forecast/validation, ví dụ forecast T+3 còn edge, forecast âm, zone artifact chưa đạt, hoặc action-sizing chưa đủ model.
 - Sau khi có candidate full mới, phải chạy thêm `./broker.sh momentum` hoặc tool tương đương để đọc lớp continuation/urgency cho scope trả lời mặc định.
 - Lớp ra quyết định cuối cùng phải lấy từ forecast/validation riêng từng mã (`single-name timing`, `range`, `OHLC`, `entry ladder`, `research state`) thay vì score cộng/trừ thủ công. Các overlay theo archetype chỉ được mô tả context, không được cộng/trừ điểm để ép quyết định.
-- Với `VIC`/`VHM`, tương quan và lead-lag giữa hai mã là feature ML bắt buộc: các model OHLC/timing/range/cycle/entry phải được train với rolling corr/beta, return/volume/range của mã còn lại, limit-proxy/shock/impulse và breakout-level 20/60/120/252 của cả ticker lẫn pair nếu artifact có cột đó.
+- Với `VIC`, nếu artifact vẫn có pair features lịch sử thì chỉ được đọc như input/model context; không tự kéo `VHM` vào phần phân tích hoặc so sánh mặc định.
 - Các mốc kỹ thuật như breakout, high 20/60/120/252, trần/sàn/limit proxy chỉ được dùng làm feature hoặc output artifact; không dùng chúng như criteria hard-code kiểu “chưa vượt thì không mua” nếu model/action artifact sau khi train feature đã cho tín hiệu khác.
 - `eval_deterministic` là harness replay/feature legacy, không được dùng làm nguồn ra quyết định mua/chờ/không mua trong câu trả lời tương tác.
 - Khi đưa khuyến nghị, phải nêu các chỉ số ML chính của từng mã trong scope trả lời: timing window/peak/close/drawdown, validation hit/MAE, OHLC T+1 và OHLC multi-session mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`, model name, model family/class, Close MAE và direction hit. Không được chỉ kết luận mua/chờ/không mua mà thiếu lớp predict/validation.
@@ -52,8 +52,8 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Với các mã momentum high-beta như `VIC`, nếu cần nói về regime thì phải dùng output định lượng: OHLC forecast, timing forecast, historical hot-regime validation, MAE/hit rate. Không được viết kiểu `quá nóng nên khoan` hoặc các biến thể tương tự.
 - Phải xem lớp lịch nghỉ lễ/sự kiện local trong `config/market_events.json`; nếu file thiếu hoặc chưa có sự kiện cần thiết thì phải nói rõ và tự check thêm bằng tin/lịch live khi trả lời.
 - Lớp tin tức live, chính sách, sự kiện bất thường, lịch nghỉ lễ chính thức phải được kiểm tra ngay lúc trả lời; không được coi output batch là đã bao phủ tin live.
-- Khi tin macro/geopolitics/oil/global equity đáng kể xuất hiện, phải đọc thêm `eval_macro` ở chế độ cache sau khi refresh factor hoặc artifact `out/analysis/macro_factor_*.csv` cho `VIC,VHM` để xem tương quan với dầu, USD, VIX, lợi suất Mỹ và các chỉ số lớn Mỹ/Âu/Anh/Nhật/Hàn; không được mặc định correlation cùng chiều.
-- Với feature macro/global equity và pair VIC/VHM, correlation chỉ là diagnostics; muốn kết luận có dùng trong khuyến nghị hay không phải đọc thêm artifact feature-lift hoặc validation walk-forward liên quan. Nếu không có lift/validation thì không được nâng trọng số tín hiệu đó.
+- Khi tin macro/geopolitics/oil/global equity đáng kể xuất hiện, phải đọc thêm `eval_macro` ở chế độ cache sau khi refresh factor hoặc artifact `out/analysis/macro_factor_*.csv` cho `VIC` để xem tương quan với dầu, USD, VIX, lợi suất Mỹ và các chỉ số lớn Mỹ/Âu/Anh/Nhật/Hàn; không được mặc định correlation cùng chiều.
+- Với feature macro/global equity, correlation chỉ là diagnostics; muốn kết luận có dùng trong khuyến nghị hay không phải đọc thêm artifact feature-lift hoặc validation walk-forward liên quan. Nếu không có lift/validation thì không được nâng trọng số tín hiệu đó.
 
 ## Contract đầu ra
 
