@@ -40,6 +40,7 @@ TOTAL_TRADING_MINUTES = 240.0
 
 FEATURE_COLUMNS = [
     "BucketCode",
+    "TickerSnapshotRetFromPrevClosePct",
     "TickerGapPct",
     "TickerOpenToSnapshotRetPct",
     "TickerLast5mRetPct",
@@ -61,6 +62,7 @@ FEATURE_COLUMNS = [
     "TickerSessionProgressPct",
     "TickerAfternoonOpenToSnapshotRetPct",
     "TickerAfternoonVolumePctADV20",
+    "IndexSnapshotRetFromPrevClosePct",
     "IndexGapPct",
     "IndexOpenToSnapshotRetPct",
     "IndexLast5mRetPct",
@@ -80,6 +82,7 @@ FEATURE_COLUMNS = [
     "IndexSessionProgressPct",
     "IndexAfternoonOpenToSnapshotRetPct",
     "IndexAfternoonVolumePctADV20",
+    "RelSnapshotRetFromPrevClosePct",
     "RelOpenToSnapshotPct",
     "RelLast15mPct",
     "RelLast60mPct",
@@ -96,7 +99,10 @@ REQUIRED_OUTPUT_COLUMNS = [
     "SnapshotDate",
     "SnapshotTimeBucket",
     "Ticker",
+    "PrevClose",
     "Base",
+    "SnapshotRetFromPrevClosePct",
+    "SnapshotRedFromPrevClose",
     "Low",
     "Mid",
     "High",
@@ -108,6 +114,12 @@ REQUIRED_OUTPUT_COLUMNS = [
     "CloseMAEPct",
     "RangeMAEPct",
     "CloseDirHitPct",
+    "PredCloseUpFromSnapshot",
+    "PredCloseUpFromSnapshotProbPct",
+    "PredRecoverToPrevClose",
+    "PredRecoverToPrevCloseProbPct",
+    "PredFinalCloseVsPrevClosePct",
+    "RecoverySetup",
     "SelectionScore",
 ]
 BUCKET_CODES = {
@@ -403,11 +415,13 @@ def summarise_intraday_snapshots(
                 f"{prefix}Open": float(
                     so_far.iloc[0]["Open"] if not pd.isna(so_far.iloc[0]["Open"]) else so_far.iloc[0]["Close"]
                 ),
+                f"{prefix}PrevClose": prev_close,
                 f"{prefix}SnapshotClose": snapshot_close,
                 f"{prefix}SessionHigh": session_high,
                 f"{prefix}SessionLow": session_low,
                 f"{prefix}SessionVWAP": session_vwap,
                 f"{prefix}SessionVolume": session_volume,
+                f"{prefix}SnapshotRetFromPrevClosePct": _safe_return_pct(snapshot_close, prev_close),
                 f"{prefix}GapPct": _safe_return_pct(float(so_far.iloc[0]["Open"]), prev_close),
                 f"{prefix}OpenToSnapshotRetPct": _safe_return_pct(snapshot_close, float(so_far.iloc[0]["Open"])),
                 f"{prefix}Last5mRetPct": _ret_from_trailing_bars(prices, 1),
@@ -435,11 +449,13 @@ def summarise_intraday_snapshots(
                 row[f"{prefix}TargetCloseRetPct"] = float("nan")
                 row[f"{prefix}TargetHighRetPct"] = float("nan")
                 row[f"{prefix}TargetLowRetPct"] = float("nan")
+                row[f"{prefix}TargetCloseVsPrevClosePct"] = float("nan")
             else:
                 day_close = float(session_rows.iloc[-1]["Close"])
                 row[f"{prefix}TargetCloseRetPct"] = _safe_return_pct(day_close, snapshot_close)
                 row[f"{prefix}TargetHighRetPct"] = _safe_return_pct(float(future_rows["High"].max()), snapshot_close)
                 row[f"{prefix}TargetLowRetPct"] = _safe_return_pct(float(future_rows["Low"].min()), snapshot_close)
+                row[f"{prefix}TargetCloseVsPrevClosePct"] = _safe_return_pct(day_close, prev_close)
             rows.append(row)
 
     return pd.DataFrame(rows).sort_values(["TradeDate", "SnapshotTs"]).reset_index(drop=True)
@@ -463,8 +479,15 @@ def build_intraday_rest_of_session_sample(ticker: str, history_dir: Path, resolu
         raise RuntimeError(f"No overlapping intraday snapshot rows for {ticker} and VNINDEX")
 
     merged["Ticker"] = _normalise_ticker(ticker)
+    merged["PrevClose"] = merged["TickerPrevClose"].astype(float)
     merged["Base"] = merged["TickerSnapshotClose"].astype(float)
     merged["BucketCode"] = merged["TickerBucketCode"].astype(float)
+    merged["SnapshotRetFromPrevClosePct"] = merged["TickerSnapshotRetFromPrevClosePct"].astype(float)
+    merged["SnapshotRedFromPrevClose"] = merged["SnapshotRetFromPrevClosePct"] < 0.0
+    merged["TargetCloseVsPrevClosePct"] = merged["TickerTargetCloseVsPrevClosePct"].astype(float)
+    merged["RelSnapshotRetFromPrevClosePct"] = (
+        merged["TickerSnapshotRetFromPrevClosePct"] - merged["IndexSnapshotRetFromPrevClosePct"]
+    )
     merged["RelOpenToSnapshotPct"] = merged["TickerOpenToSnapshotRetPct"] - merged["IndexOpenToSnapshotRetPct"]
     merged["RelLast15mPct"] = merged["TickerLast15mRetPct"] - merged["IndexLast15mRetPct"]
     merged["RelLast60mPct"] = merged["TickerLast60mRetPct"] - merged["IndexLast60mRetPct"]
@@ -482,8 +505,12 @@ def build_intraday_rest_of_session_sample(ticker: str, history_dir: Path, resolu
         "SnapshotDate",
         "SnapshotTimeBucket",
         "Ticker",
+        "PrevClose",
         "Base",
+        "SnapshotRetFromPrevClosePct",
+        "SnapshotRedFromPrevClose",
         *FEATURE_COLUMNS,
+        "TargetCloseVsPrevClosePct",
         "TargetLowRetPct",
         "TargetCloseRetPct",
         "TargetHighRetPct",
@@ -575,7 +602,18 @@ def generate_intraday_rest_of_session_predictions(
 
         for model_name, factory in model_factories.items():
             history_frame = holdout_df[
-                ["TradeDate", "SnapshotDate", "SnapshotTimeBucket", "Ticker", "Base", *TARGET_COLUMNS]
+                [
+                    "TradeDate",
+                    "SnapshotDate",
+                    "SnapshotTimeBucket",
+                    "Ticker",
+                    "PrevClose",
+                    "Base",
+                    "SnapshotRetFromPrevClosePct",
+                    "SnapshotRedFromPrevClose",
+                    "TargetCloseVsPrevClosePct",
+                    *TARGET_COLUMNS,
+                ]
             ].copy()
             history_frame["Model"] = model_name
             for target_column in TARGET_COLUMNS:
@@ -589,7 +627,16 @@ def generate_intraday_rest_of_session_predictions(
             history_frames.append(history_frame)
 
             current_frame = current_row[
-                ["TradeDate", "SnapshotDate", "SnapshotTimeBucket", "Ticker", "Base"]
+                [
+                    "TradeDate",
+                    "SnapshotDate",
+                    "SnapshotTimeBucket",
+                    "Ticker",
+                    "PrevClose",
+                    "Base",
+                    "SnapshotRetFromPrevClosePct",
+                    "SnapshotRedFromPrevClose",
+                ]
             ].copy()
             current_frame["Model"] = model_name
             for target_column in TARGET_COLUMNS:
@@ -673,6 +720,47 @@ def summarise_intraday_rest_of_session_metrics(history_df: pd.DataFrame) -> pd.D
     ).reset_index(drop=True)
 
 
+def _mean_bool_pct(values: pd.Series) -> float:
+    scoped = values.dropna()
+    if scoped.empty:
+        return float("nan")
+    return float(scoped.astype(bool).mean() * 100.0)
+
+
+def _conditional_probability_pct(
+    frame: pd.DataFrame,
+    *,
+    predicted_positive: bool,
+    predicted_column: str,
+    actual_column: str,
+) -> float:
+    if frame.empty or predicted_column not in frame.columns or actual_column not in frame.columns:
+        return float("nan")
+    prediction_values = pd.to_numeric(frame[predicted_column], errors="coerce")
+    actual_values = pd.to_numeric(frame[actual_column], errors="coerce")
+    comparable = frame[prediction_values.notna() & actual_values.notna()].copy()
+    if comparable.empty:
+        return float("nan")
+    comparable_pred = pd.to_numeric(comparable[predicted_column], errors="coerce")
+    if predicted_positive:
+        analog = comparable[comparable_pred >= 0.0]
+    else:
+        analog = comparable[comparable_pred < 0.0]
+    if analog.empty:
+        analog = comparable
+    return _mean_bool_pct(pd.to_numeric(analog[actual_column], errors="coerce") >= 0.0)
+
+
+def _recovery_setup(snapshot_red: bool, pred_up: bool, pred_recover: bool) -> str:
+    if not snapshot_red:
+        return "NOT_RED_SNAPSHOT"
+    if pred_recover:
+        return "RED_RECOVER_TO_PREV_CLOSE"
+    if pred_up:
+        return "RED_BOUNCE_FROM_SNAPSHOT"
+    return "RED_RECOVERY_NOT_CONFIRMED"
+
+
 def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, current_df: pd.DataFrame) -> pd.DataFrame:
     metrics_df = summarise_intraday_rest_of_session_metrics(history_df)
     if metrics_df.empty or current_df.empty:
@@ -684,7 +772,10 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
             "SnapshotDate",
             "SnapshotTimeBucket",
             "Ticker",
+            "PrevClose",
             "Base",
+            "SnapshotRetFromPrevClosePct",
+            "SnapshotRedFromPrevClose",
             "Model",
             "PredTargetLowRetPct",
             "PredTargetCloseRetPct",
@@ -705,12 +796,76 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
     low = merged["Base"].astype(float) * (1.0 + (merged["PredTargetLowRetPct"].astype(float) / 100.0))
     mid = merged["Base"].astype(float) * (1.0 + (merged["PredTargetCloseRetPct"].astype(float) / 100.0))
     high = merged["Base"].astype(float) * (1.0 + (merged["PredTargetHighRetPct"].astype(float) / 100.0))
+    prev_close = merged["PrevClose"].astype(float)
+    pred_final_close_vs_prev_close_pct = ((mid / prev_close) - 1.0) * 100.0
+    pred_close_up_from_snapshot = merged["PredTargetCloseRetPct"].astype(float) >= 0.0
+    pred_recover_to_prev_close = pred_final_close_vs_prev_close_pct >= 0.0
+
+    close_up_probabilities: List[float] = []
+    recover_probabilities: List[float] = []
+    recovery_setups: List[str] = []
+    for _, row in merged.iterrows():
+        scoped_history = history_df[
+            (history_df["Ticker"] == row["Ticker"])
+            & (history_df["SnapshotTimeBucket"] == row["SnapshotTimeBucket"])
+            & (history_df["Model"] == row["Model"])
+        ].copy()
+        if "PrevClose" in scoped_history.columns:
+            scoped_history["PredFinalCloseVsPrevClosePct"] = (
+                (
+                    scoped_history["Base"].astype(float)
+                    * (1.0 + (scoped_history["PredTargetCloseRetPct"].astype(float) / 100.0))
+                )
+                / scoped_history["PrevClose"].astype(float)
+                - 1.0
+            ) * 100.0
+
+        current_pred_up = float(row["PredTargetCloseRetPct"]) >= 0.0
+        current_snapshot_red = bool(row["SnapshotRedFromPrevClose"])
+        current_pred_recover = (
+            (
+                float(row["Base"]) * (1.0 + (float(row["PredTargetCloseRetPct"]) / 100.0))
+            )
+            / float(row["PrevClose"])
+            - 1.0
+        ) >= 0.0
+        close_up_probabilities.append(
+            _conditional_probability_pct(
+                scoped_history,
+                predicted_positive=current_pred_up,
+                predicted_column="PredTargetCloseRetPct",
+                actual_column="TargetCloseRetPct",
+            )
+        )
+
+        recover_history = scoped_history
+        if current_snapshot_red and "SnapshotRedFromPrevClose" in scoped_history.columns:
+            recover_history = scoped_history[scoped_history["SnapshotRedFromPrevClose"].astype(bool)].copy()
+        recover_probabilities.append(
+            _conditional_probability_pct(
+                recover_history,
+                predicted_positive=current_pred_recover,
+                predicted_column="PredFinalCloseVsPrevClosePct",
+                actual_column="TargetCloseVsPrevClosePct",
+            )
+        )
+        recovery_setups.append(
+            _recovery_setup(
+                snapshot_red=current_snapshot_red,
+                pred_up=current_pred_up,
+                pred_recover=current_pred_recover,
+            )
+        )
+
     report_df = pd.DataFrame(
         {
             "SnapshotDate": merged["SnapshotDate"],
             "SnapshotTimeBucket": merged["SnapshotTimeBucket"],
             "Ticker": merged["Ticker"],
+            "PrevClose": prev_close,
             "Base": merged["Base"].astype(float),
+            "SnapshotRetFromPrevClosePct": merged["SnapshotRetFromPrevClosePct"].astype(float),
+            "SnapshotRedFromPrevClose": merged["SnapshotRedFromPrevClose"].astype(bool),
             "Low": low.astype(float),
             "Mid": mid.astype(float),
             "High": high.astype(float),
@@ -722,6 +877,12 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
             "CloseMAEPct": merged["CloseMAEPct"].astype(float),
             "RangeMAEPct": merged["RangeMAEPct"].astype(float),
             "CloseDirHitPct": merged["CloseDirHitPct"].astype(float),
+            "PredCloseUpFromSnapshot": pred_close_up_from_snapshot.astype(bool),
+            "PredCloseUpFromSnapshotProbPct": close_up_probabilities,
+            "PredRecoverToPrevClose": pred_recover_to_prev_close.astype(bool),
+            "PredRecoverToPrevCloseProbPct": recover_probabilities,
+            "PredFinalCloseVsPrevClosePct": pred_final_close_vs_prev_close_pct.astype(float),
+            "RecoverySetup": recovery_setups,
             "SelectionScore": merged["SelectionScore"].astype(float),
         }
     )

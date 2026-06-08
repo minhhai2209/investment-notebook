@@ -162,7 +162,10 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
                     "SnapshotDate": "2026-03-30",
                     "SnapshotTimeBucket": "PM_LATE",
                     "Ticker": "AAA",
+                    "PrevClose": 10.1,
                     "Base": 10.0,
+                    "SnapshotRetFromPrevClosePct": -0.9901,
+                    "SnapshotRedFromPrevClose": True,
                     "Model": "ridge",
                     "PredTargetLowRetPct": -2.0,
                     "PredTargetCloseRetPct": 1.0,
@@ -172,7 +175,10 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
                     "SnapshotDate": "2026-03-30",
                     "SnapshotTimeBucket": "PM_LATE",
                     "Ticker": "AAA",
+                    "PrevClose": 10.1,
                     "Base": 10.0,
+                    "SnapshotRetFromPrevClosePct": -0.9901,
+                    "SnapshotRedFromPrevClose": True,
                     "Model": "random_forest",
                     "PredTargetLowRetPct": -1.5,
                     "PredTargetCloseRetPct": 0.8,
@@ -187,6 +193,8 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
         row = report.iloc[0]
         self.assertEqual(str(row["Model"]), "random_forest")
         self.assertAlmostEqual(float(row["Mid"]), 10.08)
+        self.assertTrue(bool(row["PredCloseUpFromSnapshot"]))
+        self.assertFalse(bool(row["PredRecoverToPrevClose"]))
 
     def test_summarise_intraday_rest_of_session_metrics_penalises_upside_miss(self) -> None:
         history = pd.DataFrame(
@@ -275,7 +283,10 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
                     "SnapshotDate": "2026-03-30",
                     "SnapshotTimeBucket": "PM_LATE",
                     "Ticker": "AAA",
+                    "PrevClose": 10.1,
                     "Base": 10.0,
+                    "SnapshotRetFromPrevClosePct": -0.9901,
+                    "SnapshotRedFromPrevClose": True,
                     "Model": "ridge",
                     "PredTargetLowRetPct": -2.0,
                     "PredTargetCloseRetPct": 1.0,
@@ -285,7 +296,10 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
                     "SnapshotDate": "2026-03-30",
                     "SnapshotTimeBucket": "PM_LATE",
                     "Ticker": "AAA",
+                    "PrevClose": 10.1,
                     "Base": 10.0,
+                    "SnapshotRetFromPrevClosePct": -0.9901,
+                    "SnapshotRedFromPrevClose": True,
                     "Model": "random_forest",
                     "PredTargetLowRetPct": -1.5,
                     "PredTargetCloseRetPct": 0.8,
@@ -298,6 +312,89 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
 
         self.assertEqual(report["Ticker"].tolist(), ["AAA"])
         self.assertEqual(str(report.iloc[0]["Model"]), "random_forest")
+
+    def test_select_current_intraday_rest_of_session_forecasts_calibrates_red_recovery(self) -> None:
+        history = pd.DataFrame(
+            [
+                {
+                    "Ticker": "AAA",
+                    "SnapshotTimeBucket": "PM_LATE",
+                    "Model": "hist_gbm",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRedFromPrevClose": True,
+                    "TargetCloseVsPrevClosePct": 0.5,
+                    "TargetCloseRetPct": 2.55,
+                    "PredTargetCloseRetPct": 3.0,
+                    "TargetHighRetPct": 3.0,
+                    "PredTargetHighRetPct": 3.5,
+                    "TargetLowRetPct": -0.5,
+                    "PredTargetLowRetPct": -0.3,
+                    "ActualRangePct": 3.5,
+                    "PredRangePct": 3.8,
+                },
+                {
+                    "Ticker": "AAA",
+                    "SnapshotTimeBucket": "PM_LATE",
+                    "Model": "hist_gbm",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRedFromPrevClose": True,
+                    "TargetCloseVsPrevClosePct": -0.2,
+                    "TargetCloseRetPct": 1.84,
+                    "PredTargetCloseRetPct": 4.0,
+                    "TargetHighRetPct": 2.5,
+                    "PredTargetHighRetPct": 3.0,
+                    "TargetLowRetPct": -0.8,
+                    "PredTargetLowRetPct": -0.5,
+                    "ActualRangePct": 3.3,
+                    "PredRangePct": 3.5,
+                },
+                {
+                    "Ticker": "AAA",
+                    "SnapshotTimeBucket": "PM_LATE",
+                    "Model": "hist_gbm",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRedFromPrevClose": True,
+                    "TargetCloseVsPrevClosePct": -1.5,
+                    "TargetCloseRetPct": -0.51,
+                    "PredTargetCloseRetPct": -0.5,
+                    "TargetHighRetPct": 0.2,
+                    "PredTargetHighRetPct": 0.1,
+                    "TargetLowRetPct": -1.5,
+                    "PredTargetLowRetPct": -1.2,
+                    "ActualRangePct": 1.7,
+                    "PredRangePct": 1.3,
+                },
+            ]
+        )
+        current = pd.DataFrame(
+            [
+                {
+                    "SnapshotDate": "2026-03-30",
+                    "SnapshotTimeBucket": "PM_LATE",
+                    "Ticker": "AAA",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRetFromPrevClosePct": -2.0,
+                    "SnapshotRedFromPrevClose": True,
+                    "Model": "hist_gbm",
+                    "PredTargetLowRetPct": -0.4,
+                    "PredTargetCloseRetPct": 3.0,
+                    "PredTargetHighRetPct": 3.5,
+                }
+            ]
+        )
+
+        report = select_current_intraday_rest_of_session_forecasts(history, current)
+
+        row = report.iloc[0]
+        self.assertTrue(bool(row["PredCloseUpFromSnapshot"]))
+        self.assertTrue(bool(row["PredRecoverToPrevClose"]))
+        self.assertAlmostEqual(float(row["PredFinalCloseVsPrevClosePct"]), -2.0 + 3.0 + (-2.0 * 3.0 / 100.0), places=4)
+        self.assertAlmostEqual(float(row["PredRecoverToPrevCloseProbPct"]), 50.0)
+        self.assertEqual(str(row["RecoverySetup"]), "RED_RECOVER_TO_PREV_CLOSE")
 
     def test_prepare_current_snapshot_row_relabels_bucket_to_engine_context(self) -> None:
         current_row = pd.DataFrame(

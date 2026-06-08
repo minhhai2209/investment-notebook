@@ -29,6 +29,11 @@ Nếu muốn xem thêm mã nào có đà tăng tiếp, đi ngang, hay rủi ro g
 
 1. `./broker.sh momentum`
 
+Nếu đang trong phiên và muốn xem case đang đỏ có khả năng hồi cuối phiên hay không:
+
+1. `./broker.sh intraday`
+2. đọc `out/analysis/ml_intraday_rest_of_session.csv`, nhất là `PredCloseUpFromSnapshotProbPct`, `PredRecoverToPrevCloseProbPct`, và `RecoverySetup`
+
 Nếu muốn review một vị thế đã mua bằng ML-only, không tự chế rule xử lý:
 
 1. `./broker.sh position_ml --ticker VIC --quantity 20000 --avg-price 214.53 --current-price <live_price>`

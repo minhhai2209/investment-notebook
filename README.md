@@ -149,6 +149,7 @@ Các harness offline vẫn còn:
 - `out/analysis/ml_ohlc_next_session.csv`: forecast OHLC phiên kế tiếp kèm model, model family/class, MAE và hit hướng close
 - `out/analysis/ml_ohlc_multi_session.csv`: forecast OHLC nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20` để đọc như một bản dự báo xác suất, không phải giá chắc chắn
 - `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics theo từng ticker/horizon/model để audit vì sao model được chọn
+- `out/analysis/ml_intraday_rest_of_session.csv`: forecast phần còn lại của phiên trong các bucket intraday; gồm nhãn/xác suất `PredCloseUpFromSnapshot*` và `PredRecoverToPrevClose*` để đọc case đang đỏ có hồi cuối phiên hay không
 - `out/analysis/ml_single_name_timing.csv`: timing/peak/drawdown/close theo horizon mặc định `T+3/T+5/T+10/T+15/T+20`; `T+N` nghĩa là N phiên giao dịch sau snapshot
 - `out/analysis/momentum/`: continuation/urgency report theo forecast/validation để phân biệt edge T+N, forecast âm, zone artifact chưa đạt, hoặc thiếu action-sizing
 - `out/analysis/positions/`: review vị thế đang nắm theo ML-only, gồm P/L hiện tại, forecast P/L theo horizon và error band; không tự sinh rule bán/mua thêm
