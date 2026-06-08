@@ -394,7 +394,9 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
         self.assertTrue(bool(row["PredRecoverToPrevClose"]))
         self.assertAlmostEqual(float(row["PredFinalCloseVsPrevClosePct"]), -2.0 + 3.0 + (-2.0 * 3.0 / 100.0), places=4)
         self.assertAlmostEqual(float(row["PredRecoverToPrevCloseProbPct"]), 50.0)
+        self.assertEqual(int(row["PredRecoverToPrevCloseCalibrationRows"]), 2)
         self.assertEqual(str(row["RecoverySetup"]), "RED_RECOVER_TO_PREV_CLOSE")
+        self.assertFalse(bool(row["RecoveryCalibrationConflict"]))
 
     def test_prepare_current_snapshot_row_relabels_bucket_to_engine_context(self) -> None:
         current_row = pd.DataFrame(

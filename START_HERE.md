@@ -32,7 +32,7 @@ Nếu muốn xem thêm mã nào có đà tăng tiếp, đi ngang, hay rủi ro g
 Nếu đang trong phiên và muốn xem case đang đỏ có khả năng hồi cuối phiên hay không:
 
 1. `./broker.sh intraday`
-2. đọc `out/analysis/ml_intraday_rest_of_session.csv`, nhất là `PredCloseUpFromSnapshotProbPct`, `PredRecoverToPrevCloseProbPct`, và `RecoverySetup`
+2. đọc `out/analysis/ml_intraday_rest_of_session.csv`, nhất là `PredCloseUpFromSnapshotProbPct`, `PredRecoverToPrevCloseProbPct`, calibration rows, `RecoverySetup`, và `RecoveryCalibrationConflict`
 
 Nếu muốn review một vị thế đã mua bằng ML-only, không tự chế rule xử lý:
 

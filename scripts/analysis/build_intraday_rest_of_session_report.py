@@ -27,6 +27,8 @@ DEFAULT_MIN_TRAIN_DATES = 90
 DEFAULT_HOLDOUT_DATES = 25
 DEFAULT_RESOLUTION = "5"
 OUTPUT_FILE_NAME = "ml_intraday_rest_of_session.csv"
+CALIBRATION_PRIOR_ROWS = 4.0
+CALIBRATION_PRIOR_PROB_PCT = 50.0
 
 MARKET_OPEN = time(9, 0)
 MORNING_BUCKET_START = time(9, 45)
@@ -116,10 +118,13 @@ REQUIRED_OUTPUT_COLUMNS = [
     "CloseDirHitPct",
     "PredCloseUpFromSnapshot",
     "PredCloseUpFromSnapshotProbPct",
+    "PredCloseUpFromSnapshotCalibrationRows",
     "PredRecoverToPrevClose",
     "PredRecoverToPrevCloseProbPct",
+    "PredRecoverToPrevCloseCalibrationRows",
     "PredFinalCloseVsPrevClosePct",
     "RecoverySetup",
+    "RecoveryCalibrationConflict",
     "SelectionScore",
 ]
 BUCKET_CODES = {
@@ -727,20 +732,20 @@ def _mean_bool_pct(values: pd.Series) -> float:
     return float(scoped.astype(bool).mean() * 100.0)
 
 
-def _conditional_probability_pct(
+def _conditional_probability(
     frame: pd.DataFrame,
     *,
     predicted_positive: bool,
     predicted_column: str,
     actual_column: str,
-) -> float:
+) -> tuple[float, int]:
     if frame.empty or predicted_column not in frame.columns or actual_column not in frame.columns:
-        return float("nan")
+        return float("nan"), 0
     prediction_values = pd.to_numeric(frame[predicted_column], errors="coerce")
     actual_values = pd.to_numeric(frame[actual_column], errors="coerce")
     comparable = frame[prediction_values.notna() & actual_values.notna()].copy()
     if comparable.empty:
-        return float("nan")
+        return float("nan"), 0
     comparable_pred = pd.to_numeric(comparable[predicted_column], errors="coerce")
     if predicted_positive:
         analog = comparable[comparable_pred >= 0.0]
@@ -748,7 +753,14 @@ def _conditional_probability_pct(
         analog = comparable[comparable_pred < 0.0]
     if analog.empty:
         analog = comparable
-    return _mean_bool_pct(pd.to_numeric(analog[actual_column], errors="coerce") >= 0.0)
+    actual_positive = (pd.to_numeric(analog[actual_column], errors="coerce") >= 0.0).dropna()
+    if actual_positive.empty:
+        return float("nan"), 0
+    positive_count = float(actual_positive.astype(bool).sum())
+    row_count = int(actual_positive.shape[0])
+    prior_positive = CALIBRATION_PRIOR_ROWS * (CALIBRATION_PRIOR_PROB_PCT / 100.0)
+    probability = ((positive_count + prior_positive) / (float(row_count) + CALIBRATION_PRIOR_ROWS)) * 100.0
+    return float(probability), row_count
 
 
 def _recovery_setup(snapshot_red: bool, pred_up: bool, pred_recover: bool) -> str:
@@ -802,8 +814,11 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
     pred_recover_to_prev_close = pred_final_close_vs_prev_close_pct >= 0.0
 
     close_up_probabilities: List[float] = []
+    close_up_calibration_rows: List[int] = []
     recover_probabilities: List[float] = []
+    recover_calibration_rows: List[int] = []
     recovery_setups: List[str] = []
+    recovery_calibration_conflicts: List[bool] = []
     for _, row in merged.iterrows():
         scoped_history = history_df[
             (history_df["Ticker"] == row["Ticker"])
@@ -829,32 +844,36 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
             / float(row["PrevClose"])
             - 1.0
         ) >= 0.0
-        close_up_probabilities.append(
-            _conditional_probability_pct(
-                scoped_history,
-                predicted_positive=current_pred_up,
-                predicted_column="PredTargetCloseRetPct",
-                actual_column="TargetCloseRetPct",
-            )
+        close_up_probability, close_up_rows = _conditional_probability(
+            scoped_history,
+            predicted_positive=current_pred_up,
+            predicted_column="PredTargetCloseRetPct",
+            actual_column="TargetCloseRetPct",
         )
+        close_up_probabilities.append(close_up_probability)
+        close_up_calibration_rows.append(close_up_rows)
 
         recover_history = scoped_history
         if current_snapshot_red and "SnapshotRedFromPrevClose" in scoped_history.columns:
             recover_history = scoped_history[scoped_history["SnapshotRedFromPrevClose"].astype(bool)].copy()
-        recover_probabilities.append(
-            _conditional_probability_pct(
-                recover_history,
-                predicted_positive=current_pred_recover,
-                predicted_column="PredFinalCloseVsPrevClosePct",
-                actual_column="TargetCloseVsPrevClosePct",
-            )
+        recover_probability, recover_rows = _conditional_probability(
+            recover_history,
+            predicted_positive=current_pred_recover,
+            predicted_column="PredFinalCloseVsPrevClosePct",
+            actual_column="TargetCloseVsPrevClosePct",
         )
+        recover_probabilities.append(recover_probability)
+        recover_calibration_rows.append(recover_rows)
         recovery_setups.append(
             _recovery_setup(
                 snapshot_red=current_snapshot_red,
                 pred_up=current_pred_up,
                 pred_recover=current_pred_recover,
             )
+        )
+        recovery_calibration_conflicts.append(
+            (not pd.isna(close_up_probability) and current_pred_up != (close_up_probability >= 50.0))
+            or (not pd.isna(recover_probability) and current_pred_recover != (recover_probability >= 50.0))
         )
 
     report_df = pd.DataFrame(
@@ -879,10 +898,13 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
             "CloseDirHitPct": merged["CloseDirHitPct"].astype(float),
             "PredCloseUpFromSnapshot": pred_close_up_from_snapshot.astype(bool),
             "PredCloseUpFromSnapshotProbPct": close_up_probabilities,
+            "PredCloseUpFromSnapshotCalibrationRows": close_up_calibration_rows,
             "PredRecoverToPrevClose": pred_recover_to_prev_close.astype(bool),
             "PredRecoverToPrevCloseProbPct": recover_probabilities,
+            "PredRecoverToPrevCloseCalibrationRows": recover_calibration_rows,
             "PredFinalCloseVsPrevClosePct": pred_final_close_vs_prev_close_pct.astype(float),
             "RecoverySetup": recovery_setups,
+            "RecoveryCalibrationConflict": recovery_calibration_conflicts,
             "SelectionScore": merged["SelectionScore"].astype(float),
         }
     )
