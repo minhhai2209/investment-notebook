@@ -105,6 +105,7 @@ Ví dụ:
 ./broker.sh prepare
 ./broker.sh research
 ./broker.sh map
+./broker.sh refresh_vic_map
 ./broker.sh refresh_vic_vhm_map
 ./broker.sh refresh_vn30_map
 ./broker.sh refresh_vn30_nvl_map
@@ -178,6 +179,7 @@ VIC,20000,214.53
 
 Khuyến nghị:
 
+- dùng `./broker.sh refresh_vic_map` hoặc alias `./broker.sh map` để quay lại scope mặc định `VIC`
 - dùng `./broker.sh refresh_vic_vhm_map` chỉ khi bạn chủ động muốn đưa lại cặp lịch sử `VIC/VHM` vào map; không dùng cho phân tích mặc định
 - dùng `./broker.sh refresh_vn30_map` hoặc `./broker.sh refresh_vn30_nvl_map` nếu bạn muốn mở rộng universe tạm thời
 - dùng `./broker.sh refresh_hose_map` nếu muốn screen rộng hơn

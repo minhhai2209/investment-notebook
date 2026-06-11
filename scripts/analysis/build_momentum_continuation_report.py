@@ -15,7 +15,7 @@ DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
 DEFAULT_MARKET_SUMMARY_JSON = REPO_ROOT / "out" / "market_summary.json"
 DEFAULT_EVENTS_JSON = REPO_ROOT / "config" / "market_events.json"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "analysis" / "momentum"
-DEFAULT_TICKERS = "VIC,VHM"
+DEFAULT_TICKERS = ""
 
 
 def _normalise_ticker(value: object) -> str:
@@ -329,13 +329,16 @@ def build_momentum_continuation_report(
     events, events_loaded = _load_events(events_json, snapshot_date, event_lookahead_days)
     event_risk_code, event_risk_summary = _event_risk(events)
 
-    wanted = set(_parse_tickers(tickers))
     universe_by_ticker = {row["Ticker"]: row for row in universe_df.to_dict(orient="records")}
     candidate_by_ticker = {
         _normalise_ticker(row.get("Ticker")): row
         for row in candidates.get("Rows", [])
         if _normalise_ticker(row.get("Ticker"))
     }
+    parsed_tickers = _parse_tickers(tickers)
+    if not parsed_tickers:
+        parsed_tickers = list(candidate_by_ticker.keys())
+    wanted = set(parsed_tickers)
 
     rows: List[Dict[str, Any]] = []
     for ticker in sorted(wanted):

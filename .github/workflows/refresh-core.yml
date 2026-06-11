@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       refresh_map:
-        description: Refresh VIC/VHM scope before building artifacts
+        description: Refresh VIC scope before building artifacts
         required: true
         default: false
         type: boolean
@@ -56,8 +56,8 @@ jobs:
           ./broker.sh prepare config/data_engine.actions.yaml
           ./broker.sh momentum
           ./broker.sh refresh_macro
-          ./broker.sh eval_macro --no-refresh-factors --case-tickers VIC VHM --top-factors 5
-          ./broker.sh eval_macro_lift --case-tickers VIC VHM --top-k 2 --retrain-every 10 --factor-names SP500 NASDAQ DJIA NIKKEI225 WTI_USD BRENT_USD VIX US10Y USD_BROAD
+          ./broker.sh eval_macro --no-refresh-factors --case-tickers VIC --top-factors 5
+          ./broker.sh eval_macro_lift --case-tickers VIC --top-k 2 --retrain-every 10 --factor-names SP500 NASDAQ DJIA NIKKEI225 WTI_USD BRENT_USD VIX US10Y USD_BROAD
 
       - name: Summarise Run
         run: |

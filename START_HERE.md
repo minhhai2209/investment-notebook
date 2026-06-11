@@ -68,5 +68,6 @@ Prompt gợi ý:
 Nếu bạn đổi scope:
 
 - `./broker.sh refresh_hose_map` để mở rộng hơn `VN30`
+- `./broker.sh refresh_vic_map` hoặc `./broker.sh map` để quay lại scope mặc định `VIC`
 - `./broker.sh refresh_vic_vhm_map` chỉ khi muốn chủ động quay lại scope lịch sử `VIC/VHM`; không dùng cho phân tích mặc định
 - hoặc tự thay `data/industry_map.csv` rồi chạy lại `./broker.sh prepare`

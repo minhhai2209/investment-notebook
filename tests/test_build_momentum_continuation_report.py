@@ -157,6 +157,21 @@ class BuildMomentumContinuationReportTest(unittest.TestCase):
         self.assertTrue((self.output_dir / "momentum_continuation.json").exists())
         self.assertTrue((self.output_dir / "momentum_continuation.md").exists())
 
+    def test_empty_ticker_list_uses_candidate_watchlist_rows(self) -> None:
+        self._write_inputs()
+
+        report = build_momentum_continuation_report(
+            candidates_json=self.candidates_dir / "candidate_watchlist_full.json",
+            universe_csv=self.out / "universe.csv",
+            market_summary_json=self.out / "market_summary.json",
+            events_json=self.events_path,
+            output_dir=self.output_dir,
+            tickers=[],
+        )
+
+        self.assertEqual(sorted(row["Ticker"] for row in report["Rows"]), ["AAA", "BBB"])
+        self.assertEqual(report["Tickers"], ["AAA", "BBB"])
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
