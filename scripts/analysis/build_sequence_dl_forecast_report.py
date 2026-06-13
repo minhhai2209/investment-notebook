@@ -30,7 +30,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - exercised by CLI enviro
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HISTORY_DIR = REPO_ROOT / "out" / "data"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "analysis"
-DEFAULT_TICKERS = ("VIC", "VHM")
+DEFAULT_TICKERS = ("VIC",)
 DEFAULT_HORIZONS = (1, 2, 3, 5, 10, 15, 20)
 VN_TZ = timezone(timedelta(hours=7))
 

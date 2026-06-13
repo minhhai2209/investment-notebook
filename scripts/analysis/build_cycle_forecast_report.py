@@ -29,7 +29,6 @@ from scripts.analysis.evaluate_ohlc_models import (
     build_ticker_ohlc_sample,
 )
 from scripts.data_fetching.fetch_ticker_data import ensure_ohlc_cache, first_timestamp_and_count, last_timestamp
-from scripts.data_fetching.market_members import fetch_vn30_members
 
 
 VN_TZ = timezone(timedelta(hours=7))
@@ -67,7 +66,7 @@ def _month_to_trading_days(months: int) -> int:
 def _resolve_tickers(tickers: Sequence[str] | None) -> List[str]:
     if tickers:
         return _ordered_unique(tickers)
-    return _ordered_unique(fetch_vn30_members(timeout=30))
+    return ["VIC"]
 
 
 def _load_tickers_from_universe_csv(path: Path) -> List[str]:
@@ -615,7 +614,7 @@ def parse_args() -> argparse.Namespace:
             "time-to-peak, and drawdown within 1M..6M windows."
         )
     )
-    parser.add_argument("--tickers", nargs="*", default=None, help="Explicit ticker list. Default: live VN30.")
+    parser.add_argument("--tickers", nargs="*", default=None, help="Explicit ticker list. Default: VIC.")
     parser.add_argument(
         "--universe-csv",
         type=Path,

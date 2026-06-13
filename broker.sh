@@ -202,37 +202,6 @@ run_research_bundle() {
     "$@"
 }
 
-run_refresh_vn30_map() {
-  run_module refresh_vn30_map scripts.tools.refresh_industry_map \
-    --from-vietstock-profiles-vn30 \
-    --output data/industry_map.csv \
-    "$@"
-}
-
-run_refresh_vn30_nvl_map() {
-  run_module refresh_vn30_nvl_map scripts.tools.refresh_industry_map \
-    --from-vietstock-profiles-vn30 \
-    --extra-ticker NVL \
-    --output data/industry_map.csv \
-    "$@"
-}
-
-run_refresh_vic_vhm_map() {
-  ensure_venv
-  echo "[refresh_vic_vhm_map] Using: $PY_BIN"
-  "$PY_BIN" - <<'PY'
-from pathlib import Path
-
-Path("data").mkdir(parents=True, exist_ok=True)
-Path("data/industry_map.csv").write_text(
-    "Ticker,Sector\n"
-    "VHM,Bất động sản\n"
-    "VIC,Bất động sản\n",
-    encoding="utf-8",
-)
-PY
-}
-
 run_refresh_vic_map() {
   ensure_venv
   echo "[refresh_vic_map] Using: $PY_BIN"
@@ -246,13 +215,6 @@ Path("data/industry_map.csv").write_text(
     encoding="utf-8",
 )
 PY
-}
-
-run_refresh_hose_map() {
-  run_module refresh_hose_map scripts.tools.refresh_industry_map \
-    --from-vietstock-profiles-hose \
-    --output data/industry_map.csv \
-    "$@"
 }
 
 run_sync_artifacts() {
@@ -364,10 +326,6 @@ Core commands:
 Universe helpers:
   map                  Short alias for refresh_vic_map
   refresh_vic_map      Rebuild data/industry_map.csv for the default VIC universe
-  refresh_vic_vhm_map  Rebuild data/industry_map.csv for the historical VIC/VHM universe
-  refresh_vn30_map     Rebuild data/industry_map.csv from the live VN30 basket via Vietstock profiles
-  refresh_vn30_nvl_map Rebuild data/industry_map.csv from the live VN30 basket plus NVL
-  refresh_hose_map     Rebuild data/industry_map.csv from the live HOSE basket via Vietstock profiles
   sync_artifacts [prefix] Download/cache the latest GitHub Actions artifact matching a prefix
   prepare_default      Refresh VIC scope, then run the full prepare pipeline sequentially
   refresh_macro        Refresh cached macro/global equity factors
@@ -420,23 +378,11 @@ main() {
     research)
       run_research_bundle "$@"
       ;;
-    refresh_vn30_map)
-      run_refresh_vn30_map "$@"
-      ;;
     map)
       run_refresh_vic_map "$@"
       ;;
     refresh_vic_map)
       run_refresh_vic_map "$@"
-      ;;
-    refresh_vic_vhm_map)
-      run_refresh_vic_vhm_map "$@"
-      ;;
-    refresh_vn30_nvl_map)
-      run_refresh_vn30_nvl_map "$@"
-      ;;
-    refresh_hose_map)
-      run_refresh_hose_map "$@"
       ;;
     sync_artifacts)
       run_sync_artifacts "$@"

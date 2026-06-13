@@ -71,7 +71,7 @@ class TickerSpecializationOverlayTest(unittest.TestCase):
 
     def test_post_burst_t25_supply_regime_is_detected(self) -> None:
         overlay = summarise_specialized_ticker_setup(
-            "VHM",
+            "VIC",
             {
                 "Archetype": "momentum_high_beta",
                 "LatestBurstSignalAge": 2,

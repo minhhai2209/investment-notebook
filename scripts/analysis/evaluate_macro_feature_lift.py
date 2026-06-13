@@ -26,7 +26,7 @@ from scripts.analysis.evaluate_ml_models import (
 from scripts.data_fetching.macro_factor_cache import DEFAULT_CACHE_DIR, load_macro_factor_matrix
 
 
-DEFAULT_MACRO_CASE_TICKERS = ["VIC", "VHM", "HPG", "MBB", "NVL"]
+DEFAULT_MACRO_CASE_TICKERS = ["VIC"]
 MACRO_RET_WINDOWS = (1, 3, 5, 20)
 MACRO_VOL_WINDOWS = (5, 20)
 

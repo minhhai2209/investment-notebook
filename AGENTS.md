@@ -22,8 +22,8 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 
 ## Khẩu vị mặc định
 
-- Scope mặc định từ bây giờ chỉ là `VIC`; các mã khác, kể cả `VHM`, chỉ phân tích khi bạn hỏi rõ.
-- Scope trả lời mặc định chỉ gồm `VIC`; không lôi `VHM`, `HPG`, `MBB`, `NVL` vào so sánh mặc định nữa.
+- Scope phân tích của repo từ bây giờ chỉ là `VIC`; nếu bạn hỏi mã khác, tôi phải nói repo đang ở chế độ VIC-only thay vì tự kéo thêm mã.
+- Scope trả lời mặc định chỉ gồm `VIC`; không lôi mã đối chứng vào so sánh mặc định nữa.
 - Ngân sách tham chiếu mặc định là khoảng `5 tỷ`.
 - Ưu tiên xuống tiền lớn ở vùng giá đẹp; có thể chia vài nấc lớn, không chia micro-probe.
 - Ưu tiên chất lượng điểm vào hơn xác suất khớp; không được mặc định chọn nấc quá sát chỉ vì dễ khớp.
@@ -39,7 +39,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 - Khi trả lời `hiện tại thì sao`, `hôm nay mua gì`, hoặc câu hỏi tương tự, tôi không được chỉ nói mã nào mua được; tôi phải đánh giá thêm `ML direction/urgency` theo forecast/validation, ví dụ forecast T+3 còn edge, forecast âm, zone artifact chưa đạt, hoặc action-sizing chưa đủ model.
 - Sau khi có candidate full mới, phải chạy thêm `./broker.sh momentum` hoặc tool tương đương để đọc lớp continuation/urgency cho scope trả lời mặc định.
 - Lớp ra quyết định cuối cùng phải lấy từ forecast/validation riêng từng mã (`single-name timing`, `range`, `OHLC`, `entry ladder`, `research state`) thay vì score cộng/trừ thủ công. Các overlay theo archetype chỉ được mô tả context, không được cộng/trừ điểm để ép quyết định.
-- Với `VIC`, nếu artifact vẫn có pair features lịch sử thì chỉ được đọc như input/model context; không tự kéo `VHM` vào phần phân tích hoặc so sánh mặc định.
+- Với `VIC`, không tự kéo pair ticker vào phần phân tích hoặc so sánh mặc định; pair features nếu còn trong schema chỉ được để trống hoặc đọc như context kỹ thuật.
 - Các mốc kỹ thuật như breakout, high 20/60/120/252, trần/sàn/limit proxy chỉ được dùng làm feature hoặc output artifact; không dùng chúng như criteria hard-code kiểu “chưa vượt thì không mua” nếu model/action artifact sau khi train feature đã cho tín hiệu khác.
 - `eval_deterministic` là harness replay/feature legacy, không được dùng làm nguồn ra quyết định mua/chờ/không mua trong câu trả lời tương tác.
 - Khi đưa khuyến nghị, phải nêu các chỉ số ML chính của từng mã trong scope trả lời: timing window/peak/close/drawdown, validation hit/MAE, OHLC T+1 và OHLC multi-session mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`, model name, model family/class, Close MAE và direction hit. Không được chỉ kết luận mua/chờ/không mua mà thiếu lớp predict/validation.

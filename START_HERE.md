@@ -56,18 +56,17 @@ Prompt gợi ý:
 - `Nếu hỏi hiện tại thì sao, phải trả lời thêm đà các phiên tới là tăng tiếp / đi ngang / giảm, độ gấp mua ngay hay có thể chờ, và overlay lịch nghỉ lễ/sự kiện/tin tức live.`
 - `Khi đưa khuyến nghị, phải đọc các chỉ số ML theo từng mã: timing forecast, OHLC T+1/multi-session tới T+20 nếu có, model name/family/class, MAE và direction hit; không chỉ nói mua được hay không.`
 - `Khi có tin dầu/Iran/global market, chạy hoặc đọc eval_macro ở chế độ cache sau khi refresh factor cho VIC để xem correlation với dầu, USD, VIX, lợi suất Mỹ và các chỉ số Mỹ/Âu/Anh/Nhật/Hàn; sau đó chạy hoặc đọc eval_macro_lift để kiểm tra các feature này có cải thiện predict so với baseline không.`
-- `Với VIC, nếu artifact còn pair-feature ML lịch sử thì chỉ đọc như input/model context; không tự kéo VHM vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
+- `Với VIC, pair-feature ML nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
 - `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc timing T+15/T+20 và cycle/range thay vì chỉ nhìn T+1/T+3.`
 - `Nếu hỏi xử lý vị thế đã mua, phải dùng ML-only position review; không tự chế số lượng bán/cắt/mua thêm nếu artifact không có action-sizing.`
 - `Không dùng nhãn cảm tính như nóng/khỏe/yếu/mạnh làm lý do; nếu nhắc RSI/SMA/ret5d thì phải là feature hoặc validation metric, không phải rule hành động.`
-- `Nếu hỏi có nên mua một mã cụ thể ngay không, chỉ so sánh với mã khác khi tôi nêu rõ mã đó; mặc định không kéo thêm VHM hay mã đối chứng.`
+- `Nếu hỏi có nên mua một mã cụ thể ngay không, repo đang ở chế độ VIC-only; không kéo thêm mã đối chứng.`
 - `Decision cuối cùng phải dựa vào forecast/validation riêng từng mã, không dùng score cộng/trừ thủ công hay overlay hard-code.`
 - `Nếu hỏi cho phiên kế tiếp thì phải chốt luôn nên đặt trước phiên, chờ ATO, hay đợi sau ATO rồi mới làm.`
 - `Nếu cần chạy batch thì tự chạy tuần tự rồi mới trả lời.`
 
-Nếu bạn đổi scope:
+Scope hiện tại:
 
-- `./broker.sh refresh_hose_map` để mở rộng hơn `VN30`
-- `./broker.sh refresh_vic_map` hoặc `./broker.sh map` để quay lại scope mặc định `VIC`
-- `./broker.sh refresh_vic_vhm_map` chỉ khi muốn chủ động quay lại scope lịch sử `VIC/VHM`; không dùng cho phân tích mặc định
-- hoặc tự thay `data/industry_map.csv` rồi chạy lại `./broker.sh prepare`
+- repo đang ở chế độ VIC-only
+- `./broker.sh refresh_vic_map` hoặc `./broker.sh map` để đảm bảo `data/industry_map.csv` chỉ có `VIC`
+- muốn đổi scope thì phải cập nhật contract trước rồi chạy lại pipeline liên quan

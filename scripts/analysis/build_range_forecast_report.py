@@ -39,47 +39,7 @@ DEFAULT_DYNAMIC_BUY_TICKERS = 12
 DEFAULT_DYNAMIC_SELL_TICKERS = 12
 KEY_HORIZONS = (1, 5, 10)
 VARIANTS = ("full_2y", "recent_focus")
-DEFAULT_REPORT_TICKERS = [
-    "VNINDEX",
-    "ACB",
-    "BCM",
-    "BID",
-    "CTG",
-    "FPT",
-    "FRT",
-    "GAS",
-    "GMD",
-    "GVR",
-    "HDB",
-    "HPG",
-    "MBB",
-    "MSN",
-    "MWG",
-    "NT2",
-    "PC1",
-    "PLX",
-    "PNJ",
-    "POW",
-    "PVD",
-    "PVT",
-    "REE",
-    "SAB",
-    "SHB",
-    "SSI",
-    "STB",
-    "TCB",
-    "TPB",
-    "VCB",
-    "VCI",
-    "VHM",
-    "VIB",
-    "VIC",
-    "VJC",
-    "VND",
-    "VNM",
-    "VPB",
-    "VRE",
-]
+DEFAULT_REPORT_TICKERS = ["VIC"]
 
 
 def _load_universe_tickers(universe_csv: Path) -> List[str]:
@@ -491,7 +451,7 @@ def run_report(
         ]
     ].sort_values(["Variant", "Bucket", "PredMidRetPct"], ascending=[True, True, False]).reset_index(drop=True)
 
-    comparison_df = easy_view_df[easy_view_df["Ticker"].isin(["FPT", "HPG"])].copy()
+    comparison_df = easy_view_df[easy_view_df["Ticker"].isin(["VIC"])].copy()
     horizon_metrics_df = (
         selected_metrics_df.groupby(["Variant", "Horizon", "ForecastWindow"], as_index=False)[["CloseMAEPct", "RangeMAEPct", "CloseDirHitPct"]]
         .mean()

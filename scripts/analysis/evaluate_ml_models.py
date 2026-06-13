@@ -31,7 +31,7 @@ warnings.filterwarnings(
 )
 
 
-DEFAULT_CASE_TICKERS = ["HPG", "FPT", "SSI", "VCB", "NKG"]
+DEFAULT_CASE_TICKERS = ["VIC"]
 
 
 def _normalise_ticker(value: object) -> str:

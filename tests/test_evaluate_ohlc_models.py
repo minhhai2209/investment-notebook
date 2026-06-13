@@ -332,15 +332,12 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             self.assertIn("TickerRelativeRotationState", sample.columns)
             self.assertIn("TickerExhaustionState", sample.columns)
 
-    def test_build_ticker_ohlc_sample_adds_vic_vhm_pair_and_breakout_features(self) -> None:
+    def test_build_ticker_ohlc_sample_keeps_vic_only_pair_features_empty(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             history_dir = Path(tmpdir)
             dates = pd.bdate_range("2025-01-06", periods=280)
             vic_closes = [100.0 + (0.05 * idx) for idx in range(240)] + [121.0, 129.5, 138.5] + [
                 139.0 + (0.08 * idx) for idx in range(37)
-            ]
-            vhm_closes = [80.0 + (0.04 * idx) for idx in range(240)] + [94.0, 100.6, 107.7] + [
-                108.0 + (0.06 * idx) for idx in range(37)
             ]
             index_closes = [1000.0 + (0.2 * idx) for idx in range(280)]
 
@@ -358,18 +355,15 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
                 frame.to_csv(path, index=False)
 
             write_cache(history_dir / "VIC_daily.csv", vic_closes, 1000.0)
-            write_cache(history_dir / "VHM_daily.csv", vhm_closes, 1500.0)
             write_cache(history_dir / "VNINDEX_daily.csv", index_closes, 3000.0)
 
             sample = build_ticker_ohlc_sample("VIC", history_dir, max_horizon=1)
             row = sample.loc[sample["Date"] == pd.Timestamp(dates[242])].iloc[0]
-            prev_vhm_close = vhm_closes[241]
-            expected_pair_ret1 = ((vhm_closes[242] / prev_vhm_close) - 1.0) * 100.0
 
-            self.assertAlmostEqual(float(row["PairRet1Pct"]), expected_pair_ret1)
             self.assertEqual(float(row["TickerBreakoutHigh20State"]), 1.0)
-            self.assertEqual(float(row["PairBreakoutHigh20State"]), 1.0)
-            self.assertTrue(pd.notna(row["PairCorr20"]))
+            self.assertTrue(pd.isna(row["PairRet1Pct"]))
+            self.assertEqual(float(row["PairBreakoutHigh20State"]), 0.0)
+            self.assertTrue(pd.isna(row["PairCorr20"]))
             self.assertIn("PairBreakoutHigh60State_Lag1", sample.columns)
 
 

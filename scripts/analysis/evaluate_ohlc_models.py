@@ -18,13 +18,10 @@ from sklearn.preprocessing import StandardScaler
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HISTORY_DIR = REPO_ROOT / "out" / "data"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "analysis"
-DEFAULT_CASE_TICKERS = ["HPG", "FPT", "SSI", "VCB", "NKG", "GAS", "PLX", "REE"]
+DEFAULT_CASE_TICKERS = ["VIC"]
 DEFAULT_MAX_HORIZON = 10
 LAGS = (1, 2, 3)
-PAIR_TICKERS = {
-    "VIC": "VHM",
-    "VHM": "VIC",
-}
+PAIR_TICKERS: dict[str, str] = {}
 BREAKOUT_WINDOWS = (20, 60, 120, 252)
 TARGET_COLUMNS = [
     "TargetOpenRetPct",

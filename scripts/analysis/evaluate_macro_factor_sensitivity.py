@@ -23,7 +23,7 @@ from scripts.data_fetching.macro_factor_cache import (
 )
 
 
-DEFAULT_MACRO_CASE_TICKERS = ["HPG", "FPT", "SSI", "VCB", "GAS", "PLX", "GVR", "MWG", "MBB", "TCB"]
+DEFAULT_MACRO_CASE_TICKERS = ["VIC"]
 
 
 def _normalise_ticker(value: object) -> str:

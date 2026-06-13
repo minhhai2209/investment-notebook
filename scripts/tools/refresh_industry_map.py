@@ -169,10 +169,10 @@ def _apply_nvl_override(sector_lookup: dict[str, str], default_sector: str) -> N
     """Ensure NVL is included and sectorized deterministically.
 
     User intent: always include NVL (Novaland) alongside VN100 and set its sector
-    by copying a major real-estate ticker's sector (prefer VHM).
+    by copying VIC's real-estate sector when available.
     """
 
-    for source in ("VHM", "VIC"):
+    for source in ("VIC",):
         if source in sector_lookup and sector_lookup[source].strip():
             sector_lookup["NVL"] = sector_lookup[source].strip()
             return

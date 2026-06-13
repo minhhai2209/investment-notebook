@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 
-DEFAULT_CASE_TICKERS = ["HPG", "FPT", "SSI", "VCB", "NKG"]
+DEFAULT_CASE_TICKERS = ["VIC"]
 MARKET_STATES = ("DEPLOY", "WAIT", "REDUCE")
 
 

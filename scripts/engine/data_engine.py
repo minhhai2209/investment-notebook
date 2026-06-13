@@ -53,7 +53,6 @@ FALLBACK_VN30_MEMBERS: set[str] = {
     "TCB",
     "TPB",
     "VCB",
-    "VHM",
     "VIB",
     "VIC",
     "VJC",

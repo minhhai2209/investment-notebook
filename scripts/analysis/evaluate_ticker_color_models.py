@@ -19,7 +19,7 @@ from scripts.analysis.evaluate_ohlc_models import FEATURE_COLUMNS, _normalise_ti
 
 DEFAULT_HISTORY_DIR = Path("out/data")
 DEFAULT_OUTPUT_DIR = Path("out/analysis")
-DEFAULT_TICKERS = ("VIC", "HPG", "NVL", "MBB")
+DEFAULT_TICKERS = ("VIC",)
 DEFAULT_HORIZONS = (1, 3, 5, 10)
 TARGET_SPECS = {
     "GREEN": {

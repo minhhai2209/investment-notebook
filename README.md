@@ -106,10 +106,6 @@ Ví dụ:
 ./broker.sh research
 ./broker.sh map
 ./broker.sh refresh_vic_map
-./broker.sh refresh_vic_vhm_map
-./broker.sh refresh_vn30_map
-./broker.sh refresh_vn30_nvl_map
-./broker.sh refresh_hose_map
 ./broker.sh sync_artifacts
 ./broker.sh prepare_default
 ./broker.sh candidates auto
@@ -175,14 +171,12 @@ VIC,20000,214.53
 
 ## Universe mặc định
 
-`config/data_engine.yaml` pin working universe mặc định vào `VIC` để trả lời nhanh. Scope thực tế vẫn có thể mở rộng bằng `data/industry_map.csv` và các lệnh refresh map khi cần.
+`config/data_engine.yaml` pin working universe vào `VIC` để trả lời nhanh và nhất quán. Notebook vận hành ở chế độ VIC-only.
 
 Khuyến nghị:
 
 - dùng `./broker.sh refresh_vic_map` hoặc alias `./broker.sh map` để quay lại scope mặc định `VIC`
-- dùng `./broker.sh refresh_vic_vhm_map` chỉ khi bạn chủ động muốn đưa lại cặp lịch sử `VIC/VHM` vào map; không dùng cho phân tích mặc định
-- dùng `./broker.sh refresh_vn30_map` hoặc `./broker.sh refresh_vn30_nvl_map` nếu bạn muốn mở rộng universe tạm thời
-- dùng `./broker.sh refresh_hose_map` nếu muốn screen rộng hơn
+- không mở rộng universe trong workflow phân tích mặc định; nếu cần đổi scope, hãy đổi contract trước rồi chạy lại pipeline liên quan
 
 ## Ghi chú vận hành với Codex
 
@@ -196,7 +190,7 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - Khi đang trong intraday, nghỉ trưa, ngoài phiên, sau ATO/gần ATC, hoặc người dùng đưa giá live lệch snapshot, Codex phải coi artifact lệnh là stale cho tới khi fetch/rebuild lại snapshot giá; không dùng ladder/no-chase cũ để chốt LO cụ thể.
 - Sau bước refresh artifact, Codex phải tự browse tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy khi trả lời `hôm nay mua gì`; lớp này là bước hỏi đáp, không phải lệnh batch của repo
 - Khi macro/geopolitics/oil/global market có thể ảnh hưởng HOSE, chạy hoặc đọc `./broker.sh eval_macro --no-refresh-factors --case-tickers VIC` sau khi cache đã refresh để xem correlation không nhất thiết cùng chiều, rồi đọc `./broker.sh eval_macro_lift --case-tickers VIC` để kiểm tra macro/global equity features có cải thiện predict so với baseline không.
-- Với `VIC`, nếu artifact còn pair features lịch sử thì chỉ đọc như input/model context; không tự kéo `VHM` vào phân tích mặc định.
+- Với `VIC`, pair features nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định.
 - Khi trả lời `hiện tại thì sao`, Codex phải chạy/đọc thêm momentum report sau candidate full để đánh giá continuation/sideways/downside, rồi check lịch nghỉ lễ/sự kiện/tin tức live trước khi chốt độ gấp.
 - Khi trả lời câu hỏi mua một mã cụ thể ngay hay chờ, Codex chỉ so sánh với mã khác nếu người hỏi nêu rõ mã đó; scope mặc định không còn mã đối chứng ngoài `VIC`.
 - Lớp quyết định không được cộng/trừ điểm thủ công; nếu có overlay ticker/archetype thì chỉ dùng làm mô tả context, còn mua/chờ/không mua phải đến từ forecast/validation per-ticker và vùng giá từ artifact.
