@@ -41,15 +41,16 @@ Scope phân tích mặc định hiện chỉ là `VIC`; các mã khác chỉ và
 
 3. Mở Codex ngay trong repo này và hỏi trực tiếp.
 
-Active model surface hiện đã consolidate còn 2 model đáng tin cậy:
+Active model surface hiện đã consolidate còn 2 forecast tasks đáng tin cậy:
 
 ```bash
 ./broker.sh ohlc
 ./broker.sh intraday
 ```
 
-- `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) bằng `hist_gbm` / `HistGradientBoostingRegressor`.
-- `intraday`: dự báo close còn lại của phiên từ dữ liệu buổi sáng bằng `hist_gbm` / `HistGradientBoostingRegressor`.
+- `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) bằng nhiều candidate model rồi chọn best theo validation.
+- `intraday`: dự báo close còn lại của phiên từ dữ liệu buổi sáng bằng nhiều candidate model rồi chọn best theo validation.
+- Candidate set active: `ridge`, `random_forest`, `hist_gbm`, `mlp_deep`; deep-style MLP được thử nhưng không mặc định thắng nếu validation yếu hơn.
 
 Các builder cũ như `range`, `cycle`, `timing`, `entry_ladder`, `sequence_dl`, `candidates`, `momentum`, `deep` vẫn có thể gọi tay để diagnostic/legacy, nhưng không còn là default model source.
 
@@ -127,7 +128,7 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 - `out/market_summary.json`: breadth, range, co-movement ở cấp thị trường
 - `out/sector_summary.csv`: breadth/relative strength ở cấp ngành
 - `out/analysis/`: các report ML và evaluation
-- `out/analysis/ml_ohlc_next_session.csv`: active T+n price forecast cho phiên kế tiếp bằng `hist_gbm`
+- `out/analysis/ml_ohlc_next_session.csv`: active T+n price forecast cho phiên kế tiếp, model được chọn theo validation
 - `out/analysis/ml_ohlc_multi_session.csv`: active T+n price forecast nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`; `T+N` là N phiên giao dịch sau snapshot
 - `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics của active T+n price model
 - `out/analysis/ml_intraday_rest_of_session.csv`: active morning-data close forecast; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict`
@@ -179,7 +180,7 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - `eval_deterministic` chỉ là harness replay/feature legacy; không dùng nó làm nguồn ra quyết định trong câu trả lời tương tác.
 - Khi xử lý vị thế đã mua, không được tự chế mốc bán/cắt/size. Phải dùng `./broker.sh position_ml` để đọc forecast P/L và error band; nếu chưa có model action-sizing thì nói rõ chưa đủ sạch để đưa lệnh định lượng.
 - Output khuyến nghị phải model-first: các cụm như `quá nóng`, `đang khỏe`, `yếu`, `đuổi giá` không được dùng làm lý do nếu không có artifact/model metric tương ứng.
-- Artifact forecast active phải ghi rõ model family/class. Repo hiện dùng `hist_gbm` / `HistGradientBoostingRegressor` cho cả T+n price và morning-data close forecast; các model khác chỉ là legacy/diagnostic khi gọi tay.
+- Artifact forecast active phải ghi rõ model family/class. Hai active forecast tasks đều thử `ridge`, `random_forest`, `hist_gbm`, `mlp_deep` rồi chọn best theo validation; các builder khác chỉ là legacy/diagnostic khi gọi tay.
 - Không dùng flow nền hay nhiều builder chồng nhau, trừ khi từng job ghi ra output riêng và không dùng chung cache/history
 - Khẩu vị mặc định của repo này là: ngân sách tham chiếu khoảng `5 tỷ`, ưu tiên size lớn, và phải liệt kê đầy đủ ứng viên khả thi thay vì ép chọn đúng một mã
 - Contract đầu ra mặc định là: liệt kê ứng viên theo `mua ngay`, `chờ`, hoặc `không mua`; với mỗi mã `mua ngay` hoặc `chờ`, phải nêu `vùng giá cụ thể`, `quy mô vốn/số lượng`, và `nên đặt trước phiên / chờ ATO / đợi sau ATO`

@@ -17,7 +17,7 @@ Hoặc chạy foreground một phát:
 1. `./broker.sh map`
 2. `./broker.sh prepare`
 
-Nếu muốn precompute active models trước khi hỏi:
+Nếu muốn precompute hai active forecast tasks trước khi hỏi:
 
 1. `./broker.sh ohlc`
 2. `./broker.sh intraday`
