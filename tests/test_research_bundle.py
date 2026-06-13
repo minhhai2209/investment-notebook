@@ -19,7 +19,7 @@ class ResearchBundleTest(unittest.TestCase):
         analysis_dir = out_dir / "analysis"
         cycle_dir = analysis_dir / "ml_cycle_forecast"
         playbook_dir = analysis_dir / "ticker_playbooks_live"
-        intraday_dir = out_dir / "data" / "intraday_5m"
+        intraday_dir = out_dir / "data" / "intraday_1m"
         for path in [out_dir, analysis_dir, cycle_dir, playbook_dir, intraday_dir]:
             path.mkdir(parents=True, exist_ok=True)
 

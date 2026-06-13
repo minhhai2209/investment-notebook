@@ -15,7 +15,7 @@ DEFAULT_UNIVERSE_CSV = REPO_ROOT / "out" / "universe.csv"
 DEFAULT_MARKET_SUMMARY_JSON = REPO_ROOT / "out" / "market_summary.json"
 DEFAULT_SECTOR_SUMMARY_CSV = REPO_ROOT / "out" / "sector_summary.csv"
 DEFAULT_ANALYSIS_DIR = REPO_ROOT / "out" / "analysis"
-DEFAULT_INTRADAY_DIR = REPO_ROOT / "out" / "data" / "intraday_5m"
+DEFAULT_INTRADAY_DIR = REPO_ROOT / "out" / "data" / "intraday_1m"
 DEFAULT_RESEARCH_DIR = REPO_ROOT / "research"
 DEFAULT_HUMAN_NOTES_PATH = REPO_ROOT / "human_notes.md"
 

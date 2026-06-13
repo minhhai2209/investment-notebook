@@ -197,7 +197,7 @@ run_research_bundle() {
     --market-summary-json out/market_summary.json \
     --sector-summary-csv out/sector_summary.csv \
     --analysis-dir out/analysis \
-    --intraday-dir out/data/intraday_5m \
+    --intraday-dir out/data/intraday_1m \
     --research-dir research \
     "$@"
 }

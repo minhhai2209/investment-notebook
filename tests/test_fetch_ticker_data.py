@@ -82,16 +82,16 @@ class FetchTickerDataTest(unittest.TestCase):
             self.assertEqual(int(cached["t"].min()), min(ts_backfill))
             self.assertEqual(int(cached["t"].max()), max(ts_recent))
 
-    def test_intraday_cache_uses_resolution_specific_filename(self) -> None:
+    def test_intraday_cache_defaults_to_one_minute_filename(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             outdir = Path(tmp)
             now_ts = int(datetime.now(VN_TZ).timestamp())
             seeded = _payload_from_ts([now_ts - 300, now_ts])
             with patch("scripts.data_fetching.fetch_ticker_data.fetch_history", return_value=seeded) as mocked_fetch:
-                ensure_intraday_cache("AAA", outdir=str(outdir), min_days=5, resolution="5")
+                ensure_intraday_cache("AAA", outdir=str(outdir), min_days=5)
 
             self.assertEqual(mocked_fetch.call_count, 1)
-            self.assertTrue((outdir / "AAA_5m.csv").exists())
+            self.assertTrue((outdir / "AAA_1m.csv").exists())
 
 
 if __name__ == "__main__":

@@ -220,9 +220,9 @@ def ensure_history_cache(ticker: str,
 
 
 def ensure_intraday_cache(ticker: str,
-                          outdir: str = 'out/data/intraday_5m',
+                          outdir: str = 'out/data/intraday_1m',
                           min_days: int = 420,
-                          resolution: str = '5',
+                          resolution: str = '1',
                           recent_reconcile_days: int = 2) -> None:
     """Ensure a per-ticker intraday OHLC cache exists and is up-to-date."""
     ensure_history_cache(

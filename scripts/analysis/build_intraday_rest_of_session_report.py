@@ -21,12 +21,12 @@ from scripts.data_fetching.fetch_ticker_data import ensure_intraday_cache
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VN_TZ = timezone(timedelta(hours=7))
-DEFAULT_INTRADAY_HISTORY_DIR = REPO_ROOT / "out" / "data" / "intraday_5m"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "out" / "analysis"
 DEFAULT_HISTORY_CALENDAR_DAYS = 420
 DEFAULT_MIN_TRAIN_DATES = 90
 DEFAULT_HOLDOUT_DATES = 25
-DEFAULT_RESOLUTION = "5"
+DEFAULT_INTRADAY_HISTORY_DIR = REPO_ROOT / "out" / "data" / "intraday_1m"
+DEFAULT_RESOLUTION = "1"
 OUTPUT_FILE_NAME = "ml_intraday_rest_of_session.csv"
 CALIBRATION_PRIOR_ROWS = 4.0
 CALIBRATION_PRIOR_PROB_PCT = 50.0
@@ -40,6 +40,27 @@ PM_EARLY_END = time(13, 45)
 PM_LATE_END = time(14, 25)
 MARKET_CLOSE = time(14, 30)
 TOTAL_TRADING_MINUTES = 240.0
+
+DEPTH_LEVELS = (1, 2, 3)
+DEPTH_COLUMN_ALIASES = {
+    "BestBid": ("best_bid", "bid", "bid1", "Bid1", "ValidBid1"),
+    "BestAsk": ("best_ask", "ask", "ask1", "offer1", "Ask1", "Offer1", "ValidAsk1"),
+    "BidVolume1": ("bid_volume_1", "bid1_volume", "bidVolume1", "bid_vol1", "bidVol1", "BidVolume1", "BidVol1"),
+    "BidVolume2": ("bid_volume_2", "bid2_volume", "bidVolume2", "bid_vol2", "bidVol2", "BidVolume2", "BidVol2"),
+    "BidVolume3": ("bid_volume_3", "bid3_volume", "bidVolume3", "bid_vol3", "bidVol3", "BidVolume3", "BidVol3"),
+    "AskVolume1": ("ask_volume_1", "ask1_volume", "askVolume1", "ask_vol1", "askVol1", "AskVolume1", "AskVol1"),
+    "AskVolume2": ("ask_volume_2", "ask2_volume", "askVolume2", "ask_vol2", "askVol2", "AskVolume2", "AskVol2"),
+    "AskVolume3": ("ask_volume_3", "ask3_volume", "askVolume3", "ask_vol3", "askVol3", "AskVolume3", "AskVol3"),
+}
+REQUIRED_DEPTH_COLUMNS = ["BestBid", "BestAsk", "BidVolume1", "AskVolume1"]
+DEPTH_FEATURE_COLUMNS = [
+    "TickerBidAskSpreadPct",
+    "TickerTopBidVolume",
+    "TickerTopAskVolume",
+    "TickerDepthImbalance",
+    "TickerDepthImbalanceChange15m",
+    "TickerDepthPressurePctADV20",
+]
 
 FEATURE_COLUMNS = [
     "BucketCode",
@@ -65,6 +86,7 @@ FEATURE_COLUMNS = [
     "TickerSessionProgressPct",
     "TickerAfternoonOpenToSnapshotRetPct",
     "TickerAfternoonVolumePctADV20",
+    *DEPTH_FEATURE_COLUMNS,
     "IndexSnapshotRetFromPrevClosePct",
     "IndexGapPct",
     "IndexOpenToSnapshotRetPct",
@@ -143,6 +165,15 @@ def _require_columns(frame: pd.DataFrame, required: Sequence[str], label: str) -
         raise ValueError(f"{label} missing required columns: {', '.join(missing)}")
 
 
+def _first_present_column(frame: pd.DataFrame, aliases: Sequence[str]) -> str | None:
+    lookup = {str(column).lower(): str(column) for column in frame.columns}
+    for alias in aliases:
+        column = lookup.get(str(alias).lower())
+        if column is not None:
+            return column
+    return None
+
+
 def _to_vn_timestamp(value: object) -> pd.Timestamp:
     ts = pd.Timestamp(value)
     if ts.tzinfo is None:
@@ -210,23 +241,48 @@ def _intraday_cache_path(history_dir: Path, ticker: str, resolution: str) -> Pat
     return history_dir / f"{_normalise_ticker(ticker)}_{str(resolution).strip()}m.csv"
 
 
+def _normalise_depth_columns(raw_frame: pd.DataFrame, parsed_frame: pd.DataFrame) -> pd.DataFrame:
+    enriched = parsed_frame.copy()
+    for canonical, aliases in DEPTH_COLUMN_ALIASES.items():
+        source_column = _first_present_column(raw_frame, aliases)
+        if source_column is None:
+            enriched[canonical] = np.nan
+        else:
+            enriched[canonical] = pd.to_numeric(raw_frame[source_column], errors="coerce")
+    return enriched
+
+
+def validate_market_depth_available(frame: pd.DataFrame, label: str) -> None:
+    missing_or_empty = []
+    for column in REQUIRED_DEPTH_COLUMNS:
+        if column not in frame.columns or pd.to_numeric(frame[column], errors="coerce").dropna().empty:
+            missing_or_empty.append(column)
+    if missing_or_empty:
+        raise RuntimeError(
+            f"{label} intraday cache is missing usable market depth columns: {', '.join(missing_or_empty)}. "
+            "The active intraday model requires 1-minute OHLCV plus order-book depth "
+            "(best bid/ask and bid/ask volume) and will not produce a standard forecast without it."
+        )
+
+
 def load_intraday_cache_frame(history_dir: Path, ticker: str, resolution: str) -> pd.DataFrame:
     path = _intraday_cache_path(history_dir, ticker, resolution)
     if not path.exists():
         raise FileNotFoundError(f"Missing intraday cache file: {path}")
-    frame = pd.read_csv(path)
-    _require_columns(frame, ["t", "open", "high", "low", "close", "volume"], str(path))
-    ts = pd.to_datetime(pd.to_numeric(frame["t"], errors="coerce"), unit="s", utc=True, errors="coerce")
+    raw_frame = pd.read_csv(path)
+    _require_columns(raw_frame, ["t", "open", "high", "low", "close", "volume"], str(path))
+    ts = pd.to_datetime(pd.to_numeric(raw_frame["t"], errors="coerce"), unit="s", utc=True, errors="coerce")
     frame = pd.DataFrame(
         {
             "Timestamp": ts.dt.tz_convert(VN_TZ),
-            "Open": pd.to_numeric(frame["open"], errors="coerce"),
-            "High": pd.to_numeric(frame["high"], errors="coerce"),
-            "Low": pd.to_numeric(frame["low"], errors="coerce"),
-            "Close": pd.to_numeric(frame["close"], errors="coerce"),
-            "Volume": pd.to_numeric(frame["volume"], errors="coerce").fillna(0.0),
+            "Open": pd.to_numeric(raw_frame["open"], errors="coerce"),
+            "High": pd.to_numeric(raw_frame["high"], errors="coerce"),
+            "Low": pd.to_numeric(raw_frame["low"], errors="coerce"),
+            "Close": pd.to_numeric(raw_frame["close"], errors="coerce"),
+            "Volume": pd.to_numeric(raw_frame["volume"], errors="coerce").fillna(0.0),
         }
-    ).dropna(subset=["Timestamp", "Close"])
+    )
+    frame = _normalise_depth_columns(raw_frame, frame).dropna(subset=["Timestamp", "Close"])
     if frame.empty:
         raise RuntimeError(f"Intraday cache file is empty after parsing: {path}")
     frame = frame.sort_values("Timestamp").reset_index(drop=True)
@@ -235,11 +291,20 @@ def load_intraday_cache_frame(history_dir: Path, ticker: str, resolution: str) -
     return frame
 
 
-def _ret_from_trailing_bars(prices: pd.Series, bars_back: int) -> float:
-    if len(prices) <= bars_back:
+def _trailing_window_minutes(frame: pd.DataFrame, minutes_back: int) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    current_ts = frame["Timestamp"].iloc[-1]
+    cutoff = current_ts - pd.Timedelta(minutes=int(minutes_back))
+    return frame[frame["Timestamp"] >= cutoff].copy()
+
+
+def _ret_from_trailing_minutes(frame: pd.DataFrame, minutes_back: int) -> float:
+    window = _trailing_window_minutes(frame, minutes_back)
+    if window.shape[0] < 2:
         return 0.0
-    current = float(prices.iloc[-1])
-    anchor = float(prices.iloc[-1 - bars_back])
+    current = float(window["Close"].iloc[-1])
+    anchor = float(window["Close"].iloc[0])
     if anchor == 0:
         return 0.0
     return ((current / anchor) - 1.0) * 100.0
@@ -264,18 +329,31 @@ def _safe_pos_in_range(current: float, low: float, high: float) -> float:
     return (float(current) - float(low)) / width
 
 
+def _safe_depth_imbalance(bid_volume: float, ask_volume: float) -> float:
+    total = float(bid_volume) + float(ask_volume)
+    if pd.isna(total) or total == 0.0:
+        return 0.0
+    return (float(bid_volume) - float(ask_volume)) / total
+
+
+def _depth_volume_sum(row: pd.Series, side: str) -> float:
+    values = [
+        pd.to_numeric(pd.Series([row.get(f"{side}Volume{level}", np.nan)]), errors="coerce").iloc[0]
+        for level in DEPTH_LEVELS
+    ]
+    return float(np.nansum(values))
+
+
+def _depth_imbalance_for_row(row: pd.Series) -> float:
+    return _safe_depth_imbalance(_depth_volume_sum(row, "Bid"), _depth_volume_sum(row, "Ask"))
+
+
 def _mean_upside_miss_mae(actual_high: pd.Series, predicted_high: pd.Series) -> float:
     return float((actual_high.astype(float) - predicted_high.astype(float)).clip(lower=0.0).mean())
 
 
 def _mean_downside_miss_mae(actual_low: pd.Series, predicted_low: pd.Series) -> float:
     return float((predicted_low.astype(float) - actual_low.astype(float)).clip(lower=0.0).mean())
-
-
-def _trailing_window(frame: pd.DataFrame, bars_back: int) -> pd.DataFrame:
-    if frame.empty:
-        return frame
-    return frame.tail(int(bars_back) + 1)
 
 
 def _range_pct_from_window(window: pd.DataFrame, anchor_price: float) -> float:
@@ -388,13 +466,21 @@ def summarise_intraday_snapshots(
             snapshot_close = float(prices.iloc[-1])
             session_high = float(so_far["High"].max())
             session_low = float(so_far["Low"].min())
-            trailing_30m = _trailing_window(so_far, 6)
-            trailing_60m = _trailing_window(so_far, 12)
+            trailing_15m = _trailing_window_minutes(so_far, 15)
+            trailing_30m = _trailing_window_minutes(so_far, 30)
+            trailing_60m = _trailing_window_minutes(so_far, 60)
             session_volume = float(volumes.sum())
             if session_volume > 0:
                 session_vwap = float((prices * volumes).sum() / session_volume)
             else:
                 session_vwap = snapshot_close
+            top_bid_volume = _depth_volume_sum(snapshot, "Bid")
+            top_ask_volume = _depth_volume_sum(snapshot, "Ask")
+            depth_imbalance = _safe_depth_imbalance(top_bid_volume, top_ask_volume)
+            if trailing_15m.empty:
+                depth_imbalance_change_15m = 0.0
+            else:
+                depth_imbalance_change_15m = depth_imbalance - _depth_imbalance_for_row(trailing_15m.iloc[0])
 
             afternoon_rows_so_far = so_far[so_far["TradeTime"] >= AFTERNOON_OPEN]
             if afternoon_rows_so_far.empty:
@@ -430,10 +516,10 @@ def summarise_intraday_snapshots(
                 f"{prefix}SnapshotRetFromPrevClosePct": _safe_return_pct(snapshot_close, prev_close),
                 f"{prefix}GapPct": _safe_return_pct(float(so_far.iloc[0]["Open"]), prev_close),
                 f"{prefix}OpenToSnapshotRetPct": _safe_return_pct(snapshot_close, float(so_far.iloc[0]["Open"])),
-                f"{prefix}Last5mRetPct": _ret_from_trailing_bars(prices, 1),
-                f"{prefix}Last15mRetPct": _ret_from_trailing_bars(prices, 3),
-                f"{prefix}Last30mRetPct": _ret_from_trailing_bars(prices, 6),
-                f"{prefix}Last60mRetPct": _ret_from_trailing_bars(prices, 12),
+                f"{prefix}Last5mRetPct": _ret_from_trailing_minutes(so_far, 5),
+                f"{prefix}Last15mRetPct": _ret_from_trailing_minutes(so_far, 15),
+                f"{prefix}Last30mRetPct": _ret_from_trailing_minutes(so_far, 30),
+                f"{prefix}Last60mRetPct": _ret_from_trailing_minutes(so_far, 60),
                 f"{prefix}Range30mPct": _range_pct_from_window(trailing_30m, prev_close),
                 f"{prefix}Range60mPct": _range_pct_from_window(trailing_60m, prev_close),
                 f"{prefix}PosIn30mRange": _pos_in_window_range(trailing_30m, snapshot_close),
@@ -449,6 +535,15 @@ def summarise_intraday_snapshots(
                 f"{prefix}SessionProgressPct": session_progress_pct,
                 f"{prefix}AfternoonOpenToSnapshotRetPct": _safe_return_pct(snapshot_close, afternoon_open),
                 f"{prefix}AfternoonVolumePctADV20": _safe_ratio_pct(afternoon_volume, adv20),
+                f"{prefix}BidAskSpreadPct": _safe_ratio_pct(
+                    float(snapshot.get("BestAsk", np.nan)) - float(snapshot.get("BestBid", np.nan)),
+                    snapshot_close,
+                ),
+                f"{prefix}TopBidVolume": top_bid_volume,
+                f"{prefix}TopAskVolume": top_ask_volume,
+                f"{prefix}DepthImbalance": depth_imbalance,
+                f"{prefix}DepthImbalanceChange15m": depth_imbalance_change_15m,
+                f"{prefix}DepthPressurePctADV20": _safe_ratio_pct(top_bid_volume + top_ask_volume, adv20),
             }
 
             if future_rows.empty:
@@ -467,9 +562,17 @@ def summarise_intraday_snapshots(
     return pd.DataFrame(rows).sort_values(["TradeDate", "SnapshotTs"]).reset_index(drop=True)
 
 
-def build_intraday_rest_of_session_sample(ticker: str, history_dir: Path, resolution: str) -> pd.DataFrame:
+def build_intraday_rest_of_session_sample(
+    ticker: str,
+    history_dir: Path,
+    resolution: str,
+    *,
+    require_depth: bool = False,
+) -> pd.DataFrame:
     ticker_frame = load_intraday_cache_frame(history_dir, ticker, resolution)
     index_frame = load_intraday_cache_frame(history_dir, "VNINDEX", resolution)
+    if require_depth:
+        validate_market_depth_available(ticker_frame, _normalise_ticker(ticker))
     ticker_daily = summarise_intraday_snapshots(ticker_frame, prefix="Ticker", include_partial_latest=True)
     index_daily = summarise_intraday_snapshots(index_frame, prefix="Index", include_partial_latest=True)
     if ticker_daily.empty or index_daily.empty:
@@ -539,8 +642,13 @@ def build_multi_ticker_rest_of_session_sample(
     tickers: Sequence[str],
     history_dir: Path,
     resolution: str,
+    *,
+    require_depth: bool = False,
 ) -> pd.DataFrame:
-    frames = [build_intraday_rest_of_session_sample(ticker, history_dir, resolution) for ticker in tickers]
+    frames = [
+        build_intraday_rest_of_session_sample(ticker, history_dir, resolution, require_depth=require_depth)
+        for ticker in tickers
+    ]
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
@@ -949,7 +1057,7 @@ def parse_args() -> argparse.Namespace:
         "--history-dir",
         type=Path,
         default=DEFAULT_INTRADAY_HISTORY_DIR,
-        help="Directory containing cached intraday OHLCV files.",
+        help="Directory containing cached 1-minute intraday OHLCV plus market-depth files.",
     )
     parser.add_argument(
         "--output-dir",
@@ -979,7 +1087,15 @@ def parse_args() -> argparse.Namespace:
         "--resolution",
         type=str,
         default=DEFAULT_RESOLUTION,
-        help="Intraday resolution used for the live model (default: 5-minute bars).",
+        help="Intraday resolution used for the live model (default: 1-minute bars).",
+    )
+    parser.add_argument(
+        "--allow-missing-depth",
+        action="store_true",
+        help=(
+            "Diagnostic-only escape hatch: allow intraday modeling without order-book depth. "
+            "The standard active intraday forecast requires market depth."
+        ),
     )
     return parser.parse_args()
 
@@ -1003,7 +1119,12 @@ def main() -> int:
         history_calendar_days=int(args.history_calendar_days),
         resolution=str(args.resolution),
     )
-    sample_df = build_multi_ticker_rest_of_session_sample(tickers, args.history_dir, str(args.resolution))
+    sample_df = build_multi_ticker_rest_of_session_sample(
+        tickers,
+        args.history_dir,
+        str(args.resolution),
+        require_depth=not bool(args.allow_missing_depth),
+    )
     history_df, current_df = generate_intraday_rest_of_session_predictions(
         sample_df,
         engine_run_at=engine_run_at,

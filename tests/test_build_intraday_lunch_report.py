@@ -10,10 +10,18 @@ from scripts.analysis.build_intraday_rest_of_session_report import (
     select_current_intraday_rest_of_session_forecasts,
     summarise_intraday_rest_of_session_metrics,
     summarise_intraday_snapshots,
+    validate_market_depth_available,
 )
 
 
-def _intraday_rows(day: str, prices: list[float], volumes: list[int], times: list[str]) -> pd.DataFrame:
+def _intraday_rows(
+    day: str,
+    prices: list[float],
+    volumes: list[int],
+    times: list[str],
+    *,
+    include_depth: bool = False,
+) -> pd.DataFrame:
     timestamps = pd.to_datetime([f"{day} {value}+07:00" for value in times])
     frame = pd.DataFrame(
         {
@@ -25,6 +33,15 @@ def _intraday_rows(day: str, prices: list[float], volumes: list[int], times: lis
             "Volume": volumes,
         }
     )
+    if include_depth:
+        frame["BestBid"] = [price - 0.05 for price in prices]
+        frame["BestAsk"] = [price + 0.05 for price in prices]
+        frame["BidVolume1"] = [volume * 2 for volume in volumes]
+        frame["AskVolume1"] = volumes
+        frame["BidVolume2"] = volumes
+        frame["AskVolume2"] = [volume // 2 for volume in volumes]
+        frame["BidVolume3"] = [volume // 2 for volume in volumes]
+        frame["AskVolume3"] = [volume // 3 for volume in volumes]
     frame["TradeDate"] = frame["Timestamp"].dt.normalize()
     frame["TradeTime"] = frame["Timestamp"].dt.time
     return frame
@@ -73,7 +90,7 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
         self.assertAlmostEqual(float(historical_row["TickerTargetCloseRetPct"]), ((10.45 / 10.1) - 1.0) * 100.0, places=5)
         self.assertTrue(pd.isna(current_row["TickerTargetCloseRetPct"]))
 
-    def test_summarise_intraday_snapshots_adds_hourly_context_from_5m_history(self) -> None:
+    def test_summarise_intraday_snapshots_adds_hourly_context_from_timestamp_history(self) -> None:
         baseline_day = _intraday_rows(
             "2026-03-27",
             prices=[9.9, 10.0],
@@ -124,6 +141,53 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
         self.assertAlmostEqual(float(row["TickerRange60mPct"]), 14.0)
         self.assertAlmostEqual(float(row["TickerPosIn30mRange"]), 0.875)
         self.assertAlmostEqual(float(row["TickerPosIn60mRange"]), 13.0 / 14.0)
+
+    def test_summarise_intraday_snapshots_adds_market_depth_features(self) -> None:
+        baseline_day = _intraday_rows(
+            "2026-03-27",
+            prices=[9.9, 10.0],
+            volumes=[100, 100],
+            times=["09:00:00", "14:30:00"],
+            include_depth=True,
+        )
+        measured_day = _intraday_rows(
+            "2026-03-28",
+            prices=[10.0, 10.2, 10.4],
+            volumes=[100, 120, 150],
+            times=["09:00:00", "09:45:00", "14:30:00"],
+            include_depth=True,
+        )
+        latest_partial = _intraday_rows(
+            "2026-03-29",
+            prices=[10.5, 10.6],
+            volumes=[100, 100],
+            times=["09:00:00", "13:50:00"],
+            include_depth=True,
+        )
+
+        summary = summarise_intraday_snapshots(
+            pd.concat([baseline_day, measured_day, latest_partial], ignore_index=True),
+            prefix="Ticker",
+            include_partial_latest=True,
+        )
+
+        row = summary[
+            (summary["SnapshotDate"] == "2026-03-28") & (summary["SnapshotTimeBucket"] == "AM_EARLY")
+        ].iloc[0]
+        self.assertAlmostEqual(float(row["TickerBidAskSpreadPct"]), 0.1 / 10.2 * 100.0)
+        self.assertGreater(float(row["TickerTopBidVolume"]), float(row["TickerTopAskVolume"]))
+        self.assertGreater(float(row["TickerDepthImbalance"]), 0.0)
+
+    def test_validate_market_depth_available_rejects_missing_depth(self) -> None:
+        frame = _intraday_rows(
+            "2026-03-28",
+            prices=[10.0, 10.2],
+            volumes=[100, 120],
+            times=["09:00:00", "09:45:00"],
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "market depth"):
+            validate_market_depth_available(frame, "AAA")
 
     def test_select_current_intraday_rest_of_session_forecasts_prefers_lower_close_error(self) -> None:
         history = pd.DataFrame(
