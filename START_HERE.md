@@ -26,7 +26,7 @@ Nếu đang trong phiên và muốn xem case đang đỏ có khả năng hồi c
 
 1. `./broker.sh intraday`
 2. đọc `out/analysis/ml_intraday_rest_of_session.csv`, nhất là `PredCloseUpFromSnapshotProbPct`, `PredRecoverToPrevCloseProbPct`, calibration rows, `RecoverySetup`, và `RecoveryCalibrationConflict`
-3. nếu command báo thiếu market depth/order book thì coi intraday forecast là chưa đủ sạch; không dùng OHLCV-only để thay thế cho quyết định trong phiên.
+3. pipeline intraday tự refresh 1-minute OHLCV và VNDIRECT priceboard depth trước khi build forecast.
 
 Nếu muốn review một vị thế đã mua bằng ML-only, không tự chế rule xử lý:
 
@@ -49,7 +49,7 @@ Prompt gợi ý:
 - `Nếu tôi đưa giá live mới, hỏi trong giờ nghỉ trưa, ngoài phiên, sau ATO, gần ATC, hoặc snapshot đã cũ so với thị trường hiện tại, phải fetch/rebuild lại snapshot giá và artifact liên quan trước khi nói lệnh cụ thể; nếu full ML chạy chậm thì tiếp tục chạy cho xong trừ khi tôi yêu cầu dừng, không tự ý chuyển sang khuyến nghị tạm cho lệnh/size lớn.`
 - `Nếu hỏi hiện tại thì sao, phải trả lời thêm đà các phiên tới là tăng tiếp / đi ngang / giảm, độ gấp mua ngay hay có thể chờ, và overlay lịch nghỉ lễ/sự kiện/tin tức live.`
 - `Khi đưa khuyến nghị, phải đọc hai active model: OHLC T+n tới T+20 và intraday morning-close nếu đang trong phiên; nêu model name/family/class, MAE và direction hit; không chỉ nói mua được hay không.`
-- `Model OHLC dùng daily OHLCV. Model intraday chuẩn phải dùng 1-minute OHLCV cộng độ sâu thị trường/order book; nếu thiếu depth thì nói artifact intraday chưa đủ sạch thay vì tự hạ chuẩn.`
+- `Model OHLC dùng daily OHLCV. Model intraday chuẩn phải tự refresh và dùng 1-minute OHLCV cộng độ sâu thị trường/order book.`
 - `Khi có tin dầu/Iran/global market, chạy hoặc đọc eval_macro ở chế độ cache sau khi refresh factor cho VIC để xem correlation với dầu, USD, VIX, lợi suất Mỹ và các chỉ số Mỹ/Âu/Anh/Nhật/Hàn; sau đó chạy hoặc đọc eval_macro_lift để kiểm tra các feature này có cải thiện predict so với baseline không.`
 - `Với VIC, pair-feature ML nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
 - `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc OHLC T+15/T+20 thay vì chỉ nhìn T+1/T+3.`

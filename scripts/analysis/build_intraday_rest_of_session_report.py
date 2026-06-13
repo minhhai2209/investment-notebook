@@ -17,6 +17,7 @@ from sklearn.preprocessing import StandardScaler
 
 from scripts.analysis.evaluate_ohlc_models import _normalise_ticker
 from scripts.data_fetching.fetch_ticker_data import ensure_intraday_cache
+from scripts.data_fetching.vndirect_price_depth import refresh_depth_for_intraday_cache
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -56,6 +57,7 @@ DEPTH_COLUMN_ALIASES = {
 }
 REQUIRED_DEPTH_COLUMNS = ["BestBid", "BestAsk", "BidVolume1", "AskVolume1"]
 DEPTH_FEATURE_COLUMNS = [
+    "TickerDepthAvailable",
     "TickerBidAskSpreadPct",
     "TickerTopBidVolume",
     "TickerTopAskVolume",
@@ -259,6 +261,12 @@ def refresh_intraday_cache(
             min_days=int(history_calendar_days),
             resolution=str(resolution),
         )
+    refresh_depth_for_intraday_cache(
+        tickers,
+        history_dir,
+        resolution=str(resolution),
+        depth_dir=REPO_ROOT / "out" / "data" / "depth_snapshots",
+    )
 
 
 def _intraday_cache_path(history_dir: Path, ticker: str, resolution: str) -> Path:
@@ -277,16 +285,23 @@ def _normalise_depth_columns(raw_frame: pd.DataFrame, parsed_frame: pd.DataFrame
 
 
 def validate_market_depth_available(frame: pd.DataFrame, label: str) -> None:
+    usable_mask = pd.Series([True] * len(frame), index=frame.index)
     missing_or_empty = []
     for column in REQUIRED_DEPTH_COLUMNS:
         if column not in frame.columns or pd.to_numeric(frame[column], errors="coerce").dropna().empty:
             missing_or_empty.append(column)
+            usable_mask = pd.Series([False] * len(frame), index=frame.index)
+        else:
+            usable_mask &= pd.to_numeric(frame[column], errors="coerce").notna()
     if missing_or_empty:
         raise RuntimeError(
             f"{label} intraday cache is missing usable market depth columns: {', '.join(missing_or_empty)}. "
             "The active intraday model requires 1-minute OHLCV plus order-book depth "
             "(best bid/ask and bid/ask volume) and will not produce a standard forecast without it."
         )
+    latest_row = frame.sort_values("Timestamp").tail(1)
+    if latest_row.empty or not bool(usable_mask.loc[latest_row.index].iloc[0]):
+        raise RuntimeError(f"{label} latest intraday row does not have usable market depth.")
 
 
 def load_intraday_cache_frame(history_dir: Path, ticker: str, resolution: str) -> pd.DataFrame:
@@ -500,6 +515,12 @@ def summarise_intraday_snapshots(
                 session_vwap = snapshot_close
             top_bid_volume = _depth_volume_sum(snapshot, "Bid")
             top_ask_volume = _depth_volume_sum(snapshot, "Ask")
+            depth_available = float(
+                not pd.isna(snapshot.get("BestBid", np.nan))
+                and not pd.isna(snapshot.get("BestAsk", np.nan))
+                and not pd.isna(snapshot.get("BidVolume1", np.nan))
+                and not pd.isna(snapshot.get("AskVolume1", np.nan))
+            )
             depth_imbalance = _safe_depth_imbalance(top_bid_volume, top_ask_volume)
             if trailing_15m.empty:
                 depth_imbalance_change_15m = 0.0
@@ -559,6 +580,7 @@ def summarise_intraday_snapshots(
                 f"{prefix}SessionProgressPct": session_progress_pct,
                 f"{prefix}AfternoonOpenToSnapshotRetPct": _safe_return_pct(snapshot_close, afternoon_open),
                 f"{prefix}AfternoonVolumePctADV20": _safe_ratio_pct(afternoon_volume, adv20),
+                f"{prefix}DepthAvailable": depth_available,
                 f"{prefix}BidAskSpreadPct": _safe_ratio_pct(
                     float(snapshot.get("BestAsk", np.nan)) - float(snapshot.get("BestBid", np.nan)),
                     snapshot_close,

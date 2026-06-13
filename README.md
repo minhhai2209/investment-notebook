@@ -49,7 +49,7 @@ Active model surface hiện đã consolidate còn 2 forecast tasks đáng tin c�
 ```
 
 - `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) từ daily OHLCV bằng nhiều candidate model rồi chọn best theo validation.
-- `intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV cộng market-depth/order-book feature bằng nhiều candidate model rồi chọn best theo validation. Nếu cache intraday chưa có best bid/ask và bid/ask volume thì forecast chuẩn phải fail/không được xem là đủ sạch.
+- `intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV cộng market-depth/order-book feature bằng nhiều candidate model rồi chọn best theo validation. Pipeline tự refresh VNDIRECT priceboard depth và merge vào cache intraday trước khi build feature.
 - Candidate set active: `ridge`, `random_forest`, `hist_gbm`, `mlp_deep`; deep-style MLP được thử nhưng không mặc định thắng nếu validation yếu hơn.
 
 Các builder cũ như `range`, `cycle`, `timing`, `entry_ladder`, `sequence_dl`, `candidates`, `momentum`, `deep` vẫn có thể gọi tay để diagnostic/legacy, nhưng không còn là default model source.
@@ -173,7 +173,7 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - Nếu artifact thiếu hoặc stale, Codex phải tự chạy tuần tự và tự đợi batch xong trước khi trả lời
 - Không tự dừng batch vì lâu nếu batch đó là điều kiện để ra khuyến nghị/lệnh. Nếu batch chưa xong, lỗi, bị interrupt, hoặc đã bị dừng, output phải là `chưa đủ artifact sạch để khuyến nghị`, không được chốt lệnh từ dữ liệu chạy dở.
 - Khi đang trong intraday, nghỉ trưa, ngoài phiên, sau ATO/gần ATC, hoặc người dùng đưa giá live lệch snapshot, Codex phải coi artifact lệnh là stale cho tới khi fetch/rebuild lại snapshot giá; không dùng ladder/no-chase cũ để chốt LO cụ thể.
-- Model intraday chuẩn phải dùng đơn vị nhỏ nhất hiện có là 1-minute bars, gồm giá OHLC, volume, và depth/order book. Nếu nguồn hiện tại chỉ có OHLCV mà không có depth, phải nói rõ intraday chưa đủ sạch thay vì dùng forecast như bình thường.
+- Model intraday chuẩn phải dùng đơn vị nhỏ nhất hiện có là 1-minute bars, gồm giá OHLC, volume, và depth/order book. Pipeline phải tự refresh depth trước khi build intraday forecast.
 - Sau bước refresh artifact, Codex phải tự browse tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy khi trả lời `hôm nay mua gì`; lớp này là bước hỏi đáp, không phải lệnh batch của repo
 - Khi macro/geopolitics/oil/global market có thể ảnh hưởng HOSE, chạy hoặc đọc `./broker.sh eval_macro --no-refresh-factors --case-tickers VIC` sau khi cache đã refresh để xem correlation không nhất thiết cùng chiều, rồi đọc `./broker.sh eval_macro_lift --case-tickers VIC` để kiểm tra macro/global equity features có cải thiện predict so với baseline không.
 - Với `VIC`, pair features nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định.
