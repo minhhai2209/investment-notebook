@@ -7,11 +7,9 @@ from typing import Dict, List, Sequence
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
-from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -38,6 +36,7 @@ DEFAULT_HORIZONS = (1, 2, 3, 5, 10, 15, 20)
 OUTPUT_FILE_NAME = "ml_ohlc_next_session.csv"
 MULTI_OUTPUT_FILE_NAME = "ml_ohlc_multi_session.csv"
 METRICS_OUTPUT_FILE_NAME = "ml_ohlc_model_metrics.csv"
+LOCKED_ACTIVE_MODEL = "random_forest"
 STATE_SIGNAL_COLUMNS = [
     "TickerColorStreakState",
     "TickerLimitProxyState",
@@ -264,8 +263,7 @@ def build_live_model_factories():
         )
 
     return {
-        "ridge": lambda: make_numeric_pipeline(Ridge(alpha=1.0)),
-        "random_forest": lambda: make_numeric_pipeline(
+        LOCKED_ACTIVE_MODEL: lambda: make_numeric_pipeline(
             RandomForestRegressor(
                 n_estimators=48,
                 max_depth=8,
@@ -274,27 +272,7 @@ def build_live_model_factories():
                 n_jobs=4,
                 random_state=42,
             )
-        ),
-        "hist_gbm": lambda: make_numeric_pipeline(
-            HistGradientBoostingRegressor(
-                max_depth=3,
-                learning_rate=0.05,
-                max_iter=120,
-                random_state=42,
-            )
-        ),
-        "mlp_deep": lambda: make_numeric_pipeline(
-            MLPRegressor(
-                hidden_layer_sizes=(32,),
-                activation="relu",
-                alpha=0.001,
-                learning_rate_init=0.001,
-                max_iter=240,
-                early_stopping=True,
-                n_iter_no_change=10,
-                random_state=42,
-            )
-        ),
+        )
     }
 
 
@@ -541,7 +519,7 @@ def _parse_horizons(values: Sequence[int] | None, fallback: int) -> List[int]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build a live T+1 OHLC forecast file by selecting the best per-ticker daily model."
+        description="Build live OHLC forecast files with the locked active daily model."
     )
     parser.add_argument(
         "--universe-csv",
@@ -577,7 +555,7 @@ def parse_args() -> argparse.Namespace:
         "--holdout-dates",
         type=int,
         default=DEFAULT_HOLDOUT_DATES,
-        help="Number of latest labeled rows used as holdout when ranking per-ticker models.",
+        help="Number of latest labeled rows used as holdout for locked-model validation metrics.",
     )
     parser.add_argument(
         "--horizon",

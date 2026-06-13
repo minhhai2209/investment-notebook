@@ -7,11 +7,9 @@ from typing import Dict, List, Sequence
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
-from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -31,6 +29,7 @@ DEFAULT_RESOLUTION = "1"
 OUTPUT_FILE_NAME = "ml_intraday_rest_of_session.csv"
 METRICS_FILE_NAME = "ml_intraday_rest_of_session_metrics.csv"
 BACKTEST_FILE_NAME = "ml_intraday_rest_of_session_backtest.csv"
+LOCKED_ACTIVE_MODEL = "random_forest"
 CALIBRATION_PRIOR_ROWS = 4.0
 CALIBRATION_PRIOR_PROB_PCT = 50.0
 
@@ -715,8 +714,7 @@ def build_live_model_factories():
         )
 
     return {
-        "ridge": lambda: make_numeric_pipeline(Ridge(alpha=1.0)),
-        "random_forest": lambda: make_numeric_pipeline(
+        LOCKED_ACTIVE_MODEL: lambda: make_numeric_pipeline(
             RandomForestRegressor(
                 n_estimators=48,
                 max_depth=8,
@@ -725,27 +723,7 @@ def build_live_model_factories():
                 n_jobs=4,
                 random_state=42,
             )
-        ),
-        "hist_gbm": lambda: make_numeric_pipeline(
-            HistGradientBoostingRegressor(
-                max_depth=3,
-                learning_rate=0.05,
-                max_iter=120,
-                random_state=42,
-            )
-        ),
-        "mlp_deep": lambda: make_numeric_pipeline(
-            MLPRegressor(
-                hidden_layer_sizes=(32,),
-                activation="relu",
-                alpha=0.001,
-                learning_rate_init=0.001,
-                max_iter=240,
-                early_stopping=True,
-                n_iter_no_change=10,
-                random_state=42,
-            )
-        ),
+        )
     }
 
 
@@ -1197,7 +1175,7 @@ def parse_args() -> argparse.Namespace:
         "--holdout-dates",
         type=int,
         default=DEFAULT_HOLDOUT_DATES,
-        help="Number of latest labeled intraday snapshots used as holdout when ranking models.",
+        help="Number of latest labeled intraday snapshots used as holdout for locked-model validation metrics.",
     )
     parser.add_argument(
         "--resolution",
