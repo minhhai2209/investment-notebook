@@ -60,7 +60,7 @@ Nếu bạn muốn dùng artifact đã build trên GitHub Actions mà không com
 ./broker.sh sync_artifacts
 ```
 
-Lệnh này sẽ tìm artifact mới nhất có prefix `core-artifacts-` trên branch `main`, chỉ download nếu `digest` chưa có trong cache local, cập nhật `.cache/gh-artifacts/latest/core-artifacts`, và prune cache local cũ.
+Lệnh này sẽ tìm artifact mới nhất có prefix `active-model-artifacts-` trên branch `main`, chỉ download nếu `digest` chưa có trong cache local, cập nhật `.cache/gh-artifacts/latest/active-model-artifacts`, và prune cache local cũ.
 
 Ví dụ:
 

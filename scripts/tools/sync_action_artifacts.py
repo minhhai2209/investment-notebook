@@ -13,7 +13,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CACHE_DIR = REPO_ROOT / ".cache" / "gh-artifacts"
-DEFAULT_ARTIFACT_PREFIX = "core-artifacts-"
+DEFAULT_ARTIFACT_PREFIX = "active-model-artifacts-"
 
 
 def _run_command(args: Sequence[str]) -> str:

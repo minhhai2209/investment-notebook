@@ -1,0 +1,155 @@
+name: Train Active Models
+
+on:
+  schedule:
+    # 15:20 ICT on weekdays, after the regular trading session closes.
+    - cron: "20 8 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      refresh_map:
+        description: Refresh the VIC-only universe before training
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: train-active-models-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  train-active-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Refresh VIC Scope
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.refresh_map }}
+        run: ./broker.sh refresh_vic_map
+
+      - name: Prepare Actions Config
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path("config/data_engine.yaml")
+          output_path = Path("config/data_engine.actions.yaml")
+          source = source_path.read_text(encoding="utf-8")
+          old = "  vietstock_overview_enabled: true"
+          new = "  vietstock_overview_enabled: false"
+          if old not in source:
+              raise SystemExit(f"{source_path} did not contain expected setting: {old!r}")
+          output_path.write_text(source.replace(old, new), encoding="utf-8")
+          PY
+
+      - name: Build VIC Engine Snapshot
+        run: ./broker.sh engine config/data_engine.actions.yaml
+
+      - name: Train Locked OHLC T+n Model
+        run: ./broker.sh ohlc
+
+      - name: Build Intraday Training Universe
+        run: |
+          python3 - <<'PY'
+          import csv
+          from datetime import datetime, time
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+
+          input_path = Path("out/universe.csv")
+          output_path = Path("out/universe_intraday_train.csv")
+          timezone = ZoneInfo("Asia/Ho_Chi_Minh")
+
+          with input_path.open(newline="", encoding="utf-8") as handle:
+              reader = csv.DictReader(handle)
+              rows = list(reader)
+              fieldnames = reader.fieldnames
+
+          if not rows or not fieldnames:
+              raise SystemExit(f"{input_path} is empty or malformed")
+
+          raw_engine_ts = next((str(row.get("EngineRunAt") or "").strip() for row in rows if row.get("EngineRunAt")), "")
+          if not raw_engine_ts:
+              raise SystemExit(f"{input_path} does not contain EngineRunAt")
+
+          engine_ts = datetime.fromisoformat(raw_engine_ts.replace("Z", "+00:00"))
+          if engine_ts.tzinfo is None:
+              engine_ts = engine_ts.replace(tzinfo=timezone)
+          else:
+              engine_ts = engine_ts.astimezone(timezone)
+
+          intraday_ts = datetime.combine(engine_ts.date(), time(11, 0), tzinfo=timezone)
+          for row in rows:
+              row["EngineRunAt"] = intraday_ts.isoformat()
+
+          with output_path.open("w", newline="", encoding="utf-8") as handle:
+              writer = csv.DictWriter(handle, fieldnames=fieldnames)
+              writer.writeheader()
+              writer.writerows(rows)
+          PY
+
+      - name: Train Locked Morning-Close Intraday Model
+        run: ./broker.sh intraday --universe-csv out/universe_intraday_train.csv
+
+      - name: Summarise Active Model Training
+        run: |
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import csv
+          from pathlib import Path
+
+          reports = [
+              ("OHLC metrics", Path("out/analysis/ml_ohlc_model_metrics.csv")),
+              ("Intraday metrics", Path("out/analysis/ml_intraday_rest_of_session_metrics.csv")),
+              ("OHLC forecast", Path("out/analysis/ml_ohlc_next_session.csv")),
+              ("Intraday forecast", Path("out/analysis/ml_intraday_rest_of_session.csv")),
+          ]
+
+          for label, path in reports:
+              print(f"\n## {label}")
+              if not path.exists():
+                  raise SystemExit(f"Missing required artifact: {path}")
+              with path.open(newline="", encoding="utf-8") as handle:
+                  reader = csv.DictReader(handle)
+                  rows = list(reader)
+              if not rows:
+                  raise SystemExit(f"Artifact has no rows: {path}")
+              models = sorted({str(row.get("Model") or "").strip() for row in rows if row.get("Model")})
+              tickers = sorted({str(row.get("Ticker") or "").strip() for row in rows if row.get("Ticker")})
+              print(f"path={path}")
+              print(f"rows={len(rows)}")
+              print(f"tickers={','.join(tickers)}")
+              print(f"models={','.join(models)}")
+              preview_keys = [key for key in ("Ticker", "Model", "Horizon", "SnapshotBucket", "CloseMAEPct", "CloseDirHitPct", "RMSE", "MAE", "DirectionHitPct") if key in rows[0]]
+              for row in rows[:5]:
+                  print(" ".join(f"{key}={row.get(key, '')}" for key in preview_keys))
+          PY
+
+      - name: Upload Active Model Artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: active-model-artifacts-${{ github.run_number }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            data/industry_map.csv
+            out/universe.csv
+            out/universe_intraday_train.csv
+            out/analysis/ml_ohlc_next_session.csv
+            out/analysis/ml_ohlc_multi_session.csv
+            out/analysis/ml_ohlc_model_metrics.csv
+            out/analysis/ml_intraday_rest_of_session.csv
+            out/analysis/ml_intraday_rest_of_session_metrics.csv
+            out/analysis/ml_intraday_rest_of_session_backtest.csv
+            out/data/depth_snapshots/**

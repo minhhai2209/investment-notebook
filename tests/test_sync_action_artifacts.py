@@ -28,21 +28,21 @@ class SyncActionArtifactsTest(unittest.TestCase):
         artifacts = [
             {
                 "id": 1,
-                "name": "core-artifacts-1",
+                "name": "active-model-artifacts-1",
                 "expired": False,
                 "created_at": "2026-04-21T01:00:00Z",
                 "workflow_run": {"head_branch": "main", "id": 101},
             },
             {
                 "id": 2,
-                "name": "core-artifacts-2",
+                "name": "active-model-artifacts-2",
                 "expired": False,
                 "created_at": "2026-04-22T01:00:00Z",
                 "workflow_run": {"head_branch": "main", "id": 102},
             },
             {
                 "id": 3,
-                "name": "core-artifacts-3",
+                "name": "active-model-artifacts-3",
                 "expired": False,
                 "created_at": "2026-04-23T01:00:00Z",
                 "workflow_run": {"head_branch": "dev", "id": 103},
@@ -55,8 +55,11 @@ class SyncActionArtifactsTest(unittest.TestCase):
                 "workflow_run": {"head_branch": "main", "id": 104},
             },
         ]
-        selected = sync_action_artifacts._select_artifacts(artifacts, prefix="core-artifacts-", branch="main")
+        selected = sync_action_artifacts._select_artifacts(artifacts, prefix="active-model-artifacts-", branch="main")
         self.assertEqual([item["id"] for item in selected], [2, 1])
+
+    def test_default_artifact_prefix_targets_active_model_artifacts(self) -> None:
+        self.assertEqual(sync_action_artifacts.DEFAULT_ARTIFACT_PREFIX, "active-model-artifacts-")
 
     def test_prune_local_cache_keeps_latest_versions(self) -> None:
         cache_dir = self.base / "cache"
@@ -68,13 +71,13 @@ class SyncActionArtifactsTest(unittest.TestCase):
                 sync_action_artifacts._artifact_meta_path(cache_dir, artifact_id),
                 {
                     "id": artifact_id,
-                    "name": f"core-artifacts-{artifact_id}",
+                    "name": f"active-model-artifacts-{artifact_id}",
                     "created_at": created_at,
                     "digest": f"sha256:{artifact_id}",
                 },
             )
 
-        removed = sync_action_artifacts._prune_local_cache(cache_dir, "core-artifacts-", keep=2)
+        removed = sync_action_artifacts._prune_local_cache(cache_dir, "active-model-artifacts-", keep=2)
         self.assertEqual(removed, [11])
         self.assertFalse(sync_action_artifacts._artifact_cache_dir(cache_dir, 11).exists())
         self.assertTrue(sync_action_artifacts._artifact_cache_dir(cache_dir, 12).exists())
@@ -103,12 +106,17 @@ class SyncActionArtifactsTest(unittest.TestCase):
         files_dir = sync_action_artifacts._artifact_files_dir(cache_dir, 31)
         files_dir.mkdir(parents=True, exist_ok=True)
         (files_dir / "summary.json").write_text("{}", encoding="utf-8")
-        artifact = {"id": 31, "name": "core-artifacts-31", "digest": "sha256:xyz", "created_at": "2026-04-22T03:33:15Z"}
+        artifact = {
+            "id": 31,
+            "name": "active-model-artifacts-31",
+            "digest": "sha256:xyz",
+            "created_at": "2026-04-22T03:33:15Z",
+        }
 
-        sync_action_artifacts._update_latest_pointer(cache_dir, "core-artifacts-", artifact)
+        sync_action_artifacts._update_latest_pointer(cache_dir, "active-model-artifacts-", artifact)
 
-        alias = cache_dir / "latest" / "core-artifacts"
-        manifest = json.loads((cache_dir / "latest" / "core-artifacts.json").read_text(encoding="utf-8"))
+        alias = cache_dir / "latest" / "active-model-artifacts"
+        manifest = json.loads((cache_dir / "latest" / "active-model-artifacts.json").read_text(encoding="utf-8"))
         self.assertTrue(alias.exists())
         self.assertEqual(manifest["artifact_id"], 31)
 

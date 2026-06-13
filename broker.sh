@@ -218,7 +218,7 @@ PY
 }
 
 run_sync_artifacts() {
-  local prefix="${1:-core-artifacts-}"
+  local prefix="${1:-active-model-artifacts-}"
   shift || true
   run_module sync_artifacts scripts.tools.sync_action_artifacts \
     --artifact-prefix "$prefix" \
