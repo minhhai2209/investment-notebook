@@ -28,6 +28,8 @@ DEFAULT_HOLDOUT_DATES = 25
 DEFAULT_INTRADAY_HISTORY_DIR = REPO_ROOT / "out" / "data" / "intraday_1m"
 DEFAULT_RESOLUTION = "1"
 OUTPUT_FILE_NAME = "ml_intraday_rest_of_session.csv"
+METRICS_FILE_NAME = "ml_intraday_rest_of_session_metrics.csv"
+BACKTEST_FILE_NAME = "ml_intraday_rest_of_session_backtest.csv"
 CALIBRATION_PRIOR_ROWS = 4.0
 CALIBRATION_PRIOR_PROB_PCT = 50.0
 
@@ -148,6 +150,28 @@ REQUIRED_OUTPUT_COLUMNS = [
     "PredFinalCloseVsPrevClosePct",
     "RecoverySetup",
     "RecoveryCalibrationConflict",
+    "SelectionScore",
+]
+BACKTEST_OUTPUT_COLUMNS = [
+    "SnapshotDate",
+    "SnapshotTimeBucket",
+    "Ticker",
+    "Model",
+    "PrevClose",
+    "Base",
+    "SnapshotRetFromPrevClosePct",
+    "SnapshotRedFromPrevClose",
+    "TargetCloseVsPrevClosePct",
+    "PredFinalCloseVsPrevClosePct",
+    "TargetCloseRetPct",
+    "PredTargetCloseRetPct",
+    "CloseAbsErrPct",
+    "CloseDirHit",
+    "ActualRecoverToPrevClose",
+    "PredRecoverToPrevClose",
+    "CloseMAEPct",
+    "RangeMAEPct",
+    "CloseDirHitPct",
     "SelectionScore",
 ]
 BUCKET_CODES = {
@@ -728,11 +752,13 @@ def generate_intraday_rest_of_session_predictions(
             current_bucket=current_bucket,
         )
         labeled = scoped[scoped["TargetCloseRetPct"].notna()].copy()
-        if labeled.shape[0] < int(min_train_dates) + int(holdout_dates):
+        labeled_dates = pd.Series(labeled["TradeDate"].drop_duplicates()).sort_values().reset_index(drop=True)
+        if labeled_dates.shape[0] < int(min_train_dates) + int(holdout_dates):
             continue
 
-        train_df = labeled.iloc[:-int(holdout_dates)].copy()
-        holdout_df = labeled.iloc[-int(holdout_dates):].copy()
+        holdout_date_values = set(labeled_dates.tail(int(holdout_dates)).tolist())
+        train_df = labeled[~labeled["TradeDate"].isin(holdout_date_values)].copy()
+        holdout_df = labeled[labeled["TradeDate"].isin(holdout_date_values)].copy()
         if train_df.empty or holdout_df.empty:
             continue
 
@@ -1043,6 +1069,74 @@ def select_current_intraday_rest_of_session_forecasts(history_df: pd.DataFrame, 
     return report_df.sort_values(["Ticker"]).reset_index(drop=True)
 
 
+def select_intraday_rest_of_session_backtest(history_df: pd.DataFrame) -> pd.DataFrame:
+    metrics_df = summarise_intraday_rest_of_session_metrics(history_df)
+    if metrics_df.empty or history_df.empty:
+        return pd.DataFrame(columns=BACKTEST_OUTPUT_COLUMNS)
+
+    best_metrics = metrics_df.drop_duplicates(subset=["Ticker", "SnapshotTimeBucket"], keep="first")
+    merged = history_df.merge(
+        best_metrics[
+            [
+                "Ticker",
+                "SnapshotTimeBucket",
+                "Model",
+                "CloseMAEPct",
+                "RangeMAEPct",
+                "CloseDirHitPct",
+                "SelectionScore",
+            ]
+        ],
+        on=["Ticker", "SnapshotTimeBucket", "Model"],
+        how="inner",
+        validate="many_to_one",
+    )
+    if merged.empty:
+        return pd.DataFrame(columns=BACKTEST_OUTPUT_COLUMNS)
+
+    pred_final_close_vs_prev_close_pct = (
+        (
+            merged["Base"].astype(float)
+            * (1.0 + (merged["PredTargetCloseRetPct"].astype(float) / 100.0))
+        )
+        / merged["PrevClose"].astype(float)
+        - 1.0
+    ) * 100.0
+    close_dir_hit = (
+        np.sign(merged["TargetCloseRetPct"].astype(float))
+        == np.sign(merged["PredTargetCloseRetPct"].astype(float))
+    )
+    report_df = pd.DataFrame(
+        {
+            "SnapshotDate": merged["SnapshotDate"],
+            "SnapshotTimeBucket": merged["SnapshotTimeBucket"],
+            "Ticker": merged["Ticker"],
+            "Model": merged["Model"],
+            "PrevClose": merged["PrevClose"].astype(float),
+            "Base": merged["Base"].astype(float),
+            "SnapshotRetFromPrevClosePct": merged["SnapshotRetFromPrevClosePct"].astype(float),
+            "SnapshotRedFromPrevClose": merged["SnapshotRedFromPrevClose"].astype(bool),
+            "TargetCloseVsPrevClosePct": merged["TargetCloseVsPrevClosePct"].astype(float),
+            "PredFinalCloseVsPrevClosePct": pred_final_close_vs_prev_close_pct.astype(float),
+            "TargetCloseRetPct": merged["TargetCloseRetPct"].astype(float),
+            "PredTargetCloseRetPct": merged["PredTargetCloseRetPct"].astype(float),
+            "CloseAbsErrPct": (
+                merged["TargetCloseRetPct"].astype(float)
+                - merged["PredTargetCloseRetPct"].astype(float)
+            ).abs(),
+            "CloseDirHit": close_dir_hit.astype(bool),
+            "ActualRecoverToPrevClose": merged["TargetCloseVsPrevClosePct"].astype(float) >= 0.0,
+            "PredRecoverToPrevClose": pred_final_close_vs_prev_close_pct.astype(float) >= 0.0,
+            "CloseMAEPct": merged["CloseMAEPct"].astype(float),
+            "RangeMAEPct": merged["RangeMAEPct"].astype(float),
+            "CloseDirHitPct": merged["CloseDirHitPct"].astype(float),
+            "SelectionScore": merged["SelectionScore"].astype(float),
+        }
+    )
+    _require_columns(report_df, BACKTEST_OUTPUT_COLUMNS, "Intraday rest-of-session backtest")
+    return report_df.sort_values(["SnapshotDate", "SnapshotTimeBucket", "Ticker"]).reset_index(drop=True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build an optional intraday forecast file for the remainder of the current session."
@@ -1103,6 +1197,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     output_path = args.output_dir / OUTPUT_FILE_NAME
+    metrics_path = args.output_dir / METRICS_FILE_NAME
+    backtest_path = args.output_dir / BACKTEST_FILE_NAME
     engine_run_at = _current_engine_timestamp(args.universe_csv)
     current_bucket = classify_snapshot_bucket(engine_run_at)
     if current_bucket is None:
@@ -1132,6 +1228,20 @@ def main() -> int:
         min_train_dates=int(args.min_train_dates),
         holdout_dates=int(args.holdout_dates),
     )
+    metrics_df = summarise_intraday_rest_of_session_metrics(history_df)
+    backtest_df = select_intraday_rest_of_session_backtest(history_df)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    if metrics_df.empty:
+        metrics_path.unlink(missing_ok=True)
+    else:
+        metrics_df.to_csv(metrics_path, index=False)
+        print(f"Wrote {metrics_path}")
+    if backtest_df.empty:
+        backtest_path.unlink(missing_ok=True)
+    else:
+        backtest_df.to_csv(backtest_path, index=False)
+        print(f"Wrote {backtest_path}")
+
     report_df = select_current_intraday_rest_of_session_forecasts(history_df, current_df)
     if report_df.empty:
         output_path.unlink(missing_ok=True)
@@ -1141,7 +1251,6 @@ def main() -> int:
         )
         return 0
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     report_df.to_csv(output_path, index=False)
     print(f"Wrote {output_path}")
     return 0

@@ -7,6 +7,7 @@ import pandas as pd
 from scripts.analysis.build_intraday_rest_of_session_report import (
     _prepare_current_snapshot_row,
     classify_snapshot_bucket,
+    select_intraday_rest_of_session_backtest,
     select_current_intraday_rest_of_session_forecasts,
     summarise_intraday_rest_of_session_metrics,
     summarise_intraday_snapshots,
@@ -296,6 +297,60 @@ class BuildIntradayRestOfSessionReportTest(unittest.TestCase):
 
         self.assertEqual(str(summary.iloc[0]["Model"]), "hist_gbm")
         self.assertGreater(float(summary.loc[summary["Model"] == "ridge", "UpsideMissMAEPct"].iloc[0]), 2.5)
+
+    def test_select_intraday_rest_of_session_backtest_uses_best_bucket_model(self) -> None:
+        history = pd.DataFrame(
+            [
+                {
+                    "TradeDate": pd.Timestamp("2026-03-28"),
+                    "SnapshotDate": "2026-03-28",
+                    "SnapshotTimeBucket": "AM_LATE",
+                    "Ticker": "AAA",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRetFromPrevClosePct": -2.0,
+                    "SnapshotRedFromPrevClose": True,
+                    "TargetCloseVsPrevClosePct": 1.0,
+                    "TargetCloseRetPct": 3.0612,
+                    "TargetHighRetPct": 3.5,
+                    "TargetLowRetPct": -0.5,
+                    "Model": "ridge",
+                    "PredTargetCloseRetPct": 0.2,
+                    "PredTargetHighRetPct": 1.0,
+                    "PredTargetLowRetPct": -1.0,
+                    "ActualRangePct": 4.0,
+                    "PredRangePct": 2.0,
+                },
+                {
+                    "TradeDate": pd.Timestamp("2026-03-28"),
+                    "SnapshotDate": "2026-03-28",
+                    "SnapshotTimeBucket": "AM_LATE",
+                    "Ticker": "AAA",
+                    "PrevClose": 10.0,
+                    "Base": 9.8,
+                    "SnapshotRetFromPrevClosePct": -2.0,
+                    "SnapshotRedFromPrevClose": True,
+                    "TargetCloseVsPrevClosePct": 1.0,
+                    "TargetCloseRetPct": 3.0612,
+                    "TargetHighRetPct": 3.5,
+                    "TargetLowRetPct": -0.5,
+                    "Model": "hist_gbm",
+                    "PredTargetCloseRetPct": 3.0,
+                    "PredTargetHighRetPct": 3.4,
+                    "PredTargetLowRetPct": -0.4,
+                    "ActualRangePct": 4.0,
+                    "PredRangePct": 3.8,
+                },
+            ]
+        )
+
+        backtest = select_intraday_rest_of_session_backtest(history)
+
+        self.assertEqual(backtest["Model"].tolist(), ["hist_gbm"])
+        row = backtest.iloc[0]
+        self.assertTrue(bool(row["SnapshotRedFromPrevClose"]))
+        self.assertTrue(bool(row["CloseDirHit"]))
+        self.assertTrue(bool(row["PredRecoverToPrevClose"]))
 
     def test_select_current_intraday_rest_of_session_forecasts_is_bucket_aware(self) -> None:
         history = pd.DataFrame(

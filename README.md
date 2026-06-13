@@ -132,6 +132,8 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 - `out/analysis/ml_ohlc_multi_session.csv`: active T+n price forecast nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`; `T+N` là N phiên giao dịch sau snapshot
 - `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics của active T+n price model
 - `out/analysis/ml_intraday_rest_of_session.csv`: active 1-minute OHLCV + depth close forecast; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict`
+- `out/analysis/ml_intraday_rest_of_session_metrics.csv`: validation metrics của intraday model theo bucket/time window
+- `out/analysis/ml_intraday_rest_of_session_backtest.csv`: recent holdout predictions của best intraday model theo bucket, gồm actual/pred recover và close error để audit từng phiên
 - `out/analysis/positions/`: review vị thế đang nắm theo ML-only, gồm P/L hiện tại, forecast P/L theo horizon và error band; không tự sinh rule bán/mua thêm
 - `out/analysis/macro_factor_*.csv`: độ nhạy/correlation của từng mã với dầu, vàng, USD, VIX, lợi suất Mỹ và các chỉ số chứng khoán lớn như S&P 500, Nasdaq, Dow Jones, Euro Stoxx 50, DAX, FTSE 100, CAC 40, Nikkei 225, KOSPI
 - `out/analysis/ml_macro_*.csv`: walk-forward feature-lift của ML khi thêm macro/global equity features; dùng để biết correlation có thật sự cải thiện predict hay không
