@@ -9,9 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error
-from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -86,17 +84,9 @@ REQUIRED_OUTPUT_COLUMNS = [
 ]
 
 MODEL_METADATA = {
-    "ridge": {
-        "ModelFamily": "ML-linear",
-        "ModelClass": "Ridge",
-    },
     "hist_gbm": {
         "ModelFamily": "ML-tree-boosting",
         "ModelClass": "HistGradientBoostingRegressor",
-    },
-    "mlp_deep": {
-        "ModelFamily": "DL-style-neural-network",
-        "ModelClass": "MLPRegressor(32)",
     },
 }
 
@@ -260,24 +250,11 @@ def build_live_model_factories():
         )
 
     return {
-        "ridge": lambda: make_numeric_pipeline(Ridge(alpha=1.0)),
         "hist_gbm": lambda: make_numeric_pipeline(
             HistGradientBoostingRegressor(
                 max_depth=3,
                 learning_rate=0.05,
                 max_iter=120,
-                random_state=42,
-            )
-        ),
-        "mlp_deep": lambda: make_numeric_pipeline(
-            MLPRegressor(
-                hidden_layer_sizes=(32,),
-                activation="relu",
-                alpha=0.001,
-                learning_rate_init=0.001,
-                max_iter=180,
-                early_stopping=True,
-                n_iter_no_change=8,
                 random_state=42,
             )
         ),

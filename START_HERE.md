@@ -17,17 +17,10 @@ Hoặc chạy foreground một phát:
 1. `./broker.sh map`
 2. `./broker.sh prepare`
 
-Nếu muốn soi sâu một mã trước khi hỏi:
+Nếu muốn precompute active models trước khi hỏi:
 
-1. `./broker.sh deep VIC`
-
-Nếu muốn xem ranking ứng viên thống nhất mà không hỏi Codex ngay:
-
-1. `./broker.sh candidates auto`
-
-Nếu muốn xem thêm mã nào có đà tăng tiếp, đi ngang, hay rủi ro giảm trong vài phiên tới:
-
-1. `./broker.sh momentum`
+1. `./broker.sh ohlc`
+2. `./broker.sh intraday`
 
 Nếu đang trong phiên và muốn xem case đang đỏ có khả năng hồi cuối phiên hay không:
 
@@ -54,10 +47,10 @@ Prompt gợi ý:
 - `Nếu đã hỏi giá/số lượng đặt lệnh cụ thể mà artifact không còn cùng mốc với giá hiện tại thì phải rebuild trước, hoặc nói thẳng artifact stale chưa đủ sạch để đặt.`
 - `Nếu tôi đưa giá live mới, hỏi trong giờ nghỉ trưa, ngoài phiên, sau ATO, gần ATC, hoặc snapshot đã cũ so với thị trường hiện tại, phải fetch/rebuild lại snapshot giá và artifact liên quan trước khi nói lệnh cụ thể; nếu full ML chạy chậm thì tiếp tục chạy cho xong trừ khi tôi yêu cầu dừng, không tự ý chuyển sang khuyến nghị tạm cho lệnh/size lớn.`
 - `Nếu hỏi hiện tại thì sao, phải trả lời thêm đà các phiên tới là tăng tiếp / đi ngang / giảm, độ gấp mua ngay hay có thể chờ, và overlay lịch nghỉ lễ/sự kiện/tin tức live.`
-- `Khi đưa khuyến nghị, phải đọc các chỉ số ML theo từng mã: timing forecast, OHLC T+1/multi-session tới T+20 nếu có, model name/family/class, MAE và direction hit; không chỉ nói mua được hay không.`
+- `Khi đưa khuyến nghị, phải đọc hai active model: OHLC T+n tới T+20 và intraday morning-close nếu đang trong phiên; nêu model name/family/class, MAE và direction hit; không chỉ nói mua được hay không.`
 - `Khi có tin dầu/Iran/global market, chạy hoặc đọc eval_macro ở chế độ cache sau khi refresh factor cho VIC để xem correlation với dầu, USD, VIX, lợi suất Mỹ và các chỉ số Mỹ/Âu/Anh/Nhật/Hàn; sau đó chạy hoặc đọc eval_macro_lift để kiểm tra các feature này có cải thiện predict so với baseline không.`
 - `Với VIC, pair-feature ML nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
-- `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc timing T+15/T+20 và cycle/range thay vì chỉ nhìn T+1/T+3.`
+- `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc OHLC T+15/T+20 thay vì chỉ nhìn T+1/T+3.`
 - `Nếu hỏi xử lý vị thế đã mua, phải dùng ML-only position review; không tự chế số lượng bán/cắt/mua thêm nếu artifact không có action-sizing.`
 - `Không dùng nhãn cảm tính như nóng/khỏe/yếu/mạnh làm lý do; nếu nhắc RSI/SMA/ret5d thì phải là feature hoặc validation metric, không phải rule hành động.`
 - `Nếu hỏi có nên mua một mã cụ thể ngay không, repo đang ở chế độ VIC-only; không kéo thêm mã đối chứng.`

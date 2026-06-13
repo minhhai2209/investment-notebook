@@ -41,32 +41,17 @@ Scope phân tích mặc định hiện chỉ là `VIC`; các mã khác chỉ và
 
 3. Mở Codex ngay trong repo này và hỏi trực tiếp.
 
-Nếu muốn soi sâu một mã sau khi warm-up xong:
+Active model surface hiện đã consolidate còn 2 model đáng tin cậy:
 
 ```bash
-./broker.sh deep VIC
+./broker.sh ohlc
+./broker.sh intraday
 ```
 
-Lệnh này sẽ tổng hợp `snapshot + range + timing + OHLC + entry ladder + playbook + research state` thành một report riêng dưới `out/deep_dive/`.
+- `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) bằng `hist_gbm` / `HistGradientBoostingRegressor`.
+- `intraday`: dự báo close còn lại của phiên từ dữ liệu buổi sáng bằng `hist_gbm` / `HistGradientBoostingRegressor`.
 
-Nếu muốn dựng ranking ứng viên thống nhất thành artifact trước:
-
-```bash
-./broker.sh candidates auto
-```
-
-Artifact sẽ nằm dưới `out/analysis/candidates/` với 2 mức:
-
-- `candidate_watchlist_core.*`: đủ để trả lời nhanh bằng snapshot + playbook
-- `candidate_watchlist_full.*`: thêm timing + OHLC T+1/multi-session + validation metrics + ladder + research state
-
-Nếu muốn dựng thêm lớp `đà tăng / đi ngang / giảm` và độ gấp cho scope trả lời mặc định:
-
-```bash
-./broker.sh momentum
-```
-
-Artifact sẽ nằm dưới `out/analysis/momentum/`. Report này chỉ dùng artifact local và lịch sự kiện trong `config/market_events.json`; tin tức live vẫn phải được check riêng ngay lúc trả lời.
+Các builder cũ như `range`, `cycle`, `timing`, `entry_ladder`, `sequence_dl`, `candidates`, `momentum`, `deep` vẫn có thể gọi tay để diagnostic/legacy, nhưng không còn là default model source.
 
 Nếu bạn muốn dùng artifact đã build trên GitHub Actions mà không commit snapshot vào repo:
 
@@ -108,25 +93,25 @@ Ví dụ:
 ./broker.sh refresh_vic_map
 ./broker.sh sync_artifacts
 ./broker.sh prepare_default
-./broker.sh candidates auto
-./broker.sh momentum
 ./broker.sh position_ml --ticker VIC --quantity 20000 --avg-price 214.53 --current-price <live_price>
 ./broker.sh refresh_macro
 ./broker.sh eval_macro --no-refresh-factors --case-tickers VIC
 ./broker.sh eval_macro_lift --case-tickers VIC
+./broker.sh ohlc
+./broker.sh intraday
+```
+
+Các harness/builder legacy vẫn còn để audit khi cần:
+
+```bash
+./broker.sh candidates auto
 ./broker.sh deep VIC
 ./broker.sh range
 ./broker.sh cycle
 ./broker.sh playbook
-./broker.sh ohlc
-./broker.sh intraday
 ./broker.sh timing
 ./broker.sh entry_ladder
-```
-
-Các harness offline vẫn còn:
-
-```bash
+./broker.sh sequence_dl
 ./broker.sh eval_deterministic
 ./broker.sh eval_ml
 ./broker.sh eval_vnindex
@@ -142,13 +127,10 @@ Các harness offline vẫn còn:
 - `out/market_summary.json`: breadth, range, co-movement ở cấp thị trường
 - `out/sector_summary.csv`: breadth/relative strength ở cấp ngành
 - `out/analysis/`: các report ML và evaluation
-- `out/analysis/candidates/`: watchlist xếp hạng thống nhất ở mức `core` và `full`
-- `out/analysis/ml_ohlc_next_session.csv`: forecast OHLC phiên kế tiếp kèm model, model family/class, MAE và hit hướng close
-- `out/analysis/ml_ohlc_multi_session.csv`: forecast OHLC nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20` để đọc như một bản dự báo xác suất, không phải giá chắc chắn
-- `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics theo từng ticker/horizon/model để audit vì sao model được chọn
-- `out/analysis/ml_intraday_rest_of_session.csv`: forecast phần còn lại của phiên trong các bucket intraday; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict` để đọc case đang đỏ có hồi cuối phiên hay không
-- `out/analysis/ml_single_name_timing.csv`: timing/peak/drawdown/close theo horizon mặc định `T+3/T+5/T+10/T+15/T+20`; `T+N` nghĩa là N phiên giao dịch sau snapshot
-- `out/analysis/momentum/`: continuation/urgency report theo forecast/validation để phân biệt edge T+N, forecast âm, zone artifact chưa đạt, hoặc thiếu action-sizing
+- `out/analysis/ml_ohlc_next_session.csv`: active T+n price forecast cho phiên kế tiếp bằng `hist_gbm`
+- `out/analysis/ml_ohlc_multi_session.csv`: active T+n price forecast nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`; `T+N` là N phiên giao dịch sau snapshot
+- `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics của active T+n price model
+- `out/analysis/ml_intraday_rest_of_session.csv`: active morning-data close forecast; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict`
 - `out/analysis/positions/`: review vị thế đang nắm theo ML-only, gồm P/L hiện tại, forecast P/L theo horizon và error band; không tự sinh rule bán/mua thêm
 - `out/analysis/macro_factor_*.csv`: độ nhạy/correlation của từng mã với dầu, vàng, USD, VIX, lợi suất Mỹ và các chỉ số chứng khoán lớn như S&P 500, Nasdaq, Dow Jones, Euro Stoxx 50, DAX, FTSE 100, CAC 40, Nikkei 225, KOSPI
 - `out/analysis/ml_macro_*.csv`: walk-forward feature-lift của ML khi thêm macro/global equity features; dùng để biết correlation có thật sự cải thiện predict hay không
@@ -191,13 +173,13 @@ Repo này được thiết kế để mở một session Codex mới rồi làm 
 - Sau bước refresh artifact, Codex phải tự browse tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy khi trả lời `hôm nay mua gì`; lớp này là bước hỏi đáp, không phải lệnh batch của repo
 - Khi macro/geopolitics/oil/global market có thể ảnh hưởng HOSE, chạy hoặc đọc `./broker.sh eval_macro --no-refresh-factors --case-tickers VIC` sau khi cache đã refresh để xem correlation không nhất thiết cùng chiều, rồi đọc `./broker.sh eval_macro_lift --case-tickers VIC` để kiểm tra macro/global equity features có cải thiện predict so với baseline không.
 - Với `VIC`, pair features nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định.
-- Khi trả lời `hiện tại thì sao`, Codex phải chạy/đọc thêm momentum report sau candidate full để đánh giá continuation/sideways/downside, rồi check lịch nghỉ lễ/sự kiện/tin tức live trước khi chốt độ gấp.
+- Khi trả lời `hiện tại thì sao`, Codex phải đọc active OHLC T+n và intraday morning-close nếu trong phiên, rồi check lịch nghỉ lễ/sự kiện/tin tức live trước khi chốt độ gấp.
 - Khi trả lời câu hỏi mua một mã cụ thể ngay hay chờ, Codex chỉ so sánh với mã khác nếu người hỏi nêu rõ mã đó; scope mặc định không còn mã đối chứng ngoài `VIC`.
 - Lớp quyết định không được cộng/trừ điểm thủ công; nếu có overlay ticker/archetype thì chỉ dùng làm mô tả context, còn mua/chờ/không mua phải đến từ forecast/validation per-ticker và vùng giá từ artifact.
 - `eval_deterministic` chỉ là harness replay/feature legacy; không dùng nó làm nguồn ra quyết định trong câu trả lời tương tác.
 - Khi xử lý vị thế đã mua, không được tự chế mốc bán/cắt/size. Phải dùng `./broker.sh position_ml` để đọc forecast P/L và error band; nếu chưa có model action-sizing thì nói rõ chưa đủ sạch để đưa lệnh định lượng.
 - Output khuyến nghị phải model-first: các cụm như `quá nóng`, `đang khỏe`, `yếu`, `đuổi giá` không được dùng làm lý do nếu không có artifact/model metric tương ứng.
-- Artifact forecast phải ghi rõ model family/class. Repo hiện chạy ML linear, ML tree boosting, và neural-network MLP (`mlp_deep`, DL-style bằng scikit-learn); LSTM/Transformer thật cần thêm torch/tensorflow pipeline riêng trước khi dùng làm nguồn khuyến nghị.
+- Artifact forecast active phải ghi rõ model family/class. Repo hiện dùng `hist_gbm` / `HistGradientBoostingRegressor` cho cả T+n price và morning-data close forecast; các model khác chỉ là legacy/diagnostic khi gọi tay.
 - Không dùng flow nền hay nhiều builder chồng nhau, trừ khi từng job ghi ra output riêng và không dùng chung cache/history
 - Khẩu vị mặc định của repo này là: ngân sách tham chiếu khoảng `5 tỷ`, ưu tiên size lớn, và phải liệt kê đầy đủ ứng viên khả thi thay vì ép chọn đúng một mã
 - Contract đầu ra mặc định là: liệt kê ứng viên theo `mua ngay`, `chờ`, hoặc `không mua`; với mỗi mã `mua ngay` hoặc `chờ`, phải nêu `vùng giá cụ thể`, `quy mô vốn/số lượng`, và `nên đặt trước phiên / chờ ATO / đợi sau ATO`

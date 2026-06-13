@@ -279,25 +279,17 @@ run_prepare() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_engine "$config_path"
   clean_notebook_artifacts
-  run_playbook_report
-  run_candidate_report core
   run_ohlc_report
-  run_timing_report
-  run_cycle_report
-  run_range_report
   run_intraday_report
-  run_entry_ladder_report
   run_research_bundle
-  run_candidate_report full
 }
 
 run_prepare_core() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_engine "$config_path"
   clean_notebook_artifacts
-  run_playbook_report
-  run_candidate_report core
   run_ohlc_report
+  run_intraday_report
 }
 
 run_prepare_default() {
@@ -330,14 +322,16 @@ Universe helpers:
   prepare_default      Refresh VIC scope, then run the full prepare pipeline sequentially
   refresh_macro        Refresh cached macro/global equity factors
 
-Report builders:
+Active model builders:
+  ohlc                 Build the consolidated T+n price model report
+  intraday             Build the consolidated morning-data close model report
+
+Legacy/diagnostic builders:
   candidates [mode]    Build ranked candidate watchlist (`auto`, `core`, or `full`)
   deep <ticker>        Build a deep per-ticker ML + research synthesis report
   range                Build range forecast reports
   cycle                Build cycle forecast reports
   playbook             Build per-ticker playbook report
-  ohlc                 Build next-session and multi-session OHLC reports
-  intraday             Build rest-of-session intraday report when the current timestamp allows it
   timing               Build single-name timing report
   entry_ladder         Build entry ladder evaluation report
   momentum             Build focused continuation/urgency report for default tickers

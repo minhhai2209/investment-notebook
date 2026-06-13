@@ -361,10 +361,10 @@ class OhlcReplayAnalysisTest(unittest.TestCase):
             row = sample.loc[sample["Date"] == pd.Timestamp(dates[242])].iloc[0]
 
             self.assertEqual(float(row["TickerBreakoutHigh20State"]), 1.0)
-            self.assertTrue(pd.isna(row["PairRet1Pct"]))
-            self.assertEqual(float(row["PairBreakoutHigh20State"]), 0.0)
-            self.assertTrue(pd.isna(row["PairCorr20"]))
-            self.assertIn("PairBreakoutHigh60State_Lag1", sample.columns)
+            self.assertNotIn("PairRet1Pct", sample.columns)
+            self.assertNotIn("PairBreakoutHigh20State", sample.columns)
+            self.assertNotIn("PairCorr20", sample.columns)
+            self.assertNotIn("PairBreakoutHigh60State_Lag1", sample.columns)
 
 
 if __name__ == "__main__":
