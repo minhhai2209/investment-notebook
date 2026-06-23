@@ -261,6 +261,10 @@ run_eval_macro_lift() {
   run_module eval_macro_lift scripts.analysis.evaluate_macro_feature_lift "$@"
 }
 
+run_eval_vic_index_expiry() {
+  run_module eval_vic_index_expiry scripts.analysis.evaluate_vic_index_expiry_features "$@"
+}
+
 run_refresh_macro() {
   run_module refresh_macro scripts.data_fetching.macro_factor_cache \
     --config config/macro_factors.yaml \
@@ -345,6 +349,7 @@ Offline evaluation:
   eval_ohlc            Run multi-horizon OHLC ML baseline
   eval_macro           Run macro-factor sensitivity evaluation
   eval_macro_lift      Compare ML prediction with/without macro/global equity features
+  eval_vic_index_expiry Compare VIC forecast with VNINDEX/ex-Vin/derivative-expiry features
   eval_bctt            Run BCTT feature-lift evaluation
 EOF
 }
@@ -449,6 +454,9 @@ main() {
       ;;
     eval_macro_lift)
       run_eval_macro_lift "$@"
+      ;;
+    eval_vic_index_expiry)
+      run_eval_vic_index_expiry "$@"
       ;;
     eval_bctt)
       run_eval_bctt "$@"
