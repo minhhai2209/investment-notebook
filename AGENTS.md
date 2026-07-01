@@ -5,77 +5,61 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 
 ## Mục tiêu làm việc
 
-- Đây là repo notebook để phân tích cơ hội đầu tư, không phải repo đặt lệnh.
-- Không reintroduce `orders.csv`, browser automation, hay workflow execution cũ.
-- Output generated nằm dưới `out/` hoặc `research/`.
+- Đây là repo notebook để dự báo thị trường/mã theo dữ liệu, không phải repo khuyến nghị giao dịch.
+- Scope phân tích mặc định hiện là `VIC`; nếu bạn muốn đổi scope, phải cập nhật contract/config trước rồi chạy lại pipeline liên quan.
+- Không reintroduce `orders.csv`, browser automation, order placement, portfolio workflow, budget sizing, hoặc execution workflow cũ.
+- Output generated nằm dưới `out/`, `research/`, hoặc `reports/`.
 
 ## Cách tôi phải làm với bạn
 
-- Khi bạn hỏi kiểu `Hôm nay mua gì?`, tôi phải tự lo phần còn lại.
-- Nếu dữ liệu/artifact thiếu hoặc stale, tôi phải tự chạy lại theo cách tuần tự rồi mới trả lời.
-- Khi rebuild/fetch/full ML đang cần để ra khuyến nghị hoặc lệnh cụ thể, tôi không được tự ý dừng chỉ vì chạy lâu. Nếu command lỗi, bị user interrupt, hoặc tôi đã dừng vì bất kỳ lý do gì, câu trả lời bắt buộc phải nói rõ `đã dừng/chưa có artifact đủ sạch` và không được đưa khuyến nghị/lệnh dựa trên phần chạy dở.
-- Sau khi refresh artifact xong, tôi phải tự xem thêm tin tức live ngay lúc trả lời để check macro/geopolitics/policy; không được nhét lớp news này vào batch command của repo.
-- Không được trả lời giữa chừng kiểu `đang chờ batch chạy xong`.
+- Khi bạn hỏi `hiện tại`, `phiên tới`, `dự báo`, hoặc câu tương tự, tôi phải tự kiểm tra artifact có stale không; nếu stale thì refresh artifact liên quan trước khi phân tích.
+- Khi rebuild/fetch/full ML đang cần để có forecast sạch, tôi không được tự ý dừng chỉ vì chạy lâu. Nếu command lỗi, bị user interrupt, hoặc tôi đã dừng vì bất kỳ lý do gì, câu trả lời phải nói rõ `đã dừng/chưa có artifact đủ sạch` và không được kết luận từ phần chạy dở.
+- Không trả lời giữa chừng kiểu `đang chờ batch chạy xong` nếu forecast chính vẫn đang chạy.
 - Chỉ song song hóa nếu các job thật sự độc lập và không đụng cùng cache/file.
-- Nếu bạn chỉ ra một lỗi lặp lại, một chỗ tôi xử lý chưa đúng, hoặc một kỳ vọng mới về cách làm việc, tôi phải coi đó là tín hiệu để cập nhật `way of working` của repo ngay khi hợp lý, không chỉ sửa cho riêng câu trả lời hiện tại.
+- Nếu bạn chỉ ra một lỗi lặp lại, một chỗ tôi xử lý chưa đúng, hoặc một kỳ vọng mới về cách làm việc, tôi phải cập nhật `way of working` của repo ngay khi hợp lý.
 - Khi một bài học đủ ổn định để áp dụng cho các lượt sau, tôi phải cập nhật nó vào contract/docs thay vì giữ như trí nhớ tạm trong session.
 
-## Khẩu vị mặc định
+## Prediction-Only Contract
 
-- Scope phân tích của repo từ bây giờ chỉ là `VIC`; nếu bạn hỏi mã khác, tôi phải nói repo đang ở chế độ VIC-only thay vì tự kéo thêm mã.
-- Scope trả lời mặc định chỉ gồm `VIC`; không lôi mã đối chứng vào so sánh mặc định nữa.
-- Ngân sách tham chiếu mặc định là khoảng `5 tỷ`.
-- Ưu tiên xuống tiền lớn ở vùng giá đẹp; có thể chia vài nấc lớn, không chia micro-probe.
-- Ưu tiên chất lượng điểm vào hơn xác suất khớp; không được mặc định chọn nấc quá sát chỉ vì dễ khớp.
-- Không cần ép đúng `1` mã mỗi ngày; phải nêu đầy đủ ứng viên khả thi và thứ tự ưu tiên.
-- Nếu không có mã đủ sạch thì phải nói thẳng `không mua`.
-- Khi bạn hỏi có nên mua một mã cụ thể ngay không, tôi chỉ so sánh với mã khác nếu bạn nêu rõ mã đó; scope mặc định không còn mã đối chứng ngoài `VIC`.
-- Khi đề xuất lệnh/ladder, phải ưu tiên các mức giá đến từ active model artifact (`ohlc` T+n price, `intraday` morning close) và research state; không tự chế nấc nếu artifact không hỗ trợ.
-- Không được tự bịa thêm nấc bằng cách trừ thủ công một khoảng từ giá hiện tại chỉ để đủ ladder; nếu artifact chưa cho mức giá đủ đẹp thì phải nói thẳng là chưa có lệnh đáng đặt.
-- Nếu người hỏi đã chuyển sang mode `ra lệnh` hoặc hỏi giá/số lượng cụ thể, tôi phải kiểm tra xem artifact dùng để ra lệnh có còn đồng bộ với snapshot giá hiện tại không.
-- Nếu giá hiện tại đã lệch materially làm cho active model artifact không còn cùng mốc, tôi phải `rebuild lại artifact liên quan` hoặc nói thẳng `artifact đang stale, chưa đủ sạch để đặt lệnh`.
-- Nếu người hỏi đưa giá live mới, hỏi trong giờ nghỉ trưa, ngoài phiên, sau ATO, gần ATC, hoặc sau một quãng thời gian đáng kể so với snapshot artifact, tôi phải coi artifact đặt lệnh là có nguy cơ stale; trước khi nói mua/bán/đặt LO cụ thể phải fetch/rebuild snapshot giá và artifact liên quan. Nếu full ML đang chạy chậm thì tiếp tục chạy cho xong trừ khi người dùng yêu cầu dừng; không tự ý chuyển sang khuyến nghị tạm cho lệnh/size lớn.
-- Không được dùng câu kiểu `nếu đang X thì mua quanh Y` dựa trên artifact cũ khi người hỏi vừa cung cấp giá live lệch khỏi snapshot; phải kiểm tra lại `Last/Bid/Ask/Grid/NoChase/PreferredBuyZone` mới trước.
-- Khi trả lời `hiện tại thì sao`, `hôm nay mua gì`, hoặc câu hỏi tương tự, tôi không được chỉ nói mã nào mua được; tôi phải đánh giá thêm `ML direction/urgency` theo forecast/validation, ví dụ forecast T+3 còn edge, forecast âm, zone artifact chưa đạt, hoặc action-sizing chưa đủ model.
-- Active model surface chỉ còn 2 forecast tasks: `./broker.sh ohlc` dự báo giá T+n và `./broker.sh intraday` dự báo close từ dữ liệu buổi sáng. Mỗi task phải thử nhiều candidate model (`ridge`, `random_forest`, `hist_gbm`, `mlp_deep`) rồi chọn best theo validation.
-- Lớp ra quyết định cuối cùng phải lấy từ forecast/validation riêng `VIC` trong active artifacts (`OHLC` T+n, `intraday` morning-close, research state) thay vì score cộng/trừ thủ công. Các overlay theo archetype chỉ được mô tả context, không được cộng/trừ điểm để ép quyết định.
-- Với `VIC`, không tự kéo pair ticker vào phần phân tích hoặc so sánh mặc định; pair features nếu còn trong schema chỉ được để trống hoặc đọc như context kỹ thuật.
-- Các mốc kỹ thuật như breakout, high 20/60/120/252, trần/sàn/limit proxy chỉ được dùng làm feature hoặc output artifact; không dùng chúng như criteria hard-code kiểu “chưa vượt thì không mua” nếu model/action artifact sau khi train feature đã cho tín hiệu khác.
-- `eval_deterministic` là harness replay/feature legacy, không được dùng làm nguồn ra quyết định mua/chờ/không mua trong câu trả lời tương tác.
-- Khi đưa khuyến nghị, phải nêu các chỉ số ML chính của `VIC`: OHLC T+1 và OHLC multi-session mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`, intraday morning-close nếu đang trong cửa sổ hỗ trợ, model name/family/class, Close MAE và direction hit. Không được chỉ kết luận mua/chờ/không mua mà thiếu lớp predict/validation.
-- Nếu OHLC multi-session path và intraday morning-close mâu thuẫn materially trong ngày, phải gọi rõ là `model conflict`; không được tăng size cho đến khi path xác nhận.
-- Phải diễn giải rõ `T+N` là `N phiên giao dịch sau snapshot`, không phải ngày dương lịch; nếu người hỏi khung xa hơn thì vẫn đọc OHLC T+15/T+20 thay vì quay lại range/cycle legacy.
-- Khi xử lý vị thế đã mua, không được tự đặt rule thủ công kiểu bán bao nhiêu cổ, hồi bao nhiêu thì bán, thủng bao nhiêu thì cắt nếu các mốc/size đó không đi ra trực tiếp từ artifact/model. Phải dùng `./broker.sh position_ml` hoặc artifact tương đương để đưa P/L, forecast P/L theo từng horizon và error band; nếu chưa có model sizing/action thì phải nói rõ là chưa đủ model để chốt hành động định lượng.
-- Nếu người hỏi nói rõ là hỏi giùm người khác, không được dùng giá vốn/vị thế cá nhân trước đó của người hỏi để quyết định mua/chờ/không mua; phải phân tích như vị thế mới hoặc theo dữ liệu vị thế mà người hỏi cung cấp riêng cho người đó.
-- Không được dùng nhãn cảm tính như `nóng`, `khỏe`, `yếu`, `mạnh`, `đuổi`, `rủi ro cao` làm lý do khuyến nghị nếu nó không phải output/model metric. RSI, SMA distance, 5-day return chỉ được nhắc như feature/input hoặc thống kê validation, không được biến thành veto hay action rule thủ công.
-- Với `VIC`, nếu cần nói về regime thì phải dùng output định lượng: OHLC forecast, intraday morning-close forecast nếu có, MAE/hit rate. Không được viết kiểu `quá nóng nên khoan` hoặc các biến thể tương tự.
-- Phải xem lớp lịch nghỉ lễ/sự kiện local trong `config/market_events.json`; nếu file thiếu hoặc chưa có sự kiện cần thiết thì phải nói rõ và tự check thêm bằng tin/lịch live khi trả lời.
-- Lớp tin tức live, chính sách, sự kiện bất thường, lịch nghỉ lễ chính thức phải được kiểm tra ngay lúc trả lời; không được coi output batch là đã bao phủ tin live.
-- Khi tin macro/geopolitics/oil/global equity đáng kể xuất hiện, phải đọc thêm `eval_macro` ở chế độ cache sau khi refresh factor hoặc artifact `out/analysis/macro_factor_*.csv` cho `VIC` để xem tương quan với dầu, USD, VIX, lợi suất Mỹ và các chỉ số lớn Mỹ/Âu/Anh/Nhật/Hàn; không được mặc định correlation cùng chiều.
-- Với feature macro/global equity, correlation chỉ là diagnostics; muốn kết luận có dùng trong khuyến nghị hay không phải đọc thêm artifact feature-lift hoặc validation walk-forward liên quan. Nếu không có lift/validation thì không được nâng trọng số tín hiệu đó.
+- Repo này không còn dùng ngân sách mặc định, không tính số lượng cổ phiếu, không nói size, không dựng ladder, không đọc/gộp danh mục mặc định.
+- Tôi không được trả lời theo nhóm `mua ngay / chờ / không mua` trừ khi bạn yêu cầu rõ một lớp khuyến nghị ngoài phạm vi repo.
+- Tôi không được biến forecast thành lệnh mua/bán, không nói `nên đặt trước phiên`, `chờ ATO`, `đợi sau ATO`, hoặc vùng resting buy/sell.
+- Nếu bạn hỏi bằng ngôn ngữ mua/bán, tôi vẫn trả lời ở dạng prediction-only: xác suất/đường giá dự báo, vùng high/low/close, sai số, độ hit, và mức tin cậy. Nếu cần, tôi sẽ nói rõ repo này không còn đưa khuyến nghị giao dịch.
+- Nếu có file `data/portfolios/portfolio.csv`, cấu hình mặc định vẫn không đọc danh mục. Danh mục chỉ được dùng khi bạn bật rõ `portfolio.enabled: true` cho một phân tích legacy.
+- Tôi có thể tra cứu web/news/source mạng để tổng hợp bối cảnh, nhưng phải tách riêng khỏi phần `Model predict`.
+- `Model predict` chỉ được lấy từ model/artifact nội bộ trong repo. Không được dùng bài báo, trang tài chính, mạng xã hội, hoặc nhận định bên ngoài để sửa số forecast, chọn model, đổi confidence, hay gọi đó là tín hiệu model nếu chưa được mã hoá thành feature và kiểm chứng bằng walk-forward/feature-lift.
+- `External synthesis` là phần riêng nếu có tra cứu: phải ghi rõ nguồn/thời điểm, tóm tắt như bối cảnh ngoài model, và nói rõ nó không phải output của model.
+- Network/API qua fetcher/pipeline của repo vẫn được dùng để lấy dữ liệu đầu vào có thể tái lập cho model, ví dụ OHLCV, intraday, factor cache.
 
-## Contract đầu ra
+## Active Model Surface
 
-- Câu trả lời mặc định phải nhóm theo `mua ngay`, `chờ`, `không mua`.
-- Với mỗi mã thuộc `mua ngay` hoặc `chờ`, phải nêu rõ:
-  - vùng giá cụ thể
-  - size hoặc số lượng tham chiếu cho ngân sách mặc định
-  - trade-off hoặc lý do chính
-- Nếu phải đặt ladder, phải nói rõ nấc nào là `starter`, nấc nào là `main`, và không được ngầm hiểu `all-in` vào một nấc nếu setup chưa sạch.
-- Nếu có nhiều nấc, phải ghi rõ nấc nào đến trực tiếp từ ML/research artifact; tránh trộn nấc model-driven với nấc heuristic mà không nói rõ.
-- Không được dùng artifact cũ để đưa lệnh cụ thể như thể nó còn mới chỉ vì nó vẫn còn hữu ích cho phần thesis/phân tích.
-- Phải nói rõ snapshot/artifact đang dùng là mốc thời gian nào và lớp tin tức live vừa check là mốc nào nếu hai mốc khác nhau.
-- Với mỗi mã trọng tâm, ngoài `mua ngay/chờ/không mua`, phải có dòng `ML direction/urgency` dựa trên forecast/validation: ví dụ `T+3 close/peak còn edge`, `forecast âm/rủi ro giảm`, `zone chưa đạt theo artifact`, hoặc `action-sizing chưa đủ model`.
-- Với `VIC`, phải có phần `ML predict` gồm OHLC forecast gần nhất và xa hơn tới `T+20` nếu có, intraday morning-close nếu đang trong phiên, model family/class, sai số/độ hit backtest, và diễn giải liệu forecast đó đủ tin cậy để hành động hay chỉ dùng làm bối cảnh.
-- Với vị thế đang lỗ/lãi, câu trả lời phải tách `ML-only facts` khỏi `action`. Không được biến cảm tính hoặc mốc tự nghĩ thành khuyến nghị; chỉ được nêu action định lượng khi có artifact model/action sizing hỗ trợ.
-- Nếu câu hỏi là mua một mã ngay hay chờ, phải có dòng so sánh opportunity cost: mua mã đó bây giờ so với giữ tiền chờ các mã trọng tâm còn lại, mã nào đáng ưu tiên vốn hơn và vì sao.
-- Phải nêu tác động của lịch nghỉ lễ/sự kiện/tin tức nếu nó làm thay đổi model/action-sizing hoặc làm artifact stale.
-- Nếu là `chờ`, phải nói rõ điều kiện model/artifact cần xảy ra để chuyển trạng thái; không dùng cụm `không đuổi giá` như một rule cảm tính nếu chưa có artifact no-chase/zone hỗ trợ.
-- Khi trả lời cho phiên kế tiếp hoặc sau khi hết phiên, phải nói rõ nên `đặt trước phiên`, `chờ ATO`, hay `đợi sau ATO/30 phút đầu` rồi mới hành động.
+- Active forecast task mặc định:
+  - `./broker.sh ohlc`: dự báo OHLC T+n.
+  - `./broker.sh intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV/depth nếu đang trong phiên hỗ trợ.
+  - `./broker.sh eval_vic_index_expiry --models hist_gbm`: kiểm tra thêm feature VNINDEX/ex-Vin/derivative-expiry khi cần audit forecast daily.
+  - `./broker.sh eval_curated_intraday_model`: pooled intraday audit/model khi cần kiểm chứng feature theo walk-back.
+- Mỗi forecast phải đi cùng validation: model name/family/class, MAE, direction hit hoặc metric tương đương, sample/backtest window nếu artifact có.
+- `T+N` luôn nghĩa là `N phiên giao dịch sau snapshot`, không phải ngày dương lịch.
+- Các mốc kỹ thuật như breakout, high 20/60/120/252, RSI, SMA distance, return 5/20d chỉ được nhắc như feature/input hoặc diagnostics; không dùng làm rule hành động.
+- `eval_deterministic` là harness replay/feature legacy, không dùng làm nguồn forecast chính hoặc nguồn quyết định.
 
-## Nguyên tắc kỹ thuật
+## Contract Đầu Ra
+
+- Câu trả lời mặc định phải có:
+  - snapshot/artifact timestamp đang dùng
+  - forecast OHLC T+1 và multi-session tới `T+20` nếu có
+  - intraday forecast nếu đang trong phiên và artifact hợp lệ
+  - validation/error band đủ để hiểu forecast đáng tin đến đâu
+  - cảnh báo stale/missing artifact nếu có
+- Không đưa recommendation, position sizing, order ladder, hoặc opportunity-cost vốn.
+- Nếu forecast daily và intraday mâu thuẫn materially, gọi rõ là `model conflict` và mô tả mâu thuẫn bằng số liệu.
+- Nếu có tra cứu ngoài repo, câu trả lời phải có phần `External synthesis` tách khỏi `Model predict`; không trộn bối cảnh web/news vào forecast/validation.
+- Nếu muốn biến macro/event/factor thành tín hiệu predict thì phải mã hoá thành feature trong repo và kiểm chứng bằng walk-forward/feature-lift trước khi coi là model evidence.
+- `config/market_events.json` là input dữ liệu nội bộ nếu model/pipeline dùng; tra cứu lịch/tin ngoài repo chỉ thuộc `External synthesis` cho bối cảnh, không tự động thành feature.
+
+## Nguyên Tắc Kỹ Thuật
 
 - Fail fast nếu thiếu input, sai schema, hoặc API lỗi.
 - Validate các file structured quan trọng; không silently nuốt lỗi.
 - Giữ logic deterministic, dễ audit, không bịa thêm tín hiệu mơ hồ.
-- Danh mục là optional; không được giả định `data/portfolios/portfolio.csv` luôn tồn tại.
+- Cấu hình mặc định tắt danh mục bằng `portfolio.enabled: false`; không được giả định `data/portfolios/portfolio.csv` tồn tại hay có ý nghĩa trong forecast mặc định.

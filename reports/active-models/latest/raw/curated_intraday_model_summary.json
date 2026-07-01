@@ -1,0 +1,196 @@
+{
+  "Tickers": [
+    "ACB",
+    "BID",
+    "BSR",
+    "CTG",
+    "FPT",
+    "GAS",
+    "GVR",
+    "HDB",
+    "HPG",
+    "LPB",
+    "MBB",
+    "MSN",
+    "MWG",
+    "PLX",
+    "SAB",
+    "SHB",
+    "SSB",
+    "SSI",
+    "STB",
+    "TCB",
+    "TPB",
+    "VCB",
+    "VHM",
+    "VIB",
+    "VIC",
+    "VJC",
+    "VNM",
+    "VPB",
+    "VPL",
+    "VRE"
+  ],
+  "TickerCount": 30,
+  "SampleRows": 45481,
+  "SampleDates": 122,
+  "HistoryRows": 28421,
+  "FeatureSets": {
+    "baseline_live_no_depth": 50,
+    "range_micro_volume": 67,
+    "price_volume_core": 81,
+    "all_price_volume_micro": 128,
+    "all_available_no_depth": 128
+  },
+  "MicroFeatureCount": 78,
+  "SelectionMode": "locked",
+  "LockedBucketConfigs": {
+    "AM_EARLY": {
+      "FeatureSet": "price_volume_core",
+      "Model": "ridge"
+    },
+    "AM_LATE": {
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm"
+    },
+    "LUNCH_BREAK": {
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm"
+    },
+    "PM_EARLY": {
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm"
+    },
+    "PM_LATE": {
+      "FeatureSet": "range_micro_volume",
+      "Model": "ridge"
+    }
+  },
+  "Outputs": {
+    "History": "out/analysis/curated_intraday_model_locked/curated_intraday_model_history.csv",
+    "Metrics": "out/analysis/curated_intraday_model_locked/curated_intraday_model_metrics.csv",
+    "Current": "out/analysis/curated_intraday_model_locked/curated_intraday_model_current.csv"
+  },
+  "BestVicAndAllRows": [
+    {
+      "Scope": "ALL",
+      "Ticker": "ALL",
+      "SnapshotTimeBucket": "PM_LATE",
+      "FeatureSet": "range_micro_volume",
+      "Model": "ridge",
+      "Rows": 6668,
+      "UsedFeatureCount": 67.0,
+      "CloseMAEPct": 0.6598152419354069,
+      "HighMAEPct": 0.4852010469430283,
+      "LowMAEPct": 0.4151418423660372,
+      "RangeMAEPct": 0.5819864738056472,
+      "CloseDirHitPct": 44.64607078584283,
+      "SelectionScore": 0.7614707087101673
+    },
+    {
+      "Scope": "ALL",
+      "Ticker": "ALL",
+      "SnapshotTimeBucket": "PM_EARLY",
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm",
+      "Rows": 6697,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 0.8387020537443538,
+      "HighMAEPct": 0.6023782929845122,
+      "LowMAEPct": 0.4845257520617013,
+      "RangeMAEPct": 0.5842335987800761,
+      "CloseDirHitPct": 51.76944900701807,
+      "SelectionScore": 0.9190713714833881
+    },
+    {
+      "Scope": "VIC",
+      "Ticker": "VIC",
+      "SnapshotTimeBucket": "PM_LATE",
+      "FeatureSet": "range_micro_volume",
+      "Model": "ridge",
+      "Rows": 228,
+      "UsedFeatureCount": 67.0,
+      "CloseMAEPct": 0.9174740636724853,
+      "HighMAEPct": 0.732280333147986,
+      "LowMAEPct": 0.7300291891495853,
+      "RangeMAEPct": 0.943196459008386,
+      "CloseDirHitPct": 50.43859649122807,
+      "SelectionScore": 1.0377035368196066
+    },
+    {
+      "Scope": "ALL",
+      "Ticker": "ALL",
+      "SnapshotTimeBucket": "AM_LATE",
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm",
+      "Rows": 8523,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 0.996029168767663,
+      "HighMAEPct": 0.7012478605751529,
+      "LowMAEPct": 0.6193491852865557,
+      "RangeMAEPct": 0.6835988960584557,
+      "CloseDirHitPct": 53.760413000117325,
+      "SelectionScore": 1.1518112213549259
+    },
+    {
+      "Scope": "ALL",
+      "Ticker": "ALL",
+      "SnapshotTimeBucket": "AM_EARLY",
+      "FeatureSet": "price_volume_core",
+      "Model": "ridge",
+      "Rows": 6533,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 1.202632332451227,
+      "HighMAEPct": 0.9115634400549419,
+      "LowMAEPct": 0.7479047583274693,
+      "RangeMAEPct": 0.9010662565029445,
+      "CloseDirHitPct": 50.95668146333997,
+      "SelectionScore": 1.5381544096689534
+    },
+    {
+      "Scope": "VIC",
+      "Ticker": "VIC",
+      "SnapshotTimeBucket": "PM_EARLY",
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm",
+      "Rows": 228,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 1.298308381267053,
+      "HighMAEPct": 0.9231975084870438,
+      "LowMAEPct": 0.7963950137959115,
+      "RangeMAEPct": 0.9320016795242397,
+      "CloseDirHitPct": 51.75438596491229,
+      "SelectionScore": 1.6861847387328992
+    },
+    {
+      "Scope": "VIC",
+      "Ticker": "VIC",
+      "SnapshotTimeBucket": "AM_LATE",
+      "FeatureSet": "price_volume_core",
+      "Model": "hist_gbm",
+      "Rows": 304,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 1.5893843307110427,
+      "HighMAEPct": 1.012507359262916,
+      "LowMAEPct": 1.1177623546609536,
+      "RangeMAEPct": 1.1519834860184512,
+      "CloseDirHitPct": 49.67105263157895,
+      "SelectionScore": 2.1783678502058232
+    },
+    {
+      "Scope": "VIC",
+      "Ticker": "VIC",
+      "SnapshotTimeBucket": "AM_EARLY",
+      "FeatureSet": "price_volume_core",
+      "Model": "ridge",
+      "Rows": 227,
+      "UsedFeatureCount": 81.0,
+      "CloseMAEPct": 2.010518284534941,
+      "HighMAEPct": 1.4247452311344535,
+      "LowMAEPct": 1.298766745671109,
+      "RangeMAEPct": 1.270400508478804,
+      "CloseDirHitPct": 47.136563876651984,
+      "SelectionScore": 2.9243755628644625
+    }
+  ]
+}

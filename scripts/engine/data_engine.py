@@ -168,6 +168,7 @@ class EngineConfig:
     macd_slow: int
     macd_signal: int
     presets: Dict[str, PresetConfig]
+    portfolio_enabled: bool
     portfolio_dir: Path
     output_base_dir: Path
     market_snapshot_path: Path
@@ -253,6 +254,7 @@ class EngineConfig:
         portfolio_cfg = data.get("portfolio", {}) or {}
         if not isinstance(portfolio_cfg, dict):
             raise ConfigurationError("portfolio section must be a mapping")
+        portfolio_enabled = bool(portfolio_cfg.get("enabled", True))
         portfolio_dir = _resolve_path(
             portfolio_cfg.get("directory", "data/portfolios"), config_dir, repo_root
         )
@@ -370,6 +372,7 @@ class EngineConfig:
             macd_slow=macd_slow,
             macd_signal=macd_signal,
             presets=presets,
+            portfolio_enabled=portfolio_enabled,
             portfolio_dir=portfolio_dir,
             output_base_dir=output_base_dir,
             market_snapshot_path=market_snapshot_path,
@@ -883,6 +886,9 @@ class PortfolioReporter:
         return PortfolioRefreshResult({}, empty_positions, empty_sector, {})
 
     def refresh(self, snapshot: pd.DataFrame) -> PortfolioRefreshResult:
+        if not self._config.portfolio_enabled:
+            LOGGER.info("Portfolio support disabled by config; positions.csv will be empty")
+            return self._empty_result()
         portfolios_dir = self._config.portfolio_dir
         if not portfolios_dir.exists():
             LOGGER.info("Portfolio directory does not exist: %s; positions.csv will be empty", portfolios_dir)
@@ -2452,84 +2458,86 @@ class DataEngine:
         )
         market_df.insert(insert_at, "IsVN30", vn30_flags)
 
-        position_column_map = {
-            "Quantity": "PositionQuantity",
-            "AvgPrice": "PositionAvgPrice",
-            "MarketValue_kVND": "PositionMarketValue_kVND",
-            "CostBasis_kVND": "PositionCostBasis_kVND",
-            "Unrealized_kVND": "PositionUnrealized_kVND",
-            "PNLPct": "PositionPNLPct",
-        }
-        positions_for_merge = positions_df.copy()
-        if "Last" in positions_for_merge.columns:
-            positions_for_merge = positions_for_merge.drop(columns=["Last"])
-        positions_for_merge = positions_for_merge.rename(columns=position_column_map)
+        universe_df = market_df.copy()
+        if self._config.portfolio_enabled:
+            position_column_map = {
+                "Quantity": "PositionQuantity",
+                "AvgPrice": "PositionAvgPrice",
+                "MarketValue_kVND": "PositionMarketValue_kVND",
+                "CostBasis_kVND": "PositionCostBasis_kVND",
+                "Unrealized_kVND": "PositionUnrealized_kVND",
+                "PNLPct": "PositionPNLPct",
+            }
+            positions_for_merge = positions_df.copy()
+            if "Last" in positions_for_merge.columns:
+                positions_for_merge = positions_for_merge.drop(columns=["Last"])
+            positions_for_merge = positions_for_merge.rename(columns=position_column_map)
 
-        universe_df = market_df.merge(positions_for_merge, on="Ticker", how="left")
-        if "PositionQuantity" in universe_df.columns:
-            universe_df["PositionQuantity"] = pd.to_numeric(
-                universe_df["PositionQuantity"], errors="coerce"
-            ).fillna(0.0)
-        for col in [
-            "PositionMarketValue_kVND",
-            "PositionCostBasis_kVND",
-            "PositionUnrealized_kVND",
-        ]:
-            if col in universe_df.columns:
-                universe_df[col] = pd.to_numeric(universe_df[col], errors="coerce").fillna(0.0)
+            universe_df = market_df.merge(positions_for_merge, on="Ticker", how="left")
+            if "PositionQuantity" in universe_df.columns:
+                universe_df["PositionQuantity"] = pd.to_numeric(
+                    universe_df["PositionQuantity"], errors="coerce"
+                ).fillna(0.0)
+            for col in [
+                "PositionMarketValue_kVND",
+                "PositionCostBasis_kVND",
+                "PositionUnrealized_kVND",
+            ]:
+                if col in universe_df.columns:
+                    universe_df[col] = pd.to_numeric(universe_df[col], errors="coerce").fillna(0.0)
 
-        if "PositionQuantity" in universe_df.columns and "ADTV20_shares" in universe_df.columns:
-            adtv_shares = pd.to_numeric(universe_df["ADTV20_shares"], errors="coerce")
-            position_qty = pd.to_numeric(universe_df["PositionQuantity"], errors="coerce")
-            position_pct_adv = pd.Series([float("nan")] * len(universe_df), index=universe_df.index)
-            valid_adv = (~adtv_shares.isna()) & (adtv_shares != 0)
-            position_pct_adv.loc[valid_adv] = (
-                position_qty.loc[valid_adv] / adtv_shares.loc[valid_adv]
-            ) * 100.0
-            insert_at = universe_df.columns.get_loc("PositionQuantity") + 1
-            universe_df.insert(insert_at, "PositionPctADV20", position_pct_adv)
+            if "PositionQuantity" in universe_df.columns and "ADTV20_shares" in universe_df.columns:
+                adtv_shares = pd.to_numeric(universe_df["ADTV20_shares"], errors="coerce")
+                position_qty = pd.to_numeric(universe_df["PositionQuantity"], errors="coerce")
+                position_pct_adv = pd.Series([float("nan")] * len(universe_df), index=universe_df.index)
+                valid_adv = (~adtv_shares.isna()) & (adtv_shares != 0)
+                position_pct_adv.loc[valid_adv] = (
+                    position_qty.loc[valid_adv] / adtv_shares.loc[valid_adv]
+                ) * 100.0
+                insert_at = universe_df.columns.get_loc("PositionQuantity") + 1
+                universe_df.insert(insert_at, "PositionPctADV20", position_pct_adv)
 
-            atr_base = universe_df.get("ATR14")
-            if atr_base is not None:
-                atr_series = pd.to_numeric(atr_base, errors="coerce")
-            else:
-                atr_series = pd.Series([float("nan")] * len(universe_df), index=universe_df.index)
-            position_atr = atr_series * position_qty
-            if "PositionUnrealized_kVND" in universe_df.columns:
-                insert_at = universe_df.columns.get_loc("PositionUnrealized_kVND") + 1
-            else:
-                insert_at = len(universe_df.columns)
-            universe_df.insert(insert_at, "PositionATR_kVND", position_atr)
+                atr_base = universe_df.get("ATR14")
+                if atr_base is not None:
+                    atr_series = pd.to_numeric(atr_base, errors="coerce")
+                else:
+                    atr_series = pd.Series([float("nan")] * len(universe_df), index=universe_df.index)
+                position_atr = atr_series * position_qty
+                if "PositionUnrealized_kVND" in universe_df.columns:
+                    insert_at = universe_df.columns.get_loc("PositionUnrealized_kVND") + 1
+                else:
+                    insert_at = len(universe_df.columns)
+                universe_df.insert(insert_at, "PositionATR_kVND", position_atr)
 
-        if "PositionMarketValue_kVND" in universe_df.columns:
-            portfolio_values = pd.to_numeric(universe_df["PositionMarketValue_kVND"], errors="coerce").fillna(0.0)
-            total_market = float(portfolio_values.sum())
-            engine_nav = pd.Series([total_market] * len(universe_df), index=universe_df.index, dtype=float)
-            insert_at = universe_df.columns.get_loc("PositionMarketValue_kVND")
-            universe_df.insert(insert_at, "EnginePortfolioMarketValue_kVND", engine_nav)
-            if total_market:
-                weights = (portfolio_values / total_market) * 100.0
-            else:
-                weights = pd.Series(
-                    [0.0] * len(universe_df), index=universe_df.index, dtype=float
+            if "PositionMarketValue_kVND" in universe_df.columns:
+                portfolio_values = pd.to_numeric(universe_df["PositionMarketValue_kVND"], errors="coerce").fillna(0.0)
+                total_market = float(portfolio_values.sum())
+                engine_nav = pd.Series([total_market] * len(universe_df), index=universe_df.index, dtype=float)
+                insert_at = universe_df.columns.get_loc("PositionMarketValue_kVND")
+                universe_df.insert(insert_at, "EnginePortfolioMarketValue_kVND", engine_nav)
+                if total_market:
+                    weights = (portfolio_values / total_market) * 100.0
+                else:
+                    weights = pd.Series(
+                        [0.0] * len(universe_df), index=universe_df.index, dtype=float
+                    )
+                insert_at = universe_df.columns.get_loc("PositionMarketValue_kVND") + 1
+                universe_df.insert(insert_at, "PositionWeightPct", weights)
+
+            if "Sector" in universe_df.columns and "PositionWeightPct" in universe_df.columns:
+                sector_weight_map = (
+                    universe_df.groupby("Sector")["PositionWeightPct"].sum().to_dict()
                 )
-            insert_at = universe_df.columns.get_loc("PositionMarketValue_kVND") + 1
-            universe_df.insert(insert_at, "PositionWeightPct", weights)
+                universe_df["SectorWeightPct"] = universe_df["Sector"].map(sector_weight_map).fillna(0.0)
+            else:
+                universe_df["SectorWeightPct"] = 0.0
 
-        if "Sector" in universe_df.columns and "PositionWeightPct" in universe_df.columns:
-            sector_weight_map = (
-                universe_df.groupby("Sector")["PositionWeightPct"].sum().to_dict()
-            )
-            universe_df["SectorWeightPct"] = universe_df["Sector"].map(sector_weight_map).fillna(0.0)
-        else:
-            universe_df["SectorWeightPct"] = 0.0
-
-        if "PositionWeightPct" in universe_df.columns and "Beta60_Index" in universe_df.columns:
-            weights = pd.to_numeric(universe_df["PositionWeightPct"], errors="coerce").fillna(0.0) / 100.0
-            betas = pd.to_numeric(universe_df["Beta60_Index"], errors="coerce").fillna(0.0)
-            universe_df["BetaContribution"] = weights * betas
-        else:
-            universe_df["BetaContribution"] = float("nan")
+            if "PositionWeightPct" in universe_df.columns and "Beta60_Index" in universe_df.columns:
+                weights = pd.to_numeric(universe_df["PositionWeightPct"], errors="coerce").fillna(0.0) / 100.0
+                betas = pd.to_numeric(universe_df["Beta60_Index"], errors="coerce").fillna(0.0)
+                universe_df["BetaContribution"] = weights * betas
+            else:
+                universe_df["BetaContribution"] = float("nan")
 
         universe_df.insert(1, "EngineRunAt", run_started.isoformat())
         priority_order = {ticker: idx for idx, ticker in enumerate(benchmark_tickers)}
@@ -2579,7 +2587,8 @@ class DataEngine:
         self._config.portfolios_dir.mkdir(parents=True, exist_ok=True)
         self._config.diagnostics_dir.mkdir(parents=True, exist_ok=True)
         self._config.market_cache_dir.mkdir(parents=True, exist_ok=True)
-        self._config.portfolio_dir.mkdir(parents=True, exist_ok=True)
+        if self._config.portfolio_enabled:
+            self._config.portfolio_dir.mkdir(parents=True, exist_ok=True)
         if self._config.cafef_flow_enabled:
             self._config.cafef_flow_cache_dir.mkdir(parents=True, exist_ok=True)
         if self._config.vietstock_overview_enabled:
@@ -2614,7 +2623,11 @@ class DataEngine:
 
     def _resolve_tickers(self, universe_df: pd.DataFrame) -> List[str]:
         tickers = set(universe_df["Ticker"].tolist())
-        portfolio_tickers = _load_portfolio_ticker_set(self._config.portfolio_dir)
+        portfolio_tickers = (
+            _load_portfolio_ticker_set(self._config.portfolio_dir)
+            if self._config.portfolio_enabled
+            else set()
+        )
         allowed = set(self._config.industry_ticker_filter or [])
         if allowed:
             filtered = sorted({t for t in tickers if t in allowed})

@@ -10,6 +10,7 @@ from scripts.analysis.evaluate_vic_index_expiry_features import (
     add_index_expiry_features,
     build_derivative_expiry_features,
     build_ex_vin_market_features,
+    select_best_current_forecasts,
 )
 from scripts.analysis.evaluate_ohlc_models import build_ticker_ohlc_sample
 
@@ -77,6 +78,89 @@ class VicIndexExpiryFeatureExperimentTest(unittest.TestCase):
             self.assertIn("ExVinRet1Pct_Lag1", added_columns)
             self.assertIn("DerivDaysToExpiry", enhanced.columns)
             self.assertIn("ExVinRet1Pct_Lag1", enhanced.columns)
+
+    def test_select_best_current_forecasts_keeps_one_model_per_horizon(self) -> None:
+        current = pd.DataFrame(
+            [
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 1,
+                    "FeatureSet": "baseline_ohlc",
+                    "Model": "ridge",
+                    "PredCloseRetPct": 1.0,
+                },
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 1,
+                    "FeatureSet": "index_expiry_exvin",
+                    "Model": "hist_gbm",
+                    "PredCloseRetPct": 2.0,
+                },
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 2,
+                    "FeatureSet": "baseline_ohlc",
+                    "Model": "ridge",
+                    "PredCloseRetPct": 3.0,
+                },
+            ]
+        )
+        metrics = pd.DataFrame(
+            [
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 1,
+                    "FeatureSet": "baseline_ohlc",
+                    "Model": "ridge",
+                    "EvalRows": 10,
+                    "CloseMAEPct": 2.0,
+                    "RangeMAEPct": 2.0,
+                    "CumHighMAEPct": 2.0,
+                    "CumLowMAEPct": 2.0,
+                    "CumUpsideMissMAEPct": 2.0,
+                    "CumDownsideMissMAEPct": 2.0,
+                    "CloseDirHitPct": 40.0,
+                    "SelectionScore": 5.0,
+                },
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 1,
+                    "FeatureSet": "index_expiry_exvin",
+                    "Model": "hist_gbm",
+                    "EvalRows": 10,
+                    "CloseMAEPct": 1.0,
+                    "RangeMAEPct": 1.0,
+                    "CumHighMAEPct": 1.0,
+                    "CumLowMAEPct": 1.0,
+                    "CumUpsideMissMAEPct": 1.0,
+                    "CumDownsideMissMAEPct": 1.0,
+                    "CloseDirHitPct": 55.0,
+                    "SelectionScore": 1.0,
+                },
+                {
+                    "Ticker": "VIC",
+                    "Horizon": 2,
+                    "FeatureSet": "baseline_ohlc",
+                    "Model": "ridge",
+                    "EvalRows": 10,
+                    "CloseMAEPct": 3.0,
+                    "RangeMAEPct": 3.0,
+                    "CumHighMAEPct": 3.0,
+                    "CumLowMAEPct": 3.0,
+                    "CumUpsideMissMAEPct": 3.0,
+                    "CumDownsideMissMAEPct": 3.0,
+                    "CloseDirHitPct": 45.0,
+                    "SelectionScore": 4.0,
+                },
+            ]
+        )
+
+        best = select_best_current_forecasts(current, metrics)
+
+        self.assertEqual(best.groupby(["Ticker", "Horizon"]).size().max(), 1)
+        t1 = best[best["Horizon"] == 1].iloc[0]
+        self.assertEqual(t1["FeatureSet"], "index_expiry_exvin")
+        self.assertEqual(t1["Model"], "hist_gbm")
 
 
 if __name__ == "__main__":

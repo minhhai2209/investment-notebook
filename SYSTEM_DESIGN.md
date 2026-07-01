@@ -2,16 +2,18 @@
 
 ## Mục tiêu
 
-`investment-notebook` là spin-off interactive-only của repo cũ. Mục tiêu của repo này là:
+`investment-notebook` là notebook tương tác để dự báo thị trường/mã bằng dữ liệu. Mục tiêu hiện tại của repo là:
 
-- dựng snapshot dữ liệu sạch cho screening và thesis review
-- build các report ML/heuristic theo từng mã
-- cho phép Codex làm việc trực tiếp như một notebook nghiên cứu
+- dựng snapshot dữ liệu sạch cho forecast
+- build các artifact ML/diagnostic theo từng horizon
+- cho phép Codex đọc artifact và giải thích forecast trực tiếp
 
 Repo này không còn:
 
 - TCBS browser automation
 - order generation / order placement
+- ngân sách mặc định, position sizing, ladder, hoặc khuyến nghị giao dịch
+- portfolio workflow mặc định
 - codex batch runner kiểu `orders.csv`
 - bundle/prompt contract phục vụ execution workflow cũ
 
@@ -20,28 +22,23 @@ Repo này không còn:
 1. `scripts/tools/refresh_industry_map.py`
 
 - refresh `data/industry_map.csv`
-- hỗ trợ rebuild scope từ `VN30`, `HOSE`, `VN100`, hoặc CSV người dùng cung cấp
-- hỗ trợ force-include extra tickers như `NVL` vào scope live khi cần
+- hỗ trợ rebuild scope từ `VIC`, `VN30`, `HOSE`, `VN100`, hoặc CSV người dùng cung cấp
+- workflow mặc định pin scope vào `VIC`
 
 2. `scripts/engine/data_engine.py`
 
 - đọc `data/industry_map.csv`
 - lấy history + intraday từ các data fetchers
 - tính technical snapshot, breadth, relative strength, sector context
-- ghi `out/universe.csv`, `out/positions.csv`, `out/market_summary.json`, `out/sector_summary.csv`
+- ghi `out/universe.csv`, `out/market_summary.json`, `out/sector_summary.csv`
+- vẫn ghi `out/positions.csv` rỗng để tương thích schema cũ, nhưng config mặc định không đọc danh mục
 
 3. `scripts/analysis/*`
 
-- build candidate watchlist ở 2 mức `core` và `full`
-- build range forecast
-- build cycle forecast
-- build per-ticker playbook
-- build next-session OHLC forecast
+- build next-session/multi-session OHLC forecast
 - build intraday rest-of-session forecast
-- build single-name timing
-- build entry ladder evaluation
-- build single-ticker deep dive that fuses snapshot, ML layers, and research state into one deterministic report
-- giữ các harness offline để replay deterministic/ML baselines
+- audit feature/model bằng walk-back
+- giữ một số builder legacy để diagnostic khi gọi tay, không phải nguồn trả lời mặc định
 
 4. `scripts/research/build_research_bundle.py`
 
@@ -58,32 +55,29 @@ refresh_industry_map -> data/industry_map.csv
                     data_engine
                          |
                          v
-  out/universe.csv / market_summary.json / sector_summary.csv / positions.csv
+  out/universe.csv / market_summary.json / sector_summary.csv / positions.csv(empty by default)
                          |
                          v
-                 analysis builders
+                 forecast/evaluation builders
                          |
                          v
                   out/analysis/*
                          |
                          v
-                 research bundle
+                 research bundle / reports
                          |
                          v
                Codex interactive session
-                         |
-                         v
-              live news overlay at answer time
 ```
 
-## Portfolio handling
+## Portfolio Handling
 
-Danh mục không còn là dependency bắt buộc.
+Danh mục không còn là workflow mặc định.
 
-- Nếu `data/portfolios/portfolio.csv` tồn tại, engine vẫn merge context vị thế.
-- Nếu file không tồn tại, engine vẫn chạy; `positions.csv` rỗng và các cột vị thế trong `universe.csv` về `0/NaN`.
-
-Điểm này giúp repo dùng tốt cho screening thuần, không cần scrape portfolio trước.
+- `config/data_engine.yaml` đặt `portfolio.enabled: false`.
+- Khi tắt portfolio, engine không đọc `data/portfolios/portfolio.csv`, không merge vị thế vào universe, và không kéo ticker từ portfolio vào scope.
+- `out/positions.csv` vẫn có thể được ghi rỗng để tránh phá schema cũ.
+- Chỉ bật lại `portfolio.enabled: true` khi cần chạy một phân tích legacy rõ ràng.
 
 ## Wrapper CLI
 
@@ -93,11 +87,10 @@ Danh mục không còn là dependency bắt buộc.
 - `prepare`
 - `prepare_default`
 - `research`
-- các report builder riêng lẻ
-- các harness offline
-- `refresh_vn30_map`, `refresh_hose_map`
-- `map`, `refresh_vn30_nvl_map`
-- `candidates`, `deep`
+- active forecast builders: `ohlc`, `intraday`
+- feature/model evaluations
+- legacy diagnostic builders
+- `refresh_vic_map`, `refresh_vn30_map`, `refresh_hose_map`, `map`
 - `tests`
 
 Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
@@ -110,14 +103,14 @@ Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
 - Vietstock BCTT: quarterly financial statements cho harness lift/evaluation
 - Vietstock board/company pages: constituent lists và sector mapping
 
-## Nguyên tắc repo mới
+## Nguyên tắc repo
 
 - fail-fast nếu thiếu input bắt buộc hoặc schema sai
-- mọi artifact generated nằm dưới `out/` hoặc `research/`
+- mọi artifact generated nằm dưới `out/`, `research/`, hoặc `reports/`
 - không mang giả định execution downstream
-- nếu cần thay workflow research, thay ngay ở tool/script trong repo thay vì vòng vo qua prompt bundle
-- contract của session tương tác là trả lời thực dụng theo `mua ngay / chờ / không mua`, liệt kê đầy đủ ứng viên khả thi thay vì ép đúng `1` mã
-- nếu artifact còn thiếu hoặc stale, Codex phải tự chạy batch và tự đợi xong rồi mới trả lời; không được dừng ở một câu trả lời trung gian kiểu `đang chờ artifact`
-- sau khi artifact đã sẵn sàng, Codex phải tự xem thêm tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy trước khi chốt câu trả lời `hôm nay mua gì`; lớp này nằm ở interactive session, không phải builder hay subcommand batch
+- contract của session tương tác tách hai lớp: `Model predict` cho forecast/validation/error band từ artifact repo, và `External synthesis` cho bối cảnh tổng hợp từ nguồn ngoài nếu có
+- không tự sinh recommendation, ngân sách, danh mục, position sizing, hoặc ladder
+- không trộn web/news/source mạng vào forecast; dữ liệu ngoài chỉ trở thành model evidence khi được fetcher/pipeline của repo đưa thành artifact/model feature có thể audit
+- nếu artifact forecast còn thiếu hoặc stale, Codex phải tự chạy batch và tự đợi xong rồi mới trả lời
 - chạy tuần tự là mặc định; chỉ song song hóa khi các job thật sự độc lập và không ghi/đọc chung cache hoặc history
-- `prepare` giữ nghĩa là rebuild tuần tự trên scope hiện có; `prepare_default` là shortcut tuần tự cho scope mặc định `VN30 + NVL`
+- `prepare` giữ nghĩa là rebuild tuần tự trên scope hiện có; `prepare_default` là shortcut tuần tự cho scope mặc định `VIC`

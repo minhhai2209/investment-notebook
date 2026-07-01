@@ -35,6 +35,7 @@ class DataEngineTest(unittest.TestCase):
         industry_rows: list[dict[str, object]] | None = None,
         portfolio_csv_text: str | None = None,
         create_portfolio_csv: bool = True,
+        portfolio_enabled: bool = True,
         universe_tickers: list[str] | None = None,
         core_tickers: list[str] | None = None,
         preferred_tickers: list[str] | None = None,
@@ -74,6 +75,7 @@ class DataEngineTest(unittest.TestCase):
                 slow: 3
                 signal: 2
             portfolio:
+              enabled: {portfolio_enabled}
               directory: {portfolio_dir}
             output:
               base_dir: {out_dir}
@@ -117,6 +119,7 @@ class DataEngineTest(unittest.TestCase):
                     else ""
                 ),
                 portfolio_dir=portfolio_dir,
+                portfolio_enabled=str(portfolio_enabled).lower(),
                 out_dir=self.base / "out",
                 cache_dir=self.base / "cache",
                 cafef_cache=cafef_cache_dir,
@@ -370,6 +373,50 @@ class DataEngineTest(unittest.TestCase):
             (pd.to_numeric(universe_df["PositionMarketValue_kVND"], errors="coerce").fillna(0.0) == 0.0).all()
         )
         self.assertTrue((pd.to_numeric(universe_df["PositionWeightPct"], errors="coerce").fillna(0.0) == 0.0).all())
+
+    def test_portfolio_disabled_skips_position_columns_and_tickers(self):
+        history_df = pd.DataFrame(
+            {
+                "Date": ["2024-07-01", "2024-07-02", "2024-07-01", "2024-07-02"],
+                "Ticker": ["AAA", "AAA", "BBB", "BBB"],
+                "Open": [10, 11, 19, 21],
+                "High": [11, 12, 21, 22],
+                "Low": [9, 10, 18, 19],
+                "Close": [11, 12, 20, 21],
+                "Volume": [1000, 1200, 800, 900],
+                "t": [1, 2, 1, 2],
+            }
+        )
+        intraday_df = pd.DataFrame(
+            {
+                "Ticker": ["AAA", "BBB"],
+                "Ts": [3, 3],
+                "Price": [12.5, 21.5],
+                "RSI14": [55, 60],
+                "TimeVN": ["2024-07-02 14:30:00", "2024-07-02 14:30:00"],
+            }
+        )
+        config_path = self._write_config(
+            industry_rows=[{"Ticker": "AAA", "Sector": "Tech"}],
+            portfolio_csv_text="Ticker,Quantity,AvgPrice\nBBB,5,20\n",
+            portfolio_enabled=False,
+        )
+        config = EngineConfig.from_yaml(config_path)
+        engine = DataEngine(
+            config,
+            FakeMarketDataService(history_df, intraday_df),
+            vn30_fetcher=lambda: set(),
+        )
+
+        summary = engine.run()
+
+        universe_df = pd.read_csv(config.output_base_dir / "universe.csv")
+        positions_df = pd.read_csv(config.output_base_dir / "positions.csv")
+        self.assertEqual(summary["tickers"], 1)
+        self.assertEqual(universe_df["Ticker"].astype(str).str.upper().tolist(), ["AAA"])
+        self.assertTrue(positions_df.empty)
+        self.assertFalse(any(col.startswith("Position") for col in universe_df.columns))
+        self.assertNotIn("EnginePortfolioMarketValue_kVND", universe_df.columns)
 
     def test_industry_filter_limits_universe(self):
         history_df = pd.DataFrame(

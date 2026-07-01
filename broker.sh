@@ -265,6 +265,18 @@ run_eval_vic_index_expiry() {
   run_module eval_vic_index_expiry scripts.analysis.evaluate_vic_index_expiry_features "$@"
 }
 
+run_eval_intraday_features() {
+  run_module eval_intraday_features scripts.analysis.evaluate_intraday_feature_families "$@"
+}
+
+run_eval_curated_intraday_model() {
+  run_module eval_curated_intraday_model scripts.analysis.evaluate_curated_intraday_models "$@"
+}
+
+run_eval_daily_features() {
+  run_module eval_daily_features scripts.analysis.evaluate_daily_feature_families "$@"
+}
+
 run_refresh_macro() {
   run_module refresh_macro scripts.data_fetching.macro_factor_cache \
     --config config/macro_factors.yaml \
@@ -314,8 +326,8 @@ Usage: ./broker.sh <command> [args]
 
 Core commands:
   tests                Run the unit test suite
-  engine [config]      Build out/universe.csv, positions.csv, market_summary.json, sector_summary.csv
-  prepare_core [config] Run engine + core live reports for interactive screening
+  engine [config]      Build prediction snapshot outputs under out/
+  prepare_core [config] Run engine + core live forecast/diagnostic reports
   prepare [config]     Run engine + all live report builders + research bundle
   research             Rebuild research/ from the current out/ snapshot
 
@@ -337,9 +349,9 @@ Legacy/diagnostic builders:
   cycle                Build cycle forecast reports
   playbook             Build per-ticker playbook report
   timing               Build single-name timing report
-  entry_ladder         Build entry ladder evaluation report
+  entry_ladder         Legacy entry-ladder diagnostic report
   momentum             Build focused continuation/urgency report for default tickers
-  position_ml          Build ML-only review for an existing position
+  position_ml          Legacy ML-only review for an explicitly supplied position
   sequence_dl          Build true LSTM/Transformer sequence forecast artifacts
 
 Offline evaluation:
@@ -350,6 +362,9 @@ Offline evaluation:
   eval_macro           Run macro-factor sensitivity evaluation
   eval_macro_lift      Compare ML prediction with/without macro/global equity features
   eval_vic_index_expiry Compare VIC forecast with VNINDEX/ex-Vin/derivative-expiry features
+  eval_intraday_features Walk-back audit of 1-minute intraday feature families
+  eval_curated_intraday_model Walk-forward model test using curated minute price/volume features
+  eval_daily_features  Walk-back audit of daily OHLC feature families
   eval_bctt            Run BCTT feature-lift evaluation
 EOF
 }
@@ -457,6 +472,15 @@ main() {
       ;;
     eval_vic_index_expiry)
       run_eval_vic_index_expiry "$@"
+      ;;
+    eval_intraday_features)
+      run_eval_intraday_features "$@"
+      ;;
+    eval_curated_intraday_model)
+      run_eval_curated_intraday_model "$@"
+      ;;
+    eval_daily_features)
+      run_eval_daily_features "$@"
       ;;
     eval_bctt)
       run_eval_bctt "$@"

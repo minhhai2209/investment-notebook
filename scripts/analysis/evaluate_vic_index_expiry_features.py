@@ -39,6 +39,7 @@ DEFAULT_MODELS = ("random_forest",)
 VIN_FAMILY_TICKERS = ("VIC", "VHM", "VRE", "VPL")
 INDEX_TICKERS = ("VNINDEX", "VN30", "VN100")
 OUTPUT_CURRENT = "vic_index_expiry_current_forecasts.csv"
+OUTPUT_CURRENT_CANDIDATES = "vic_index_expiry_current_candidates.csv"
 OUTPUT_METRICS = "vic_index_expiry_model_metrics.csv"
 OUTPUT_HISTORY = "vic_index_expiry_prediction_history.csv"
 OUTPUT_FEATURES = "vic_index_expiry_latest_features.csv"
@@ -481,7 +482,8 @@ def run_experiment(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     history_df.to_csv(output_dir / OUTPUT_HISTORY, index=False)
-    current_df.to_csv(output_dir / OUTPUT_CURRENT, index=False)
+    best_current.to_csv(output_dir / OUTPUT_CURRENT, index=False)
+    current_df.to_csv(output_dir / OUTPUT_CURRENT_CANDIDATES, index=False)
     metrics_df.to_csv(output_dir / OUTPUT_METRICS, index=False)
     latest_features = enhanced_sample[enhanced_sample["Date"].eq(enhanced_sample["Date"].max())][
         ["Date", "Ticker", "Horizon", "BaseClose"] + added_columns
@@ -493,11 +495,12 @@ def run_experiment(
         "latest_date": str(enhanced_sample["Date"].max().date()),
         "horizons": [int(horizon) for horizon in horizons],
         "feature_sets": list(feature_sets.keys()),
-        "models": list(model_names),
+        "model_candidates": list(model_names),
         "added_feature_count": len(added_columns),
         "added_features": added_columns,
         "history_rows": int(history_df.shape[0]),
-        "current_rows": int(current_df.shape[0]),
+        "current_rows": int(best_current.shape[0]),
+        "current_candidate_rows": int(current_df.shape[0]),
         "metrics_rows": int(metrics_df.shape[0]),
         "best_current": best_current[
             [
