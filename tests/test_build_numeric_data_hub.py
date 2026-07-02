@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.data_hub.build_numeric_data_hub import build_data_hub, enrich_daily_frame
+from scripts.data_hub.validate_connector_layout import validate_layout
 
 
 class NumericDataHubTest(unittest.TestCase):
@@ -128,6 +129,10 @@ windows:
         start_here = json.loads((self.out_dir / "START_HERE.json").read_text(encoding="utf-8"))
         self.assertEqual(start_here["minimal_read_order"][0], "START_HERE.json")
         self.assertIn("symbol_latest", start_here["top_level_files"])
+
+        layout_check = validate_layout(self.out_dir, "VIC")
+        self.assertEqual(layout_check["status"], "ok", layout_check)
+        self.assertEqual(layout_check["ticker_drilldown"]["ticker"], "VIC")
 
     def test_enrich_daily_frame_adds_feature_columns(self) -> None:
         frame = pd.DataFrame(

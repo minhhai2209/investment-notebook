@@ -6,6 +6,7 @@ Repo này chỉ chuẩn bị dữ liệu số cho ChatGPT đọc nhanh.
 
 ```bash
 ./broker.sh hub
+./broker.sh validate_layout --ticker VIC
 ```
 
 Sau đó đọc:

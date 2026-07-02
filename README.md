@@ -62,6 +62,7 @@ Các chỉ số được tính sẵn trong data hub gồm return 1/5/20/60/120/2
 
 ```bash
 ./broker.sh tests
+./broker.sh validate_layout --ticker VIC
 ./broker.sh refresh_macro
 ./broker.sh refresh_bctt
 ./broker.sh refresh_vic_map

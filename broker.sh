@@ -47,6 +47,10 @@ run_tests() {
   "$PY_BIN" -m unittest discover -s tests -p "test_*.py"
 }
 
+run_validate_layout() {
+  run_module validate_layout scripts.data_hub.validate_connector_layout "$@"
+}
+
 usage() {
   cat <<'EOF'
 Usage: ./broker.sh <command> [args]
@@ -62,11 +66,12 @@ Source helpers:
 
 Maintenance:
   tests                Run unit tests
+  validate_layout      Smoke-test connector-style retrieval from data-hub/latest
 
 Notes:
   - This repo is numeric-data only.
   - No news collection, no portfolio workflow, no forecast/model report surface.
-  - Start ChatGPT browsing from data-hub/latest/manifest.json.
+  - Start ChatGPT browsing from data-hub/latest/START_HERE.json.
 EOF
 }
 
@@ -91,6 +96,9 @@ main() {
       ;;
     tests)
       run_tests
+      ;;
+    validate_layout|validate)
+      run_validate_layout "$@"
       ;;
     help|-h|--help)
       usage

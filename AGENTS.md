@@ -38,6 +38,7 @@
 ./broker.sh hub
 ./broker.sh collect
 ./broker.sh tests
+./broker.sh validate_layout --ticker VIC
 ./broker.sh refresh_macro
 ./broker.sh refresh_bctt
 ./broker.sh refresh_vic_map
