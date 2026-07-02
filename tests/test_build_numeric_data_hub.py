@@ -36,7 +36,9 @@ paths:
   depth_cache: {self.depth_dir}
   cafef_cache: {self.base / "cafef"}
   vietstock_overview_cache: {self.base / "overview"}
+  vietstock_bctt_cache: {self.base / "bctt"}
   macro_cache: {self.base / "macro"}
+  sector_map: {self.base / "industry_map.csv"}
   output_dir: {self.out_dir}
 refresh:
   daily: false
@@ -44,6 +46,7 @@ refresh:
   depth: false
   cafef_flows: false
   vietstock_overview: false
+  vietstock_bctt: false
   macro: false
 windows:
   recent_daily_rows: 20
@@ -93,20 +96,27 @@ windows:
         manifest = build_data_hub(self._write_config())
 
         self.assertEqual(manifest["purpose"], "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.")
-        for filename in ["manifest.json", "README.md", "latest_metrics.csv", "api_catalog.csv", "tickers.csv"]:
+        for filename in ["manifest.json", "README.md", "latest_metrics.csv", "api_catalog.csv", "calculation_catalog.csv", "tickers.csv"]:
             self.assertTrue((self.out_dir / filename).exists(), filename)
         self.assertTrue((self.out_dir / "daily" / "VIC.csv").exists())
         self.assertTrue((self.out_dir / "intraday" / "VIC.csv").exists())
+        self.assertTrue((self.out_dir / "intraday" / "minute_profile" / "VIC.csv").exists())
+        self.assertTrue((self.out_dir / "market" / "breadth_daily.csv").exists())
+        self.assertTrue((self.out_dir / "market" / "cross_section_latest.csv").exists())
 
         latest = pd.read_csv(self.out_dir / "latest_metrics.csv")
         vic = latest[latest["Ticker"].eq("VIC")].iloc[0]
         self.assertIn("Ret1dPct", latest.columns)
         self.assertIn("RSI14", latest.columns)
         self.assertIn("IntradayVWAP", latest.columns)
+        self.assertIn("DailyTradedValue", latest.columns)
+        self.assertIn("ExcessRet20dVsVNINDEXPct", latest.columns)
+        self.assertIn("IntradayAvgVolumePerMinute", latest.columns)
         self.assertGreater(float(vic["LastClose"]), 0.0)
 
         saved_manifest = json.loads((self.out_dir / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(saved_manifest["read_order_for_chatgpt"][0], "manifest.json")
+        self.assertIn("calculation_catalog", saved_manifest["files"])
 
     def test_enrich_daily_frame_adds_feature_columns(self) -> None:
         frame = pd.DataFrame(
@@ -123,6 +133,9 @@ windows:
         self.assertIn("ret_20d_pct", enriched.columns)
         self.assertIn("atr14_pct", enriched.columns)
         self.assertIn("volume_ratio_20", enriched.columns)
+        self.assertIn("traded_value", enriched.columns)
+        self.assertIn("realized_vol_20d_pct", enriched.columns)
+        self.assertIn("drawdown_60d_pct", enriched.columns)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 Source,Kind,Endpoint,NumericData,DefaultOutput,News
 VNDIRECT dchart,ohlcv,https://dchart-api.vndirect.com.vn/dchart/history,"daily/intraday open, high, low, close, volume","daily/*.csv, intraday/*.csv, latest_metrics.csv",no
-VNDIRECT priceboard,order_book_depth,https://price-streaming-api-free.vndirect.com.vn/v2/stocks/snapshot,"best bid/ask levels, bid/ask volume, match/current price, foreign room","depth/latest_depth.csv, latest_metrics.csv",no
+VNDIRECT priceboard,order_book_depth,https://price-streaming-api-free.vndirect.com.vn/v2/stocks/snapshot,"10-level bid/ask depth, match/current price, accumulated volume/value, foreign buy/sell/room, floor/ceiling","depth/latest_depth.csv, latest_metrics.csv",no
 Vietstock overview,fundamental_snapshot,https://finance.vietstock.vn/{ticker}-ctcp.htm,"forward PE, PB, derived ROE","fundamentals/vietstock_overview.csv, latest_metrics.csv",no
 Vietstock BCTT,financial_statement_cache,finance.vietstock.vn BCTT tables via cached Playwright collector,"EPS4Q, BVPS, PB, margins, ROE/ROA, debt ratios, revenue/profit growth",available through BCTT cache/features when collected,no
 CafeF flows,foreign_proprietary_flow,CafeF Ajax GDKhoiNgoai/GDTuDoanh,foreign/proprietary net shares and net value over 1/5/20 sessions,"flows/cafef_flows.csv, latest_metrics.csv",no

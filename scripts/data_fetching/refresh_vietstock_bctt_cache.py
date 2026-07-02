@@ -85,9 +85,6 @@ def main() -> int:
         )
 
     summary = pd.DataFrame(summary_rows).sort_values("Ticker").reset_index(drop=True)
-    if success_count == 0:
-        raise SystemExit("No BCTT data available after refresh.")
-
     summary_out = Path(args.summary_out)
     summary_out.parent.mkdir(parents=True, exist_ok=True)
     summary.to_csv(summary_out, index=False)
@@ -100,6 +97,8 @@ def main() -> int:
     }
     summary_out.with_suffix(".json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     print(summary.head(20).to_string(index=False))
+    if success_count == 0:
+        raise SystemExit(f"No BCTT data available after refresh. See {summary_out} for errors.")
     return 0
 
 

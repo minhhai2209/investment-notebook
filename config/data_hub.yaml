@@ -24,16 +24,17 @@ paths:
   vietstock_overview_cache: out/vietstock_overview
   vietstock_bctt_cache: out/vietstock_bctt
   macro_cache: out/macro_factors
+  sector_map: data/industry_map.csv
   output_dir: data-hub/latest
 
 refresh:
   daily: true
   intraday: true
   depth: true
-  cafef_flows: false
-  vietstock_overview: false
+  cafef_flows: true
+  vietstock_overview: true
   vietstock_bctt: false
-  macro: false
+  macro: true
 
 windows:
   daily_history_days: 900

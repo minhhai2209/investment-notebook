@@ -41,7 +41,7 @@ API_CATALOG = [
         "Source": "VNDIRECT priceboard",
         "Kind": "order_book_depth",
         "Endpoint": "https://price-streaming-api-free.vndirect.com.vn/v2/stocks/snapshot",
-        "NumericData": "best bid/ask levels, bid/ask volume, match/current price, foreign room",
+        "NumericData": "10-level bid/ask depth, match/current price, accumulated volume/value, foreign buy/sell/room, floor/ceiling",
         "DefaultOutput": "depth/latest_depth.csv, latest_metrics.csv",
         "News": "no",
     },
@@ -84,6 +84,52 @@ API_CATALOG = [
         "NumericData": "membership flags for VN30/VN100/HOSE universe",
         "DefaultOutput": "universe.csv when collected upstream",
         "News": "no",
+    },
+]
+
+
+CALCULATION_CATALOG = [
+    {
+        "Group": "trend_momentum",
+        "Columns": "returns, SMA/EMA distance, RSI, 52-week position",
+        "Inputs": "daily OHLCV",
+        "DefaultOutput": "daily/*.csv, latest_metrics.csv",
+    },
+    {
+        "Group": "risk_volatility",
+        "Columns": "ATR, realized volatility, downside volatility, drawdown, close location",
+        "Inputs": "daily OHLCV",
+        "DefaultOutput": "daily/*.csv, latest_metrics.csv",
+    },
+    {
+        "Group": "liquidity",
+        "Columns": "traded value, ADV, average value, volume/value ratios",
+        "Inputs": "daily/intraday OHLCV",
+        "DefaultOutput": "daily/*.csv, latest_metrics.csv",
+    },
+    {
+        "Group": "relative_strength",
+        "Columns": "excess return versus VNINDEX/VN30, rolling beta/correlation",
+        "Inputs": "ticker daily returns plus index daily returns",
+        "DefaultOutput": "daily/*.csv, latest_metrics.csv",
+    },
+    {
+        "Group": "market_breadth",
+        "Columns": "advancers/decliners, up-value share, above moving-average share, new highs/lows",
+        "Inputs": "configured ticker daily metrics",
+        "DefaultOutput": "market/breadth_daily.csv",
+    },
+    {
+        "Group": "intraday_microstructure",
+        "Columns": "minute return, cumulative VWAP, volume rate, latest-day profile",
+        "Inputs": "1-minute OHLCV plus optional depth snapshot",
+        "DefaultOutput": "intraday/*.csv, intraday/minute_profile/*.csv, intraday/summary_by_ticker.csv",
+    },
+    {
+        "Group": "cross_section",
+        "Columns": "latest return/liquidity/volume-spike ranks across the configured universe",
+        "Inputs": "latest ticker metrics",
+        "DefaultOutput": "market/cross_section_latest.csv",
     },
 ]
 
@@ -151,19 +197,35 @@ def enrich_daily_frame(frame: pd.DataFrame) -> pd.DataFrame:
     out["ret_5d_pct"] = close.pct_change(5, fill_method=None) * 100.0
     out["ret_20d_pct"] = close.pct_change(20, fill_method=None) * 100.0
     out["ret_60d_pct"] = close.pct_change(60, fill_method=None) * 100.0
+    out["ret_120d_pct"] = close.pct_change(120, fill_method=None) * 100.0
+    out["ret_252d_pct"] = close.pct_change(252, fill_method=None) * 100.0
     out["sma_20"] = close.rolling(20).mean()
     out["sma_50"] = close.rolling(50).mean()
     out["sma_200"] = close.rolling(200).mean()
     out["ema_20"] = close.ewm(span=20, adjust=False).mean()
+    out["ema_50"] = close.ewm(span=50, adjust=False).mean()
     out["dist_sma20_pct"] = ((close / out["sma_20"]) - 1.0) * 100.0
     out["dist_sma50_pct"] = ((close / out["sma_50"]) - 1.0) * 100.0
+    out["dist_sma200_pct"] = ((close / out["sma_200"]) - 1.0) * 100.0
+    out["dist_ema20_pct"] = ((close / out["ema_20"]) - 1.0) * 100.0
     out["range_pct"] = ((high - low) / prev_close.replace(0.0, np.nan)) * 100.0
     out["body_pct"] = ((close - out["open"].astype(float)) / prev_close.replace(0.0, np.nan)) * 100.0
+    out["gap_pct"] = ((out["open"].astype(float) / prev_close.replace(0.0, np.nan)) - 1.0) * 100.0
+    out["close_location_pct"] = ((close - low) / (high - low).replace(0.0, np.nan)) * 100.0
+    out["traded_value"] = close * out["volume"].astype(float)
     out["adv20_shares"] = out["volume"].astype(float).rolling(20).mean()
+    out["adv60_shares"] = out["volume"].astype(float).rolling(60).mean()
+    out["avg_value_20"] = out["traded_value"].rolling(20).mean()
+    out["avg_value_60"] = out["traded_value"].rolling(60).mean()
     out["volume_ratio_20"] = out["volume"].astype(float) / out["adv20_shares"].replace(0.0, np.nan)
+    out["value_ratio_20"] = out["traded_value"] / out["avg_value_20"].replace(0.0, np.nan)
     tr = pd.concat([(high - low).abs(), (high - prev_close).abs(), (low - prev_close).abs()], axis=1).max(axis=1)
     out["atr14"] = tr.rolling(14).mean()
     out["atr14_pct"] = (out["atr14"] / close.replace(0.0, np.nan)) * 100.0
+    daily_ret = close.pct_change(1, fill_method=None)
+    out["realized_vol_20d_pct"] = daily_ret.rolling(20).std() * np.sqrt(252.0) * 100.0
+    out["realized_vol_60d_pct"] = daily_ret.rolling(60).std() * np.sqrt(252.0) * 100.0
+    out["downside_vol_20d_pct"] = daily_ret.clip(upper=0.0).rolling(20).std() * np.sqrt(252.0) * 100.0
     delta = close.diff()
     gain = delta.clip(lower=0.0).rolling(14).mean()
     loss = (-delta.clip(upper=0.0)).rolling(14).mean()
@@ -174,6 +236,8 @@ def enrich_daily_frame(frame: pd.DataFrame) -> pd.DataFrame:
     out["high_52w"] = rolling_high
     out["low_52w"] = rolling_low
     out["pos_52w_pct"] = ((close - rolling_low) / (rolling_high - rolling_low).replace(0.0, np.nan)) * 100.0
+    out["drawdown_60d_pct"] = ((close / close.rolling(60, min_periods=20).max()) - 1.0) * 100.0
+    out["drawdown_252d_pct"] = ((close / close.rolling(252, min_periods=20).max()) - 1.0) * 100.0
     return out.replace([np.inf, -np.inf], np.nan)
 
 
@@ -192,21 +256,76 @@ def latest_daily_metrics(frame: pd.DataFrame) -> Dict[str, object]:
         "Ret5dPct": row.get("ret_5d_pct"),
         "Ret20dPct": row.get("ret_20d_pct"),
         "Ret60dPct": row.get("ret_60d_pct"),
+        "Ret120dPct": row.get("ret_120d_pct"),
+        "Ret252dPct": row.get("ret_252d_pct"),
         "SMA20": row.get("sma_20"),
         "SMA50": row.get("sma_50"),
         "SMA200": row.get("sma_200"),
         "EMA20": row.get("ema_20"),
+        "EMA50": row.get("ema_50"),
         "DistSMA20Pct": row.get("dist_sma20_pct"),
         "DistSMA50Pct": row.get("dist_sma50_pct"),
+        "DistSMA200Pct": row.get("dist_sma200_pct"),
+        "DistEMA20Pct": row.get("dist_ema20_pct"),
         "RSI14": row.get("rsi14"),
         "ATR14": row.get("atr14"),
         "ATR14Pct": row.get("atr14_pct"),
+        "RealizedVol20dPct": row.get("realized_vol_20d_pct"),
+        "RealizedVol60dPct": row.get("realized_vol_60d_pct"),
+        "DownsideVol20dPct": row.get("downside_vol_20d_pct"),
+        "Drawdown60dPct": row.get("drawdown_60d_pct"),
+        "Drawdown252dPct": row.get("drawdown_252d_pct"),
+        "DailyGapPct": row.get("gap_pct"),
+        "DailyCloseLocationPct": row.get("close_location_pct"),
+        "DailyTradedValue": row.get("traded_value"),
         "ADV20Shares": row.get("adv20_shares"),
+        "ADV60Shares": row.get("adv60_shares"),
+        "AvgValue20": row.get("avg_value_20"),
+        "AvgValue60": row.get("avg_value_60"),
         "VolumeRatio20": row.get("volume_ratio_20"),
+        "ValueRatio20": row.get("value_ratio_20"),
         "High52w": row.get("high_52w"),
         "Low52w": row.get("low_52w"),
         "Pos52wPct": row.get("pos_52w_pct"),
+        "ExcessRet20dVsVNINDEXPct": row.get("excess_ret_20d_vs_vnindex_pct"),
+        "ExcessRet60dVsVNINDEXPct": row.get("excess_ret_60d_vs_vnindex_pct"),
+        "Beta60dVsVNINDEX": row.get("beta_60d_vs_vnindex"),
+        "Corr60dVsVNINDEX": row.get("corr_60d_vs_vnindex"),
+        "ExcessRet20dVsVN30Pct": row.get("excess_ret_20d_vs_vn30_pct"),
+        "ExcessRet60dVsVN30Pct": row.get("excess_ret_60d_vs_vn30_pct"),
+        "Beta60dVsVN30": row.get("beta_60d_vs_vn30"),
+        "Corr60dVsVN30": row.get("corr_60d_vs_vn30"),
     }
+
+
+def add_market_relative_metrics(daily_frames: Mapping[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+    enriched = {ticker: frame.copy() for ticker, frame in daily_frames.items()}
+    for index_ticker in ("VNINDEX", "VN30"):
+        index_frame = enriched.get(index_ticker)
+        if index_frame is None or index_frame.empty or "ret_1d_pct" not in index_frame.columns:
+            continue
+        suffix = index_ticker.lower()
+        index_returns = index_frame[["Date", "ret_1d_pct", "ret_20d_pct", "ret_60d_pct"]].rename(
+            columns={
+                "ret_1d_pct": f"{suffix}_ret_1d_pct",
+                "ret_20d_pct": f"{suffix}_ret_20d_pct",
+                "ret_60d_pct": f"{suffix}_ret_60d_pct",
+            }
+        )
+        for ticker, frame in list(enriched.items()):
+            if frame.empty:
+                continue
+            merged = frame.merge(index_returns, on="Date", how="left")
+            merged[f"excess_ret_20d_vs_{suffix}_pct"] = merged["ret_20d_pct"] - merged[f"{suffix}_ret_20d_pct"]
+            merged[f"excess_ret_60d_vs_{suffix}_pct"] = merged["ret_60d_pct"] - merged[f"{suffix}_ret_60d_pct"]
+            ticker_ret = merged["ret_1d_pct"] / 100.0
+            index_ret = merged[f"{suffix}_ret_1d_pct"] / 100.0
+            rolling_cov = ticker_ret.rolling(60).cov(index_ret)
+            rolling_var = index_ret.rolling(60).var()
+            merged[f"beta_60d_vs_{suffix}"] = rolling_cov / rolling_var.replace(0.0, np.nan)
+            merged[f"corr_60d_vs_{suffix}"] = ticker_ret.rolling(60).corr(index_ret)
+            enriched[ticker] = merged.drop(columns=[f"{suffix}_ret_1d_pct", f"{suffix}_ret_20d_pct", f"{suffix}_ret_60d_pct"])
+    return enriched
 
 
 def _read_intraday(path: Path, ticker: str) -> pd.DataFrame:
@@ -222,6 +341,24 @@ def _read_intraday(path: Path, ticker: str) -> pd.DataFrame:
     for column in ["open", "high", "low", "close", "volume"]:
         out[column] = pd.to_numeric(out.get(column), errors="coerce")
     return out.dropna(subset=["Timestamp", "close"]).sort_values("Timestamp").reset_index(drop=True)
+
+
+def enrich_intraday_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    out = frame.copy().sort_values("Timestamp").reset_index(drop=True)
+    out["MinuteOfDay"] = out["Timestamp"].dt.hour * 60 + out["Timestamp"].dt.minute
+    out["MinuteIndexInDay"] = out.groupby("TradeDate").cumcount() + 1
+    out["ret_1m_pct"] = out.groupby("TradeDate")["close"].pct_change(1, fill_method=None) * 100.0
+    out["volume_per_minute"] = out["volume"].fillna(0.0).astype(float)
+    out["traded_value_1m"] = out["close"].astype(float) * out["volume_per_minute"]
+    out["cum_volume"] = out.groupby("TradeDate")["volume_per_minute"].cumsum()
+    out["cum_traded_value"] = out.groupby("TradeDate")["traded_value_1m"].cumsum()
+    out["cum_vwap"] = out["cum_traded_value"] / out["cum_volume"].replace(0.0, np.nan)
+    out["close_vs_cum_vwap_pct"] = ((out["close"].astype(float) / out["cum_vwap"]) - 1.0) * 100.0
+    day_open = out.groupby("TradeDate")["open"].transform("first").astype(float)
+    out["ret_from_day_open_pct"] = ((out["close"].astype(float) / day_open.replace(0.0, np.nan)) - 1.0) * 100.0
+    return out.replace([np.inf, -np.inf], np.nan)
 
 
 def intraday_summary(frame: pd.DataFrame, adv20: float | None = None) -> Dict[str, object]:
@@ -250,14 +387,25 @@ def intraday_summary(frame: pd.DataFrame, adv20: float | None = None) -> Dict[st
         "IntradayRetFromOpenPct": ((float(close.iloc[-1]) / session_open) - 1.0) * 100.0 if session_open else np.nan,
         "IntradayRangePct": ((session_high - session_low) / session_open) * 100.0 if session_open else np.nan,
         "IntradayCloseVsVWAPPct": ((float(close.iloc[-1]) / vwap) - 1.0) * 100.0 if vwap else np.nan,
+        "IntradayAvgVolumePerMinute": float(volume.sum()) / float(day.shape[0]) if day.shape[0] else np.nan,
+        "IntradayTradedValue": float((close * volume).sum()),
     }
     for minutes in (5, 15, 30, 60):
         tail = day.tail(minutes)
         if tail.shape[0] >= 2:
             anchor = float(tail["close"].iloc[0])
             out[f"IntradayRet{minutes}mPct"] = ((float(tail["close"].iloc[-1]) / anchor) - 1.0) * 100.0 if anchor else np.nan
+            out[f"IntradayVolume{minutes}m"] = float(tail["volume"].fillna(0.0).astype(float).sum())
     if adv20 and adv20 > 0:
         out["IntradayVolumePctADV20"] = (float(volume.sum()) / float(adv20)) * 100.0
+    first_15 = day.head(15)
+    first_30 = day.head(30)
+    if not first_15.empty:
+        out["IntradayFirst15mVolume"] = float(first_15["volume"].fillna(0.0).astype(float).sum())
+        out["IntradayFirst15mRangePct"] = ((float(first_15["high"].max()) - float(first_15["low"].min())) / session_open) * 100.0 if session_open else np.nan
+    if not first_30.empty:
+        out["IntradayFirst30mVolume"] = float(first_30["volume"].fillna(0.0).astype(float).sum())
+        out["IntradayFirst30mRangePct"] = ((float(first_30["high"].max()) - float(first_30["low"].min())) / session_open) * 100.0 if session_open else np.nan
     return out
 
 
@@ -274,12 +422,16 @@ def load_latest_depth(depth_dir: Path, tickers: Sequence[str]) -> pd.DataFrame:
     if not frames:
         return pd.DataFrame()
     depth = pd.concat(frames, ignore_index=True)
-    numeric_cols = [col for col in depth.columns if col not in {"Ticker", "FetchedAt", "PriceboardTime"}]
+    numeric_cols = [col for col in depth.columns if col not in {"Ticker", "FetchedAt", "PriceboardTime", "FloorCode"}]
     for col in numeric_cols:
         depth[col] = pd.to_numeric(depth[col], errors="coerce")
     depth["BidAskSpreadPct"] = ((depth["BestAsk1"] - depth["BestBid1"]) / depth["CurrentPrice"].replace(0.0, np.nan)) * 100.0
-    bid_vol = depth[[col for col in ["BidVolume1", "BidVolume2", "BidVolume3"] if col in depth.columns]].sum(axis=1)
-    ask_vol = depth[[col for col in ["AskVolume1", "AskVolume2", "AskVolume3"] if col in depth.columns]].sum(axis=1)
+    bid_cols = [col for col in [f"BidVolume{level}" for level in range(1, 11)] if col in depth.columns]
+    ask_cols = [col for col in [f"AskVolume{level}" for level in range(1, 11)] if col in depth.columns]
+    bid_vol = depth[bid_cols].sum(axis=1)
+    ask_vol = depth[ask_cols].sum(axis=1)
+    depth["BidDepthVolume10"] = bid_vol
+    depth["AskDepthVolume10"] = ask_vol
     depth["DepthImbalance"] = (bid_vol - ask_vol) / (bid_vol + ask_vol).replace(0.0, np.nan)
     return depth
 
@@ -342,6 +494,150 @@ def load_macro_outputs(cache_dir: Path, output_dir: Path) -> Dict[str, str]:
         "macro_matrix_tail": "macro/macro_matrix_tail.csv",
         "latest_macro": "macro/latest_macro.csv",
     }
+
+
+def build_breadth_frame(daily_frames: Mapping[str, pd.DataFrame]) -> pd.DataFrame:
+    rows = []
+    equity_frames = {
+        ticker: frame
+        for ticker, frame in daily_frames.items()
+        if not ticker.startswith("VN") and not frame.empty
+    }
+    if not equity_frames:
+        return pd.DataFrame()
+
+    def safe_median(series: pd.Series) -> float:
+        numeric = pd.to_numeric(series, errors="coerce").dropna()
+        return float(numeric.median()) if not numeric.empty else np.nan
+
+    combined = pd.concat(
+        [
+            frame.assign(Ticker=ticker)[
+                [
+                    "Date",
+                    "Ticker",
+                    "ret_1d_pct",
+                    "ret_5d_pct",
+                    "ret_20d_pct",
+                    "close",
+                    "volume",
+                    "traded_value",
+                    "sma_20",
+                    "sma_50",
+                    "high_52w",
+                    "low_52w",
+                    "volume_ratio_20",
+                ]
+            ]
+            for ticker, frame in equity_frames.items()
+        ],
+        ignore_index=True,
+    )
+    for date, group in combined.groupby("Date", sort=True):
+        ret = pd.to_numeric(group["ret_1d_pct"], errors="coerce")
+        value = pd.to_numeric(group["traded_value"], errors="coerce").fillna(0.0)
+        up_mask = ret > 0
+        down_mask = ret < 0
+        close = pd.to_numeric(group["close"], errors="coerce")
+        rows.append(
+            {
+                "Date": pd.Timestamp(date).date().isoformat(),
+                "TickerCount": int(group["Ticker"].nunique()),
+                "Advancers": int(up_mask.sum()),
+                "Decliners": int(down_mask.sum()),
+                "Unchanged": int((ret == 0).sum()),
+                "AdvancerPct": float(up_mask.mean() * 100.0) if len(group) else np.nan,
+                "DeclinerPct": float(down_mask.mean() * 100.0) if len(group) else np.nan,
+                "EqualWeightRet1dPct": float(ret.mean()) if ret.notna().any() else np.nan,
+                "MedianRet1dPct": float(ret.median()) if ret.notna().any() else np.nan,
+                "MedianRet5dPct": safe_median(group["ret_5d_pct"]),
+                "MedianRet20dPct": safe_median(group["ret_20d_pct"]),
+                "TotalVolume": float(pd.to_numeric(group["volume"], errors="coerce").fillna(0.0).sum()),
+                "TotalTradedValue": float(value.sum()),
+                "UpTradedValuePct": float(value[up_mask].sum() / value.sum() * 100.0) if float(value.sum()) > 0 else np.nan,
+                "AboveSMA20Pct": float((close > pd.to_numeric(group["sma_20"], errors="coerce")).mean() * 100.0),
+                "AboveSMA50Pct": float((close > pd.to_numeric(group["sma_50"], errors="coerce")).mean() * 100.0),
+                "New52wHighCount": int((close >= pd.to_numeric(group["high_52w"], errors="coerce")).sum()),
+                "New52wLowCount": int((close <= pd.to_numeric(group["low_52w"], errors="coerce")).sum()),
+                "MedianVolumeRatio20": safe_median(group["volume_ratio_20"]),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def load_sector_map(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame(columns=["Ticker", "Sector"])
+    frame = pd.read_csv(path)
+    if "Ticker" not in frame.columns:
+        return pd.DataFrame(columns=["Ticker", "Sector"])
+    out = frame.copy()
+    out["Ticker"] = out["Ticker"].map(_normalise_ticker)
+    if "Sector" not in out.columns:
+        out["Sector"] = ""
+    return out[["Ticker", "Sector"]].drop_duplicates(subset=["Ticker"], keep="last")
+
+
+def build_cross_section_latest(latest: pd.DataFrame) -> pd.DataFrame:
+    if latest.empty or "Ticker" not in latest.columns:
+        return pd.DataFrame()
+    out = latest.copy()
+    rank_columns = [
+        "Ret1dPct",
+        "Ret5dPct",
+        "Ret20dPct",
+        "Ret60dPct",
+        "VolumeRatio20",
+        "ValueRatio20",
+        "DailyTradedValue",
+        "IntradayVolumePctADV20",
+        "ExcessRet20dVsVNINDEXPct",
+        "RealizedVol20dPct",
+        "Drawdown60dPct",
+    ]
+    for column in rank_columns:
+        if column in out.columns:
+            numeric = pd.to_numeric(out[column], errors="coerce")
+            if not numeric.notna().any():
+                continue
+            ascending = column in {"RealizedVol20dPct", "Drawdown60dPct"}
+            out[f"{column}Rank"] = numeric.rank(ascending=ascending, method="min", na_option="bottom")
+            out[f"{column}PctRank"] = numeric.rank(pct=True, ascending=not ascending)
+    return out
+
+
+def _numeric_column(frame: pd.DataFrame, column: str) -> pd.Series:
+    if column not in frame.columns:
+        return pd.Series([np.nan] * len(frame), index=frame.index, dtype="float64")
+    return pd.to_numeric(frame[column], errors="coerce")
+
+
+def _safe_median(series: pd.Series) -> float:
+    numeric = pd.to_numeric(series, errors="coerce").dropna()
+    return float(numeric.median()) if not numeric.empty else np.nan
+
+
+def build_sector_latest(latest: pd.DataFrame, sector_map: pd.DataFrame) -> pd.DataFrame:
+    if latest.empty or sector_map.empty:
+        return pd.DataFrame()
+    scoped = latest.merge(sector_map, on="Ticker", how="left")
+    scoped = scoped[scoped["Sector"].fillna("").astype(str).str.len() > 0].copy()
+    if scoped.empty:
+        return pd.DataFrame()
+    rows = []
+    for sector, group in scoped.groupby("Sector", sort=True):
+        rows.append(
+            {
+                "Sector": sector,
+                "TickerCount": int(group["Ticker"].nunique()),
+                "MedianRet1dPct": _safe_median(_numeric_column(group, "Ret1dPct")),
+                "MedianRet20dPct": _safe_median(_numeric_column(group, "Ret20dPct")),
+                "TotalTradedValue": float(_numeric_column(group, "DailyTradedValue").fillna(0.0).sum()),
+                "MedianVolumeRatio20": _safe_median(_numeric_column(group, "VolumeRatio20")),
+                "AboveSMA20Pct": float((_numeric_column(group, "LastClose") > _numeric_column(group, "SMA20")).mean() * 100.0),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _json_safe(value: object) -> object:
@@ -411,23 +707,50 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
 
     (output / "daily").mkdir(parents=True, exist_ok=True)
     (output / "intraday").mkdir(parents=True, exist_ok=True)
+    (output / "intraday" / "minute_profile").mkdir(parents=True, exist_ok=True)
     latest_rows = []
     files: Dict[str, object] = {}
+    daily_frames = {
+        ticker: enrich_daily_frame(_read_daily(daily_dir / f"{ticker}_daily.csv", ticker))
+        for ticker in tickers
+    }
+    daily_frames = add_market_relative_metrics(daily_frames)
+    intraday_frames = {
+        ticker: enrich_intraday_frame(_read_intraday(intraday_dir / f"{ticker}_1m.csv", ticker))
+        for ticker in tickers
+    }
+
+    intraday_summary_rows = []
     for ticker in tickers:
-        daily = enrich_daily_frame(_read_daily(daily_dir / f"{ticker}_daily.csv", ticker))
+        daily = daily_frames.get(ticker, pd.DataFrame())
         if not daily.empty:
             recent_daily = daily.tail(_window(config, "recent_daily_rows", 260)).copy()
             recent_daily.to_csv(output / "daily" / f"{ticker}.csv", index=False)
             row = {"Ticker": ticker, **latest_daily_metrics(daily)}
         else:
             row = {"Ticker": ticker}
-        intraday = _read_intraday(intraday_dir / f"{ticker}_1m.csv", ticker)
+        intraday = intraday_frames.get(ticker, pd.DataFrame())
         if not intraday.empty:
             intraday.tail(_window(config, "recent_intraday_rows", 390)).to_csv(output / "intraday" / f"{ticker}.csv", index=False)
-            row.update(intraday_summary(intraday, row.get("ADV20Shares")))
+            latest_date = intraday["TradeDate"].iloc[-1]
+            intraday[intraday["TradeDate"].eq(latest_date)].to_csv(output / "intraday" / "minute_profile" / f"{ticker}.csv", index=False)
+            intraday_metrics = intraday_summary(intraday, row.get("ADV20Shares"))
+            row.update(intraday_metrics)
+            intraday_summary_rows.append({"Ticker": ticker, **intraday_metrics})
         latest_rows.append(row)
 
     latest = pd.DataFrame(latest_rows)
+    if intraday_summary_rows:
+        pd.DataFrame(intraday_summary_rows).to_csv(output / "intraday" / "summary_by_ticker.csv", index=False)
+        files["intraday_summary"] = "intraday/summary_by_ticker.csv"
+        files["intraday_minute_profile_dir"] = "intraday/minute_profile/"
+
+    breadth = build_breadth_frame(daily_frames)
+    if not breadth.empty:
+        (output / "market").mkdir(parents=True, exist_ok=True)
+        breadth.to_csv(output / "market" / "breadth_daily.csv", index=False)
+        files["breadth_daily"] = "market/breadth_daily.csv"
+
     depth = load_latest_depth(depth_dir, tickers)
     if not depth.empty:
         (output / "depth").mkdir(parents=True, exist_ok=True)
@@ -459,13 +782,27 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
     macro_files = load_macro_outputs(_path(config, "macro_cache", "out/macro_factors"), output)
     files.update(macro_files)
 
+    sector_map = load_sector_map(_path(config, "sector_map", "data/industry_map.csv"))
+    cross_section = build_cross_section_latest(latest)
+    if not cross_section.empty:
+        (output / "market").mkdir(parents=True, exist_ok=True)
+        cross_section.to_csv(output / "market" / "cross_section_latest.csv", index=False)
+        files["cross_section_latest"] = "market/cross_section_latest.csv"
+    sector_latest = build_sector_latest(latest, sector_map)
+    if not sector_latest.empty:
+        (output / "market").mkdir(parents=True, exist_ok=True)
+        sector_latest.to_csv(output / "market" / "sector_latest.csv", index=False)
+        files["sector_latest"] = "market/sector_latest.csv"
+
     latest.to_csv(output / "latest_metrics.csv", index=False)
     pd.DataFrame(API_CATALOG).to_csv(output / "api_catalog.csv", index=False)
+    pd.DataFrame(CALCULATION_CATALOG).to_csv(output / "calculation_catalog.csv", index=False)
     pd.DataFrame({"Ticker": tickers}).to_csv(output / "tickers.csv", index=False)
     files.update(
         {
             "latest_metrics": "latest_metrics.csv",
             "api_catalog": "api_catalog.csv",
+            "calculation_catalog": "calculation_catalog.csv",
             "tickers": "tickers.csv",
             "daily_dir": "daily/",
             "intraday_dir": "intraday/",
@@ -481,8 +818,12 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
             "manifest.json",
             "latest_metrics.csv",
             "api_catalog.csv",
+            "calculation_catalog.csv",
+            "market/cross_section_latest.csv if present",
+            "market/breadth_daily.csv if present",
             "daily/{ticker}.csv",
             "intraday/{ticker}.csv",
+            "intraday/minute_profile/{ticker}.csv",
             "depth/latest_depth.csv if present",
             "fundamentals/vietstock_overview.csv if present",
             "fundamentals/vietstock_bctt_latest.csv if present",
@@ -491,6 +832,7 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
         ],
         "files": files,
         "api_catalog": API_CATALOG,
+        "calculation_catalog": CALCULATION_CATALOG,
     }
     (output / "manifest.json").write_text(json.dumps(_json_safe(manifest), ensure_ascii=False, indent=2), encoding="utf-8")
     (output / "README.md").write_text(
@@ -502,7 +844,7 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
                 "",
                 "- Numeric data only: prices, volume, order book, flows, fundamentals, macro caches.",
                 "- No news, no recommendations, no model forecast.",
-                "- Start with `manifest.json`, then `latest_metrics.csv`, then per-ticker files under `daily/` and `intraday/`.",
+                "- Start with `manifest.json`, then `latest_metrics.csv`, `calculation_catalog.csv`, market summaries, then per-ticker files.",
                 "",
             ]
         ),

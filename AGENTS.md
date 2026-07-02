@@ -12,7 +12,7 @@
 
 1. Dùng `./broker.sh hub` để dựng `data-hub/latest/` từ cache hiện có.
 2. Dùng `./broker.sh collect` khi cần refresh các API số đã bật trong `config/data_hub.yaml`.
-3. Đọc `data-hub/latest/manifest.json` trước, rồi tới `latest_metrics.csv`, `api_catalog.csv`, và file per-ticker trong `daily/`, `intraday/`.
+3. Đọc `data-hub/latest/manifest.json` trước, rồi tới `latest_metrics.csv`, `api_catalog.csv`, `calculation_catalog.csv`, `market/cross_section_latest.csv`, `market/breadth_daily.csv`, và file per-ticker trong `daily/`, `intraday/minute_profile/`.
 4. Nếu thiếu dữ liệu nguồn, báo thiếu cache/source rõ ràng. Không suy diễn hay bịa số.
 
 ## Allowed Numeric Sources
@@ -30,6 +30,7 @@
 - Output cho ChatGPT phải ưu tiên CSV/JSON nhỏ, dễ browser, có manifest mô tả rõ file nào cần đọc.
 - API catalog phải ghi rõ source, endpoint, loại dữ liệu số, output mặc định, và xác nhận không phải news.
 - Test nên kiểm tra contract file/output thay vì prediction quality.
+- Calculations nên ưu tiên các lớp có ý nghĩa rộng: trend, volatility, drawdown, liquidity, relative strength, breadth, cross-section rank, intraday volume/price per minute.
 
 ## Commands
 

@@ -44,8 +44,13 @@ Nguồn số đang được hỗ trợ hoặc inventory:
 Output quan trọng nhất:
 
 - `latest_metrics.csv`: một dòng mỗi ticker, ghép metric mới nhất.
+- `calculation_catalog.csv`: nhóm phép tính đã tạo và input/output của từng nhóm.
+- `market/cross_section_latest.csv`: xếp hạng latest returns, liquidity, volatility, drawdown, relative strength.
+- `market/breadth_daily.csv`: breadth theo ngày trên configured universe.
+- `market/sector_latest.csv`: sector aggregate nếu có `data/industry_map.csv`.
 - `daily/{TICKER}.csv`: daily OHLCV và technical metrics.
 - `intraday/{TICKER}.csv`: intraday 1m recent rows.
+- `intraday/minute_profile/{TICKER}.csv`: latest-day minute-by-minute return, volume, VWAP, volume rate.
 - `depth/latest_depth.csv`: order book metrics nếu có cache.
 - `fundamentals/vietstock_overview.csv`: valuation metrics nếu có cache.
 - `flows/cafef_flows.csv`: flow metrics nếu có cache.
@@ -55,7 +60,17 @@ Output quan trọng nhất:
 
 `./broker.sh hub` chỉ build artifact từ cache, không tự gọi API.
 
-`./broker.sh collect` gọi các API số được bật trong `config/data_hub.yaml`, sau đó build lại artifact. Source chậm hoặc không cần thiết có thể để `false`; khi đó data hub vẫn build từ các cache còn lại.
+`./broker.sh collect` gọi các API số được bật trong `config/data_hub.yaml`, sau đó build lại artifact. Default bật các nguồn nhanh và hữu ích: OHLCV, depth, CafeF flows, Vietstock overview và macro. Vietstock BCTT là nguồn quarterly dùng Playwright nên có command riêng `./broker.sh refresh_bctt`.
+
+## Calculation Layers
+
+- Trend/momentum: returns 1/5/20/60/120/252 ngày, SMA/EMA distance, RSI, 52-week position.
+- Risk: ATR, realized volatility, downside volatility, drawdown, gap, close-location.
+- Liquidity: traded value, ADV, average value, volume/value ratios.
+- Relative strength: excess return, beta và correlation so với VNINDEX/VN30.
+- Market breadth: advancers/decliners, up-value share, above-MA share, new highs/lows.
+- Intraday microstructure: volume per minute, cumulative VWAP, return per minute, latest-day minute profile.
+- Cross-section: rank các ticker theo return, liquidity, volume spike, volatility, drawdown.
 
 ## Non-Goals
 

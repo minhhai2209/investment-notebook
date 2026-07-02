@@ -101,11 +101,25 @@ def fetch_depth_snapshots(tickers: Iterable[str]) -> pd.DataFrame:
             "Ticker": code,
             "FetchedAt": fetched_at.isoformat(),
             "PriceboardTime": str(decoded.get("time", "")),
+            "FloorCode": str(decoded.get("floorCode", "")),
             "BasicPrice": _to_number(decoded.get("basicPrice")),
+            "FloorPrice": _to_number(decoded.get("floorPrice")),
+            "CeilingPrice": _to_number(decoded.get("ceilingPrice")),
+            "HighestPrice": _to_number(decoded.get("highestPrice")),
+            "LowestPrice": _to_number(decoded.get("lowestPrice")),
+            "AccumulatedValue": _to_number(decoded.get("accumulatedVal")),
+            "AccumulatedVolume": _to_number(decoded.get("accumulatedVol")),
             "MatchPrice": _to_number(decoded.get("matchPrice")),
+            "MatchVolume": _to_number(decoded.get("matchQtty")),
             "CurrentPrice": _to_number(decoded.get("currentPrice")),
+            "CurrentVolume": _to_number(decoded.get("currentQtty")),
+            "ForeignBuyVolume": _to_number(decoded.get("buyForeignQtty")),
+            "ForeignSellVolume": _to_number(decoded.get("sellForeignQtty")),
+            "ForeignNetVolume": _to_number(decoded.get("buyForeignQtty")) - _to_number(decoded.get("sellForeignQtty")),
+            "ForeignTotalRoom": _to_number(decoded.get("totalRoom")),
+            "ForeignCurrentRoom": _to_number(decoded.get("currentRoom")),
         }
-        for level in range(1, 4):
+        for level in DEPTH_LEVELS:
             row[f"BestBid{level}"] = _to_number(decoded.get(f"bidPrice{level:02d}"))
             row[f"BestAsk{level}"] = _to_number(decoded.get(f"offerPrice{level:02d}"))
             row[f"BidVolume{level}"] = _to_number(decoded.get(f"bidQtty{level:02d}"))
