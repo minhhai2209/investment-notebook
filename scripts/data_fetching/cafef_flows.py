@@ -87,7 +87,7 @@ def _fetch_json(url: str, params: Dict[str, object], context: str) -> Dict[str, 
             f"Timed out while fetching CafeF flow data ({context}) after "
             f"{MAX_RETRIES} attempts (timeout={REQUEST_TIMEOUT_SECONDS}s each). "
             "Check network/CafeF availability or set data.cafef_flow_enabled=false in "
-            "config/data_engine.yaml to skip CafeF flow metrics."
+            "config/data_hub.yaml to skip CafeF flow metrics."
         ) from last_exc
     raise CafeFFlowError(
         f"Failed to fetch CafeF flow data ({context}) after {MAX_RETRIES} attempts: {last_exc}"

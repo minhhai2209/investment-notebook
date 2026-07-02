@@ -281,9 +281,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Fetch VN100 constituents from Investing.com (requires network).",
     )
     src.add_argument(
-        "--from-live-vn100-portfolio-profiles",
+        "--from-live-vn100-profiles",
         action="store_true",
-        help="Fetch live VN100 members, merge portfolio/extra tickers, then fetch missing sectors from Vietstock profiles.",
+        help="Fetch live VN100 members, merge extra tickers, then fetch missing sectors from Vietstock profiles.",
     )
     src.add_argument(
         "--from-vietstock-profiles-csv",
@@ -304,11 +304,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--merge-sectors-from",
         metavar="PATH",
         help="CSV providing a Sector mapping (Ticker,Sector). Used when source lacks sectors.",
-    )
-    parser.add_argument(
-        "--portfolio-csv",
-        metavar="PATH",
-        help="Optional portfolio CSV whose Ticker column will be merged into the live VN100 set.",
     )
     parser.add_argument(
         "--extra-ticker",
@@ -376,12 +371,10 @@ def main(argv: Optional[list[str]] = None) -> int:
             ]
         if rows and all(not r.sector for r in rows) and sector_lookup:
             rows = _merge_sectors((r.ticker for r in rows), sector_lookup=sector_lookup, default_sector=args.default_sector)
-    elif args.from_live_vn100_portfolio_profiles:
+    elif args.from_live_vn100_profiles:
         tickers = set(_fetch_investing_vn100_members(timeout=args.timeout))
         if args.expect_count and len(tickers) != args.expect_count:
             raise RefreshError(f"Expected {args.expect_count} tickers, got {len(tickers)} from Investing.com VN100.")
-        if args.portfolio_csv:
-            tickers.update(_read_tickers_from_csv(_resolve_path(args.portfolio_csv)))
         tickers = set(_merge_extra_tickers(tickers, args.extra_ticker))
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,

@@ -11,32 +11,26 @@ from scripts.data_fetching.vietstock_bctt_api import load_or_fetch_bctt_feature_
 
 
 DEFAULT_INDUSTRY_MAP = Path("data/industry_map.csv")
-DEFAULT_PORTFOLIO = Path("data/portfolios/portfolio.csv")
 DEFAULT_CACHE_DIR = Path("out/vietstock_bctt")
-DEFAULT_SUMMARY_OUT = Path("out/analysis/vietstock_bctt_cache_summary.csv")
+DEFAULT_SUMMARY_OUT = Path("out/data_hub/vietstock_bctt_cache_summary.csv")
 
 
 def _normalise_ticker(value: object) -> str:
     return str(value or "").strip().upper()
 
 
-def _load_tickers(industry_map_path: Path, portfolio_path: Path, explicit_tickers: Sequence[str]) -> List[str]:
+def _load_tickers(industry_map_path: Path, explicit_tickers: Sequence[str]) -> List[str]:
     tickers = {_normalise_ticker(ticker) for ticker in explicit_tickers if _normalise_ticker(ticker)}
     if industry_map_path.exists():
         industry_df = pd.read_csv(industry_map_path)
         if "Ticker" in industry_df.columns:
             tickers.update(_normalise_ticker(ticker) for ticker in industry_df["Ticker"])
-    if portfolio_path.exists():
-        portfolio_df = pd.read_csv(portfolio_path)
-        if "Ticker" in portfolio_df.columns:
-            tickers.update(_normalise_ticker(ticker) for ticker in portfolio_df["Ticker"])
     return sorted(ticker for ticker in tickers if ticker and ticker != "VNINDEX")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Refresh/cache Vietstock BCTT tables for a ticker universe.")
     parser.add_argument("--industry-map", default=str(DEFAULT_INDUSTRY_MAP), help="Ticker universe CSV.")
-    parser.add_argument("--portfolio", default=str(DEFAULT_PORTFOLIO), help="Optional portfolio CSV to merge into the ticker set.")
     parser.add_argument("--cache-dir", default=str(DEFAULT_CACHE_DIR), help="BCTT cache directory.")
     parser.add_argument("--summary-out", default=str(DEFAULT_SUMMARY_OUT), help="Summary CSV output path.")
     parser.add_argument("--ticker", action="append", default=[], help="Optional extra ticker(s) to include.")
@@ -47,7 +41,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    tickers = _load_tickers(Path(args.industry_map), Path(args.portfolio), args.ticker)
+    tickers = _load_tickers(Path(args.industry_map), args.ticker)
     if not tickers:
         raise SystemExit("No tickers found for BCTT cache refresh.")
 

@@ -1,6 +1,0 @@
-Date,Ticker,Horizon,ForecastWindow,BaseClose,ForecastDate,FeatureSet,Model,Objective,UsedFeatureCount,TrainRows,TrainEndDate,PredUpProb,PredDirectionUp,PredCloseRetPct,PredClose
-2026-07-01,VIC,1,T+1,220.0,,baseline_ohlc,logit_direction,direction,161,545,2026-06-30,0.010587641901876438,False,,
-2026-07-01,VIC,2,T+2,220.0,,baseline_ohlc,logit_direction,direction,161,544,2026-06-29,0.17853940979025784,False,,
-2026-07-01,VIC,3,T+3,220.0,,baseline_ohlc,logit_direction,direction,161,543,2026-06-26,0.058784695842216406,False,,
-2026-07-01,VIC,4,T+4,220.0,,baseline_ohlc,logit_direction,direction,161,542,2026-06-25,0.06164113907727134,False,,
-2026-07-01,VIC,5,T+5,220.0,,baseline_ohlc,logit_direction,direction,161,541,2026-06-24,0.024089475599598807,False,,

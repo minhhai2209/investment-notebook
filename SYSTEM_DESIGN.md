@@ -1,116 +1,67 @@
 # System Design
 
-## Mục tiêu
+## Mục Tiêu
 
-`investment-notebook` là notebook tương tác để dự báo thị trường/mã bằng dữ liệu. Mục tiêu hiện tại của repo là:
+Repo này là numeric data hub cho thị trường chứng khoán Việt Nam. Nó thu thập dữ liệu số, chuẩn hóa cache, tính metric cơ bản, rồi đóng gói thành artifact nhỏ để ChatGPT browser nhanh.
 
-- dựng snapshot dữ liệu sạch cho forecast
-- build các artifact ML/diagnostic theo từng horizon
-- cho phép Codex đọc artifact và giải thích forecast trực tiếp
+Không có lớp dự báo, không có report khuyến nghị, không có tin tức.
 
-Repo này không còn:
+## Luồng Dữ Liệu
 
-- TCBS browser automation
-- order generation / order placement
-- ngân sách mặc định, position sizing, ladder, hoặc khuyến nghị giao dịch
-- portfolio workflow mặc định
-- codex batch runner kiểu `orders.csv`
-- bundle/prompt contract phục vụ execution workflow cũ
-
-## Kiến trúc hiện tại
-
-1. `scripts/tools/refresh_industry_map.py`
-
-- refresh `data/industry_map.csv`
-- hỗ trợ rebuild scope từ `VIC`, `VN30`, `HOSE`, `VN100`, hoặc CSV người dùng cung cấp
-- workflow mặc định pin scope vào `VIC`
-
-2. `scripts/engine/data_engine.py`
-
-- đọc `data/industry_map.csv`
-- lấy history + intraday từ các data fetchers
-- tính technical snapshot, breadth, relative strength, sector context
-- ghi `out/universe.csv`, `out/market_summary.json`, `out/sector_summary.csv`
-- vẫn ghi `out/positions.csv` rỗng để tương thích schema cũ, nhưng config mặc định không đọc danh mục
-
-3. `scripts/analysis/*`
-
-- build next-session/multi-session OHLC forecast
-- build intraday rest-of-session forecast
-- audit feature/model bằng walk-back
-- giữ một số builder legacy để diagnostic khi gọi tay, không phải nguồn trả lời mặc định
-
-4. `scripts/research/build_research_bundle.py`
-
-- đọc snapshot live và các artifact trong `out/analysis/`
-- dựng `research/manifest.json` và note/state per ticker
-- layer này để Codex đọc nhanh hơn trong session tương tác
-
-## Dòng dữ liệu
-
-```text
-refresh_industry_map -> data/industry_map.csv
-                         |
-                         v
-                    data_engine
-                         |
-                         v
-  out/universe.csv / market_summary.json / sector_summary.csv / positions.csv(empty by default)
-                         |
-                         v
-                 forecast/evaluation builders
-                         |
-                         v
-                  out/analysis/*
-                         |
-                         v
-                 research bundle / reports
-                         |
-                         v
-               Codex interactive session
+```mermaid
+flowchart LR
+    A["Numeric APIs"] --> B["Raw caches under out/"]
+    B --> C["Normalize and enrich"]
+    C --> D["data-hub/latest"]
+    D --> E["ChatGPT browsing"]
 ```
 
-## Portfolio Handling
+## API Inventory
 
-Danh mục không còn là workflow mặc định.
+Nguồn số đang được hỗ trợ hoặc inventory:
 
-- `config/data_engine.yaml` đặt `portfolio.enabled: false`.
-- Khi tắt portfolio, engine không đọc `data/portfolios/portfolio.csv`, không merge vị thế vào universe, và không kéo ticker từ portfolio vào scope.
-- `out/positions.csv` vẫn có thể được ghi rỗng để tránh phá schema cũ.
-- Chỉ bật lại `portfolio.enabled: true` khi cần chạy một phân tích legacy rõ ràng.
+- VNDIRECT dchart: OHLCV daily/intraday.
+- VNDIRECT priceboard: snapshot bid/ask depth.
+- CafeF flows: khối ngoại và tự doanh.
+- Vietstock overview: valuation snapshot.
+- Vietstock BCTT: financial statement numeric tables.
+- FRED/Stooq: macro market numeric series.
+- Market membership sources: VN30/VN100/HOSE flags.
 
-## Wrapper CLI
+`data-hub/latest/api_catalog.csv` là bản catalog để ChatGPT xem nhanh source nào tạo ra loại số nào.
 
-`broker.sh` giờ chỉ là utility wrapper mỏng:
+## Artifact Contract
 
-- `engine`
-- `prepare`
-- `prepare_default`
-- `research`
-- active forecast builders: `ohlc`, `intraday`
-- feature/model evaluations
-- legacy diagnostic builders
-- `refresh_vic_map`, `refresh_vn30_map`, `refresh_hose_map`, `map`
-- `tests`
+`data-hub/latest/manifest.json` là điểm bắt đầu. Manifest chứa:
 
-Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
+- timestamp tạo artifact
+- danh sách ticker
+- mục đích numeric-only
+- thứ tự đọc file cho ChatGPT
+- danh sách file có mặt
+- API catalog
 
-## Nguồn dữ liệu
+Output quan trọng nhất:
 
-- VNDIRECT: daily OHLCV và intraday cache
-- CafeF: foreign/proprietary flow
-- Vietstock overview: valuation / quality snapshot
-- Vietstock BCTT: quarterly financial statements cho harness lift/evaluation
-- Vietstock board/company pages: constituent lists và sector mapping
+- `latest_metrics.csv`: một dòng mỗi ticker, ghép metric mới nhất.
+- `daily/{TICKER}.csv`: daily OHLCV và technical metrics.
+- `intraday/{TICKER}.csv`: intraday 1m recent rows.
+- `depth/latest_depth.csv`: order book metrics nếu có cache.
+- `fundamentals/vietstock_overview.csv`: valuation metrics nếu có cache.
+- `flows/cafef_flows.csv`: flow metrics nếu có cache.
+- `macro/latest_macro.csv`: macro latest values nếu có cache.
 
-## Nguyên tắc repo
+## Refresh Policy
 
-- fail-fast nếu thiếu input bắt buộc hoặc schema sai
-- mọi artifact generated nằm dưới `out/`, `research/`, hoặc `reports/`
-- không mang giả định execution downstream
-- contract của session tương tác tách hai lớp: `Model predict` cho forecast/validation/error band từ artifact repo, và `External synthesis` cho bối cảnh tổng hợp từ nguồn ngoài nếu có
-- không tự sinh recommendation, ngân sách, danh mục, position sizing, hoặc ladder
-- không trộn web/news/source mạng vào forecast; dữ liệu ngoài chỉ trở thành model evidence khi được fetcher/pipeline của repo đưa thành artifact/model feature có thể audit
-- nếu artifact forecast còn thiếu hoặc stale, Codex phải tự chạy batch và tự đợi xong rồi mới trả lời
-- chạy tuần tự là mặc định; chỉ song song hóa khi các job thật sự độc lập và không ghi/đọc chung cache hoặc history
-- `prepare` giữ nghĩa là rebuild tuần tự trên scope hiện có; `prepare_default` là shortcut tuần tự cho scope mặc định `VIC`
+`./broker.sh hub` chỉ build artifact từ cache, không tự gọi API.
+
+`./broker.sh collect` gọi các API số được bật trong `config/data_hub.yaml`, sau đó build lại artifact. Source chậm hoặc không cần thiết có thể để `false`; khi đó data hub vẫn build từ các cache còn lại.
+
+## Non-Goals
+
+- Không backtest.
+- Không model selection.
+- Không forecast.
+- Không tin tức.
+- Không recommendation.
+- Không portfolio/order sizing.

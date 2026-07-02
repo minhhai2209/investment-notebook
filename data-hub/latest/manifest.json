@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-07-02T02:28:12.843715+00:00",
+  "config": "config/data_hub.yaml",
+  "tickers": [
+    "VIC",
+    "VHM",
+    "VRE",
+    "VNM",
+    "VCB",
+    "BID",
+    "CTG",
+    "TCB",
+    "MBB",
+    "FPT",
+    "HPG",
+    "MSN",
+    "MWG",
+    "SSI",
+    "VNINDEX",
+    "VN30"
+  ],
+  "purpose": "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.",
+  "read_order_for_chatgpt": [
+    "manifest.json",
+    "latest_metrics.csv",
+    "api_catalog.csv",
+    "daily/{ticker}.csv",
+    "intraday/{ticker}.csv",
+    "depth/latest_depth.csv if present",
+    "fundamentals/vietstock_overview.csv if present",
+    "fundamentals/vietstock_bctt_latest.csv if present",
+    "flows/cafef_flows.csv if present",
+    "macro/latest_macro.csv if present"
+  ],
+  "files": {
+    "latest_depth": "depth/latest_depth.csv",
+    "latest_metrics": "latest_metrics.csv",
+    "api_catalog": "api_catalog.csv",
+    "tickers": "tickers.csv",
+    "daily_dir": "daily/",
+    "intraday_dir": "intraday/"
+  },
+  "api_catalog": [
+    {
+      "Source": "VNDIRECT dchart",
+      "Kind": "ohlcv",
+      "Endpoint": "https://dchart-api.vndirect.com.vn/dchart/history",
+      "NumericData": "daily/intraday open, high, low, close, volume",
+      "DefaultOutput": "daily/*.csv, intraday/*.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "VNDIRECT priceboard",
+      "Kind": "order_book_depth",
+      "Endpoint": "https://price-streaming-api-free.vndirect.com.vn/v2/stocks/snapshot",
+      "NumericData": "best bid/ask levels, bid/ask volume, match/current price, foreign room",
+      "DefaultOutput": "depth/latest_depth.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock overview",
+      "Kind": "fundamental_snapshot",
+      "Endpoint": "https://finance.vietstock.vn/{ticker}-ctcp.htm",
+      "NumericData": "forward PE, PB, derived ROE",
+      "DefaultOutput": "fundamentals/vietstock_overview.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock BCTT",
+      "Kind": "financial_statement_cache",
+      "Endpoint": "finance.vietstock.vn BCTT tables via cached Playwright collector",
+      "NumericData": "EPS4Q, BVPS, PB, margins, ROE/ROA, debt ratios, revenue/profit growth",
+      "DefaultOutput": "available through BCTT cache/features when collected",
+      "News": "no"
+    },
+    {
+      "Source": "CafeF flows",
+      "Kind": "foreign_proprietary_flow",
+      "Endpoint": "CafeF Ajax GDKhoiNgoai/GDTuDoanh",
+      "NumericData": "foreign/proprietary net shares and net value over 1/5/20 sessions",
+      "DefaultOutput": "flows/cafef_flows.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "FRED/Stooq macro cache",
+      "Kind": "macro_market_numeric",
+      "Endpoint": "configured in config/macro_factors.yaml",
+      "NumericData": "oil, gold, USD, VIX, US yields, global equity index closes",
+      "DefaultOutput": "macro/latest_macro.csv, macro/macro_matrix_tail.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock/VNDIRECT/Investing components",
+      "Kind": "market_membership",
+      "Endpoint": "board/component pages and VNDIRECT stocks API",
+      "NumericData": "membership flags for VN30/VN100/HOSE universe",
+      "DefaultOutput": "universe.csv when collected upstream",
+      "News": "no"
+    }
+  ]
+}

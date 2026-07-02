@@ -187,9 +187,7 @@ class RefreshIndustryMapTest(unittest.TestCase):
             ],
         )
 
-    def test_refresh_from_live_vn100_portfolio_profiles_merges_portfolio_and_extra_tickers(self) -> None:
-        portfolio = self.base / "portfolio.csv"
-        portfolio.write_text("Ticker,Quantity,AvgPrice\nHPG,100,25\nNVL,200,12\n", encoding="utf-8")
+    def test_refresh_from_live_vn100_profiles_merges_extra_tickers(self) -> None:
         output = self.base / "industry_map.csv"
         output.write_text("Ticker,Sector\nDPM,Nguyên vật liệu\n", encoding="utf-8")
 
@@ -206,11 +204,11 @@ class RefreshIndustryMapTest(unittest.TestCase):
         ):
             exit_code = refresh_industry_map.main(
                 [
-                    "--from-live-vn100-portfolio-profiles",
+                    "--from-live-vn100-profiles",
                     "--expect-count",
                     "1",
-                    "--portfolio-csv",
-                    str(portfolio),
+                    "--extra-ticker",
+                    "HPG",
                     "--extra-ticker",
                     "NVL",
                     "--output",
