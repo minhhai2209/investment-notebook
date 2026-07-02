@@ -1,0 +1,40 @@
+{
+  "generated_at": "2026-07-02T03:52:34.228947+00:00",
+  "purpose": "Fast retrieval map for ChatGPT, repo connectors, or Google Drive connectors.",
+  "start_here": "START_HERE.json",
+  "minimal_read_order": [
+    "START_HERE.json",
+    "bundles/source_audit.csv",
+    "bundles/market_snapshot.csv",
+    "bundles/symbol_latest.csv",
+    "index/ticker_catalog.csv",
+    "index/file_catalog.csv"
+  ],
+  "use_cases": {
+    "market_overview": [
+      "bundles/source_audit.csv",
+      "bundles/market_snapshot.csv",
+      "bundles/symbol_latest.csv"
+    ],
+    "single_ticker": [
+      "index/ticker_catalog.csv",
+      "bundles/symbol_latest.csv",
+      "daily/{ticker}.csv",
+      "intraday/minute_profile/{ticker}.csv"
+    ],
+    "source_audit": [
+      "bundles/source_audit.csv",
+      "source_status.csv",
+      "source_status/*.csv"
+    ],
+    "column_lookup": [
+      "index/column_catalog.csv",
+      "latest_metrics.csv"
+    ],
+    "deep_dive": [
+      "manifest.json",
+      "index/file_catalog.csv",
+      "latest_metrics.csv"
+    ]
+  }
+}

@@ -12,7 +12,7 @@
 
 1. Dùng `./broker.sh hub` để dựng `data-hub/latest/` từ cache hiện có.
 2. Dùng `./broker.sh collect` khi cần refresh các API số đã bật trong `config/data_hub.yaml`.
-3. Đọc `data-hub/latest/manifest.json` trước, rồi tới `source_status.csv`, `latest_metrics.csv`, `api_catalog.csv`, `calculation_catalog.csv`, `market/cross_section_latest.csv`, `market/breadth_daily.csv`, và file per-ticker trong `daily/`, `intraday/minute_profile/`.
+3. Đọc `data-hub/latest/START_HERE.json` trước, rồi tới `bundles/source_audit.csv`, `bundles/market_snapshot.csv`, `bundles/symbol_latest.csv`, `index/ticker_catalog.csv`, `index/file_catalog.csv`, và chỉ mở file per-ticker trong `daily/`, `intraday/minute_profile/` khi cần drill-down.
 4. Nếu thiếu dữ liệu nguồn, báo thiếu cache/source rõ ràng. Không suy diễn hay bịa số.
 
 ## Allowed Numeric Sources

@@ -96,8 +96,12 @@ windows:
         manifest = build_data_hub(self._write_config())
 
         self.assertEqual(manifest["purpose"], "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.")
-        for filename in ["manifest.json", "README.md", "source_status.csv", "latest_metrics.csv", "api_catalog.csv", "calculation_catalog.csv", "tickers.csv"]:
+        for filename in ["START_HERE.json", "manifest.json", "README.md", "source_status.csv", "latest_metrics.csv", "api_catalog.csv", "calculation_catalog.csv", "tickers.csv"]:
             self.assertTrue((self.out_dir / filename).exists(), filename)
+        for filename in ["source_audit.csv", "market_snapshot.csv", "symbol_latest.csv", "retrieval_map.json"]:
+            self.assertTrue((self.out_dir / "bundles" / filename).exists(), filename)
+        for filename in ["ticker_catalog.csv", "file_catalog.csv", "column_catalog.csv"]:
+            self.assertTrue((self.out_dir / "index" / filename).exists(), filename)
         self.assertTrue((self.out_dir / "daily" / "VIC.csv").exists())
         self.assertTrue((self.out_dir / "intraday" / "VIC.csv").exists())
         self.assertTrue((self.out_dir / "intraday" / "minute_profile" / "VIC.csv").exists())
@@ -115,9 +119,15 @@ windows:
         self.assertGreater(float(vic["LastClose"]), 0.0)
 
         saved_manifest = json.loads((self.out_dir / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(saved_manifest["read_order_for_chatgpt"][0], "manifest.json")
+        self.assertEqual(saved_manifest["read_order_for_chatgpt"][0], "START_HERE.json")
         self.assertIn("calculation_catalog", saved_manifest["files"])
         self.assertIn("source_status", saved_manifest["files"])
+        self.assertIn("file_catalog", saved_manifest["files"])
+        self.assertIn("retrieval_map", saved_manifest)
+
+        start_here = json.loads((self.out_dir / "START_HERE.json").read_text(encoding="utf-8"))
+        self.assertEqual(start_here["minimal_read_order"][0], "START_HERE.json")
+        self.assertIn("symbol_latest", start_here["top_level_files"])
 
     def test_enrich_daily_frame_adds_feature_columns(self) -> None:
         frame = pd.DataFrame(

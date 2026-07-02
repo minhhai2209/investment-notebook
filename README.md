@@ -12,15 +12,13 @@ Không có model dự báo, không có khuyến nghị mua bán, không có danh
 
 Lệnh này dựng `data-hub/latest/` từ cache hiện có. ChatGPT nên bắt đầu đọc theo thứ tự:
 
-1. `data-hub/latest/manifest.json`
-2. `data-hub/latest/source_status.csv`
-3. `data-hub/latest/latest_metrics.csv`
-4. `data-hub/latest/api_catalog.csv`
-5. `data-hub/latest/calculation_catalog.csv`
-6. `data-hub/latest/market/cross_section_latest.csv`
-7. `data-hub/latest/market/breadth_daily.csv`
-8. `data-hub/latest/daily/{TICKER}.csv`
-9. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
+1. `data-hub/latest/START_HERE.json`
+2. `data-hub/latest/bundles/source_audit.csv`
+3. `data-hub/latest/bundles/market_snapshot.csv`
+4. `data-hub/latest/bundles/symbol_latest.csv`
+5. `data-hub/latest/index/ticker_catalog.csv`
+6. `data-hub/latest/index/file_catalog.csv`
+7. `data-hub/latest/manifest.json`
 
 Khi muốn gọi API và làm mới cache số:
 
@@ -47,6 +45,12 @@ Các chỉ số được tính sẵn trong data hub gồm return 1/5/20/60/120/2
 ## Output Chính
 
 `data-hub/latest/latest_metrics.csv` là bảng đọc nhanh nhất: mỗi ticker một dòng, ghép các metric mới nhất từ daily, intraday, depth, flows, fundamentals và macro cache nếu có.
+
+`data-hub/latest/START_HERE.json` là entrypoint cho ChatGPT/GDrive/repo connector. Nó chỉ rõ thứ tự đọc tối thiểu, rule không-news/không-model, universe, và file nào nên mở theo từng tình huống.
+
+`data-hub/latest/bundles/` chứa các file nhỏ cho lượt đọc đầu: `source_audit.csv`, `market_snapshot.csv`, `symbol_latest.csv`, `retrieval_map.json`.
+
+`data-hub/latest/index/` chứa catalog để truy xuất sâu: `ticker_catalog.csv`, `file_catalog.csv`, `column_catalog.csv`.
 
 `data-hub/latest/manifest.json` là contract cho ChatGPT: nó mô tả mục đích, danh sách ticker, file nào có mặt, và API catalog. Nếu một nguồn chưa có cache thì data hub bỏ qua nguồn đó thay vì bịa dữ liệu.
 

@@ -762,6 +762,289 @@ def _json_safe(value: object) -> object:
     return value
 
 
+def _write_json(path: Path, payload: Mapping[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_json_safe(payload), ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _available_columns(frame: pd.DataFrame, columns: Sequence[str]) -> List[str]:
+    return [column for column in columns if column in frame.columns]
+
+
+def build_symbol_latest_bundle(latest: pd.DataFrame) -> pd.DataFrame:
+    preferred_columns = [
+        "Ticker",
+        "LatestDate",
+        "LastClose",
+        "Ret1dPct",
+        "Ret5dPct",
+        "Ret20dPct",
+        "Ret60dPct",
+        "DailyVolume",
+        "DailyTradedValue",
+        "VolumeRatio20",
+        "ValueRatio20",
+        "RSI14",
+        "ATR14Pct",
+        "RealizedVol20dPct",
+        "Drawdown60dPct",
+        "Pos52wPct",
+        "ExcessRet20dVsVNINDEXPct",
+        "ExcessRet20dVsVN30Pct",
+        "IntradayDate",
+        "IntradayLastTimestamp",
+        "IntradayLast",
+        "IntradayRetFromOpenPct",
+        "IntradayVolume",
+        "IntradayVolumePctADV20",
+        "BidAskSpreadPct",
+        "DepthImbalance",
+        "ForeignNetValue20d",
+        "ProprietaryNetValue20d",
+        "ForwardPE",
+        "PB",
+        "ROE",
+        "EPS4Q",
+        "BVPS",
+        "RevenueGrowthYoYPct",
+        "NetProfitGrowthYoYPct",
+    ]
+    columns = _available_columns(latest, preferred_columns)
+    return latest[columns].copy() if columns else pd.DataFrame()
+
+
+def build_market_snapshot_bundle(
+    *,
+    generated_at: str,
+    tickers: Sequence[str],
+    breadth: pd.DataFrame,
+    sector_latest: pd.DataFrame,
+    macro_latest_path: Path,
+) -> pd.DataFrame:
+    rows: List[Dict[str, object]] = [
+        {"Section": "artifact", "Metric": "GeneratedAt", "Value": generated_at},
+        {"Section": "universe", "Metric": "ConfiguredSymbolCount", "Value": len(tickers)},
+        {"Section": "universe", "Metric": "EquityTickerCount", "Value": len([ticker for ticker in tickers if not _is_index_ticker(ticker)])},
+    ]
+    if not breadth.empty:
+        latest_breadth = breadth.tail(1).iloc[0]
+        for column in [
+            "Date",
+            "TickerCount",
+            "Advancers",
+            "Decliners",
+            "Unchanged",
+            "EqualWeightRet1dPct",
+            "MedianRet1dPct",
+            "MedianRet20dPct",
+            "TotalTradedValue",
+            "UpTradedValuePct",
+            "AboveSMA20Pct",
+            "AboveSMA50Pct",
+        ]:
+            if column in latest_breadth.index:
+                rows.append({"Section": "breadth_latest", "Metric": column, "Value": latest_breadth.get(column)})
+    if not sector_latest.empty:
+        for row in sector_latest.sort_values("TotalTradedValue", ascending=False).head(10).itertuples(index=False):
+            sector = getattr(row, "Sector", "")
+            rows.append({"Section": "sector_latest", "Metric": f"{sector}.TickerCount", "Value": getattr(row, "TickerCount", "")})
+            rows.append({"Section": "sector_latest", "Metric": f"{sector}.MedianRet1dPct", "Value": getattr(row, "MedianRet1dPct", "")})
+            rows.append({"Section": "sector_latest", "Metric": f"{sector}.TotalTradedValue", "Value": getattr(row, "TotalTradedValue", "")})
+    if macro_latest_path.exists():
+        macro = pd.read_csv(macro_latest_path)
+        for row in macro.itertuples(index=False):
+            rows.append({"Section": "macro_latest", "Metric": str(getattr(row, "Factor", "")), "Value": getattr(row, "Value", "")})
+    return pd.DataFrame(rows)
+
+
+def infer_column_group(column: str) -> str:
+    lower = column.lower()
+    if lower == "ticker":
+        return "identifier"
+    if lower in {"lastclose", "dailyopen", "dailyhigh", "dailylow", "intradaylast", "intradayopen", "intradayhigh", "intradaylow"}:
+        return "price_ohlc"
+    if "intraday" in lower or "vwap" in lower:
+        return "intraday"
+    if "foreign" in lower or "proprietary" in lower:
+        return "flows"
+    if "pe" in lower or lower in {"pb", "roe", "eps4q", "bvps"} or "growth" in lower or "margin" in lower or "bctt" in lower:
+        return "fundamentals"
+    if "bid" in lower or "ask" in lower or "depth" in lower or "spread" in lower:
+        return "depth"
+    if "ret" in lower or "sma" in lower or "ema" in lower or "rsi" in lower or "pos52" in lower:
+        return "trend_momentum"
+    if "volume" in lower or "value" in lower or "adv" in lower:
+        return "liquidity"
+    if "vol" in lower or "atr" in lower or "drawdown" in lower or "range" in lower:
+        return "risk_volatility"
+    if "date" in lower or "time" in lower:
+        return "time"
+    return "other"
+
+
+def build_column_catalog(frame: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for column in frame.columns:
+        series = frame[column]
+        non_null = int(series.notna().sum())
+        rows.append(
+            {
+                "Column": column,
+                "Group": infer_column_group(column),
+                "DType": str(series.dtype),
+                "NonNullCount": non_null,
+                "NullCount": int(len(series) - non_null),
+                "Example": "" if series.dropna().empty else str(series.dropna().iloc[0])[:120],
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def build_ticker_catalog(tickers: Sequence[str], output: Path, latest: pd.DataFrame) -> pd.DataFrame:
+    latest_tickers = set(latest["Ticker"].astype(str)) if "Ticker" in latest.columns else set()
+    rows = []
+    for ticker in tickers:
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Kind": "index" if _is_index_ticker(ticker) else "equity",
+                "InLatestMetrics": ticker in latest_tickers,
+                "DailyPath": f"daily/{ticker}.csv" if (output / "daily" / f"{ticker}.csv").exists() else "",
+                "IntradayPath": f"intraday/{ticker}.csv" if (output / "intraday" / f"{ticker}.csv").exists() else "",
+                "MinuteProfilePath": f"intraday/minute_profile/{ticker}.csv" if (output / "intraday" / "minute_profile" / f"{ticker}.csv").exists() else "",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def build_file_catalog(output: Path) -> pd.DataFrame:
+    rows = []
+    for path in sorted(output.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(output).as_posix()
+        if rel == "index/file_catalog.csv":
+            continue
+        row: Dict[str, object] = {
+            "Path": rel,
+            "Directory": path.parent.relative_to(output).as_posix() if path.parent != output else ".",
+            "Suffix": path.suffix.lower(),
+            "Bytes": path.stat().st_size,
+            "Rows": "",
+            "Columns": "",
+            "Ticker": "",
+        }
+        if path.suffix.lower() == ".csv":
+            try:
+                header = pd.read_csv(path, nrows=0)
+                row["Columns"] = len(header.columns)
+                with path.open("r", encoding="utf-8") as f:
+                    row["Rows"] = max(0, sum(1 for _ in f) - 1)
+            except Exception:
+                pass
+            if path.parent.name in {"daily", "intraday", "minute_profile"}:
+                row["Ticker"] = path.stem
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def write_retrieval_outputs(
+    *,
+    output: Path,
+    generated_at: str,
+    tickers: Sequence[str],
+    latest: pd.DataFrame,
+    breadth: pd.DataFrame,
+    sector_latest: pd.DataFrame,
+    source_status: pd.DataFrame,
+    files: Dict[str, object],
+) -> Dict[str, object]:
+    index_dir = output / "index"
+    bundle_dir = output / "bundles"
+    index_dir.mkdir(parents=True, exist_ok=True)
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    symbol_latest = build_symbol_latest_bundle(latest)
+    if not symbol_latest.empty:
+        symbol_latest.to_csv(bundle_dir / "symbol_latest.csv", index=False)
+        files["bundle_symbol_latest"] = "bundles/symbol_latest.csv"
+
+    market_snapshot = build_market_snapshot_bundle(
+        generated_at=generated_at,
+        tickers=tickers,
+        breadth=breadth,
+        sector_latest=sector_latest,
+        macro_latest_path=output / "macro" / "latest_macro.csv",
+    )
+    market_snapshot.to_csv(bundle_dir / "market_snapshot.csv", index=False)
+    files["bundle_market_snapshot"] = "bundles/market_snapshot.csv"
+
+    source_status.to_csv(bundle_dir / "source_audit.csv", index=False)
+    files["bundle_source_audit"] = "bundles/source_audit.csv"
+
+    build_ticker_catalog(tickers, output, latest).to_csv(index_dir / "ticker_catalog.csv", index=False)
+    build_column_catalog(latest).to_csv(index_dir / "column_catalog.csv", index=False)
+    files["ticker_catalog"] = "index/ticker_catalog.csv"
+    files["column_catalog"] = "index/column_catalog.csv"
+
+    retrieval_map = {
+        "generated_at": generated_at,
+        "purpose": "Fast retrieval map for ChatGPT, repo connectors, or Google Drive connectors.",
+        "start_here": "START_HERE.json",
+        "minimal_read_order": [
+            "START_HERE.json",
+            "bundles/source_audit.csv",
+            "bundles/market_snapshot.csv",
+            "bundles/symbol_latest.csv",
+            "index/ticker_catalog.csv",
+            "index/file_catalog.csv",
+        ],
+        "use_cases": {
+            "market_overview": ["bundles/source_audit.csv", "bundles/market_snapshot.csv", "bundles/symbol_latest.csv"],
+            "single_ticker": ["index/ticker_catalog.csv", "bundles/symbol_latest.csv", "daily/{ticker}.csv", "intraday/minute_profile/{ticker}.csv"],
+            "source_audit": ["bundles/source_audit.csv", "source_status.csv", "source_status/*.csv"],
+            "column_lookup": ["index/column_catalog.csv", "latest_metrics.csv"],
+            "deep_dive": ["manifest.json", "index/file_catalog.csv", "latest_metrics.csv"],
+        },
+    }
+    _write_json(bundle_dir / "retrieval_map.json", retrieval_map)
+    files["bundle_retrieval_map"] = "bundles/retrieval_map.json"
+
+    start_here = {
+        "generated_at": generated_at,
+        "purpose": "Numeric-only VN market data hub optimized for connector retrieval.",
+        "rules": [
+            "No news.",
+            "No forecast/model output.",
+            "No buy/sell recommendation.",
+            "Check source audit before trusting a metric.",
+            "Use bundles first; open per-ticker files only when drilling down.",
+        ],
+        "minimal_read_order": retrieval_map["minimal_read_order"],
+        "top_level_files": {
+            "manifest": "manifest.json",
+            "source_audit": "bundles/source_audit.csv",
+            "market_snapshot": "bundles/market_snapshot.csv",
+            "symbol_latest": "bundles/symbol_latest.csv",
+            "ticker_catalog": "index/ticker_catalog.csv",
+            "file_catalog": "index/file_catalog.csv",
+            "column_catalog": "index/column_catalog.csv",
+        },
+        "universe": {
+            "symbol_count": len(tickers),
+            "equity_count": len([ticker for ticker in tickers if not _is_index_ticker(ticker)]),
+            "index_count": len([ticker for ticker in tickers if _is_index_ticker(ticker)]),
+            "symbols": list(tickers),
+        },
+    }
+    _write_json(output / "START_HERE.json", start_here)
+    files["start_here"] = "START_HERE.json"
+
+    build_file_catalog(output).to_csv(index_dir / "file_catalog.csv", index=False)
+    files["file_catalog"] = "index/file_catalog.csv"
+    return retrieval_map
+
+
 def refresh_sources(config: Mapping[str, object], tickers: Sequence[str], *, refresh_all: bool) -> List[Dict[str, object]]:
     statuses: List[Dict[str, object]] = []
     daily_dir = _path(config, "daily_cache", "out/data")
@@ -896,6 +1179,7 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
     config = load_config(config_path)
     tickers = [_normalise_ticker(ticker) for ticker in config.get("tickers", []) if _normalise_ticker(ticker)]
     output = output_dir or _path(config, "output_dir", str(DEFAULT_OUTPUT_DIR))
+    generated_at = datetime.now(timezone.utc).isoformat()
     daily_dir = _path(config, "daily_cache", "out/data")
     intraday_dir = _path(config, "intraday_cache", "out/data/intraday_1m")
     depth_dir = _path(config, "depth_cache", "out/data/depth_snapshots")
@@ -1003,7 +1287,8 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
 
     append_industry_map_refresh_summary_status(output, source_status, files)
     append_bctt_refresh_summary_status(output, source_status, files)
-    pd.DataFrame(source_status).to_csv(output / "source_status.csv", index=False)
+    source_status_frame = pd.DataFrame(source_status)
+    source_status_frame.to_csv(output / "source_status.csv", index=False)
     (output / "source_status.json").write_text(json.dumps(_json_safe(source_status), ensure_ascii=False, indent=2), encoding="utf-8")
     files["source_status"] = "source_status.csv"
     files["source_status_json"] = "source_status.json"
@@ -1022,13 +1307,29 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
             "intraday_dir": "intraday/",
         }
     )
+    retrieval_map = write_retrieval_outputs(
+        output=output,
+        generated_at=generated_at,
+        tickers=tickers,
+        latest=latest,
+        breadth=breadth,
+        sector_latest=sector_latest,
+        source_status=source_status_frame,
+        files=files,
+    )
 
     manifest = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at,
         "config": str(config_path),
         "tickers": tickers,
         "purpose": "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.",
         "read_order_for_chatgpt": [
+            "START_HERE.json",
+            "bundles/source_audit.csv",
+            "bundles/market_snapshot.csv",
+            "bundles/symbol_latest.csv",
+            "index/ticker_catalog.csv",
+            "index/file_catalog.csv",
             "manifest.json",
             "source_status.csv",
             "latest_metrics.csv",
@@ -1046,10 +1347,12 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
             "macro/latest_macro.csv if present",
         ],
         "files": files,
+        "retrieval_map": retrieval_map,
         "api_catalog": API_CATALOG,
         "calculation_catalog": CALCULATION_CATALOG,
     }
     (output / "manifest.json").write_text(json.dumps(_json_safe(manifest), ensure_ascii=False, indent=2), encoding="utf-8")
+    build_file_catalog(output).to_csv(output / "index" / "file_catalog.csv", index=False)
     (output / "README.md").write_text(
         "\n".join(
             [
@@ -1059,7 +1362,8 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
                 "",
                 "- Numeric data only: prices, volume, order book, flows, fundamentals, macro caches.",
                 "- No news, no recommendations, no model forecast.",
-                "- Start with `manifest.json`, then `latest_metrics.csv`, `calculation_catalog.csv`, market summaries, then per-ticker files.",
+                "- Start with `START_HERE.json`, then `bundles/source_audit.csv`, `bundles/market_snapshot.csv`, `bundles/symbol_latest.csv`, and `index/ticker_catalog.csv`.",
+                "- Use `index/file_catalog.csv` to locate drill-down files without scanning every directory.",
                 "",
             ]
         ),

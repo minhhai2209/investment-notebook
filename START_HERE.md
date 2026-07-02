@@ -10,15 +10,15 @@ Repo này chỉ chuẩn bị dữ liệu số cho ChatGPT đọc nhanh.
 
 Sau đó đọc:
 
-1. `data-hub/latest/manifest.json`
-2. `data-hub/latest/source_status.csv`
-3. `data-hub/latest/latest_metrics.csv`
-4. `data-hub/latest/api_catalog.csv`
-5. `data-hub/latest/calculation_catalog.csv`
-6. `data-hub/latest/market/cross_section_latest.csv`
-7. `data-hub/latest/market/breadth_daily.csv`
-8. `data-hub/latest/daily/{TICKER}.csv`
-9. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
+1. `data-hub/latest/START_HERE.json`
+2. `data-hub/latest/bundles/source_audit.csv`
+3. `data-hub/latest/bundles/market_snapshot.csv`
+4. `data-hub/latest/bundles/symbol_latest.csv`
+5. `data-hub/latest/index/ticker_catalog.csv`
+6. `data-hub/latest/index/file_catalog.csv`
+7. `data-hub/latest/manifest.json`
+
+Khi cần soi sâu một mã, dùng `index/ticker_catalog.csv` để lấy đường dẫn `daily/{TICKER}.csv` và `intraday/minute_profile/{TICKER}.csv`.
 
 ## Khi Cần Refresh API
 

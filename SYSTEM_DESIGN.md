@@ -32,7 +32,9 @@ Nguồn số đang được hỗ trợ hoặc inventory:
 
 ## Artifact Contract
 
-`data-hub/latest/manifest.json` là điểm bắt đầu. Manifest chứa:
+`data-hub/latest/START_HERE.json` là điểm bắt đầu cho ChatGPT/repo connector/Google Drive connector. File này trỏ đến các bundle nhỏ và index trước khi cần mở file chi tiết.
+
+`data-hub/latest/manifest.json` là contract đầy đủ. Manifest chứa:
 
 - timestamp tạo artifact
 - danh sách ticker
@@ -43,6 +45,13 @@ Nguồn số đang được hỗ trợ hoặc inventory:
 
 Output quan trọng nhất:
 
+- `START_HERE.json`: entrypoint ngắn cho connector.
+- `bundles/source_audit.csv`: trạng thái nguồn cần đọc trước khi tin số liệu.
+- `bundles/market_snapshot.csv`: snapshot thị trường nhỏ, dạng metric/value.
+- `bundles/symbol_latest.csv`: bảng latest compact theo mã.
+- `index/ticker_catalog.csv`: map ticker tới file drill-down.
+- `index/file_catalog.csv`: catalog tất cả file trong artifact.
+- `index/column_catalog.csv`: nhóm cột trong `latest_metrics.csv`.
 - `source_status.csv`: audit nguồn nào đã thử, thành công, partial, lỗi, bị skip, và output bằng chứng.
 - `latest_metrics.csv`: một dòng mỗi ticker, ghép metric mới nhất.
 - `calculation_catalog.csv`: nhóm phép tính đã tạo và input/output của từng nhóm.
