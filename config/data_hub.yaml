@@ -1,18 +1,34 @@
 tickers:
-  - VIC
-  - VHM
-  - VRE
-  - VNM
-  - VCB
+  - ACB
   - BID
+  - BSR
   - CTG
-  - TCB
-  - MBB
   - FPT
+  - GAS
+  - GVR
+  - HDB
   - HPG
+  - LPB
+  - MBB
   - MSN
   - MWG
+  - PLX
+  - SAB
+  - SHB
+  - SSB
   - SSI
+  - STB
+  - TCB
+  - TPB
+  - VCB
+  - VHM
+  - VIB
+  - VIC
+  - VJC
+  - VNM
+  - VPB
+  - VPL
+  - VRE
   - VNINDEX
   - VN30
 

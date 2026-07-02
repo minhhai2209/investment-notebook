@@ -96,7 +96,7 @@ windows:
         manifest = build_data_hub(self._write_config())
 
         self.assertEqual(manifest["purpose"], "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.")
-        for filename in ["manifest.json", "README.md", "latest_metrics.csv", "api_catalog.csv", "calculation_catalog.csv", "tickers.csv"]:
+        for filename in ["manifest.json", "README.md", "source_status.csv", "latest_metrics.csv", "api_catalog.csv", "calculation_catalog.csv", "tickers.csv"]:
             self.assertTrue((self.out_dir / filename).exists(), filename)
         self.assertTrue((self.out_dir / "daily" / "VIC.csv").exists())
         self.assertTrue((self.out_dir / "intraday" / "VIC.csv").exists())
@@ -117,6 +117,7 @@ windows:
         saved_manifest = json.loads((self.out_dir / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(saved_manifest["read_order_for_chatgpt"][0], "manifest.json")
         self.assertIn("calculation_catalog", saved_manifest["files"])
+        self.assertIn("source_status", saved_manifest["files"])
 
     def test_enrich_daily_frame_adds_feature_columns(self) -> None:
         frame = pd.DataFrame(

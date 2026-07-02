@@ -43,6 +43,7 @@ Nguồn số đang được hỗ trợ hoặc inventory:
 
 Output quan trọng nhất:
 
+- `source_status.csv`: audit nguồn nào đã thử, thành công, partial, lỗi, bị skip, và output bằng chứng.
 - `latest_metrics.csv`: một dòng mỗi ticker, ghép metric mới nhất.
 - `calculation_catalog.csv`: nhóm phép tính đã tạo và input/output của từng nhóm.
 - `market/cross_section_latest.csv`: xếp hạng latest returns, liquidity, volatility, drawdown, relative strength.

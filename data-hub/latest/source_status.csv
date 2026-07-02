@@ -1,0 +1,11 @@
+Source,Attempted,Status,TickerCount,RowCount,Detail,Output
+VNDIRECT dchart daily,True,ok,32,0,,out/data
+VNDIRECT dchart intraday 1m,True,ok,32,0,,out/data/intraday_1m
+VNDIRECT priceboard depth,True,ok,30,30,,out/data/depth_snapshots
+Vietstock overview,True,ok,30,30,,out/vietstock_overview
+Vietstock BCTT,False,skipped_disabled_use_refresh_bctt,30,0,,out/vietstock_bctt
+CafeF foreign/proprietary flows,True,ok,30,30,,out/cafef_flows
+FRED/Stooq macro cache,True,ok,0,15,,out/macro_factors
+Market membership / sector map,False,cache_loaded,30,30,,data/industry_map.csv
+Vietstock sector profiles,True,error,30,0,ACB: Vietstock company profile is missing the sector-level block; BID: Vietstock company profile is missing the sector-level block; BSR: Vietstock company profile is missing the sector-level block; CTG: Vietstock company profile is missing the sector-level block; FPT: Vietstock company profile is missing the sector-level block; GAS: Vietstock company profile is missing the sector-level block; GVR: Vietstock company profile is missing the sector-level block; HDB: Vietstock company profile is missing the sector-level block; HPG: Vietstock company profile is missing the sector-level block; LPB: Vietstock company profile is missing the sector-level block,source_status/industry_map_refresh_summary.csv
+Vietstock BCTT refresh summary,True,ok,30,30,,source_status/bctt_refresh_summary.csv

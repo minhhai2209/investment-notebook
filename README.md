@@ -13,13 +13,14 @@ Không có model dự báo, không có khuyến nghị mua bán, không có danh
 Lệnh này dựng `data-hub/latest/` từ cache hiện có. ChatGPT nên bắt đầu đọc theo thứ tự:
 
 1. `data-hub/latest/manifest.json`
-2. `data-hub/latest/latest_metrics.csv`
-3. `data-hub/latest/api_catalog.csv`
-4. `data-hub/latest/calculation_catalog.csv`
-5. `data-hub/latest/market/cross_section_latest.csv`
-6. `data-hub/latest/market/breadth_daily.csv`
-7. `data-hub/latest/daily/{TICKER}.csv`
-8. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
+2. `data-hub/latest/source_status.csv`
+3. `data-hub/latest/latest_metrics.csv`
+4. `data-hub/latest/api_catalog.csv`
+5. `data-hub/latest/calculation_catalog.csv`
+6. `data-hub/latest/market/cross_section_latest.csv`
+7. `data-hub/latest/market/breadth_daily.csv`
+8. `data-hub/latest/daily/{TICKER}.csv`
+9. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
 
 Khi muốn gọi API và làm mới cache số:
 
@@ -48,6 +49,8 @@ Các chỉ số được tính sẵn trong data hub gồm return 1/5/20/60/120/2
 `data-hub/latest/latest_metrics.csv` là bảng đọc nhanh nhất: mỗi ticker một dòng, ghép các metric mới nhất từ daily, intraday, depth, flows, fundamentals và macro cache nếu có.
 
 `data-hub/latest/manifest.json` là contract cho ChatGPT: nó mô tả mục đích, danh sách ticker, file nào có mặt, và API catalog. Nếu một nguồn chưa có cache thì data hub bỏ qua nguồn đó thay vì bịa dữ liệu.
+
+`data-hub/latest/source_status.csv` ghi lại nguồn nào đã được thử, trạng thái `ok`/`partial`/`error`/`skipped`, số ticker, số dòng output, và file bằng chứng nếu có.
 
 `data-hub/latest/calculation_catalog.csv` giải thích các nhóm phép tính đã được tạo. `market/breadth_daily.csv` và `market/cross_section_latest.csv` giúp ChatGPT hiểu bối cảnh thị trường trước khi soi từng mã.
 

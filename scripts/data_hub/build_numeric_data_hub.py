@@ -26,6 +26,7 @@ from scripts.data_fetching.vndirect_price_depth import refresh_depth_for_intrada
 DEFAULT_CONFIG = Path("config/data_hub.yaml")
 DEFAULT_OUTPUT_DIR = Path("data-hub/latest")
 VN_TZ = "Asia/Ho_Chi_Minh"
+INDEX_TICKERS = {"VNINDEX", "VN30", "VN100"}
 
 
 API_CATALOG = [
@@ -138,6 +139,10 @@ def _normalise_ticker(value: object) -> str:
     return str(value or "").strip().upper()
 
 
+def _is_index_ticker(ticker: str) -> bool:
+    return _normalise_ticker(ticker) in INDEX_TICKERS
+
+
 def load_config(path: Path) -> Dict[str, object]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     raw.setdefault("tickers", ["VIC", "VNINDEX", "VN30"])
@@ -161,6 +166,27 @@ def _refresh_enabled(config: Mapping[str, object], name: str, refresh_requested:
         return False
     refresh = (config.get("refresh") or {}) if isinstance(config.get("refresh"), dict) else {}
     return bool(refresh.get(name, False))
+
+
+def _source_status(
+    source: str,
+    *,
+    attempted: bool,
+    status: str,
+    ticker_count: int = 0,
+    row_count: int = 0,
+    detail: str = "",
+    output: str = "",
+) -> Dict[str, object]:
+    return {
+        "Source": source,
+        "Attempted": bool(attempted),
+        "Status": status,
+        "TickerCount": int(ticker_count),
+        "RowCount": int(row_count),
+        "Detail": detail,
+        "Output": output,
+    }
 
 
 def _clean_dir(path: Path) -> None:
@@ -501,7 +527,7 @@ def build_breadth_frame(daily_frames: Mapping[str, pd.DataFrame]) -> pd.DataFram
     equity_frames = {
         ticker: frame
         for ticker, frame in daily_frames.items()
-        if not ticker.startswith("VN") and not frame.empty
+        if not _is_index_ticker(ticker) and not frame.empty
     }
     if not equity_frames:
         return pd.DataFrame()
@@ -640,6 +666,82 @@ def build_sector_latest(latest: pd.DataFrame, sector_map: pd.DataFrame) -> pd.Da
     return pd.DataFrame(rows)
 
 
+def append_bctt_refresh_summary_status(output: Path, statuses: List[Dict[str, object]], files: Dict[str, object]) -> None:
+    summary_path = Path("out/data_hub/vietstock_bctt_cache_summary.csv")
+    if not summary_path.exists():
+        return
+    summary = pd.read_csv(summary_path)
+    status_dir = output / "source_status"
+    status_dir.mkdir(parents=True, exist_ok=True)
+    dest = status_dir / "bctt_refresh_summary.csv"
+    summary.to_csv(dest, index=False)
+    files["bctt_refresh_summary"] = "source_status/bctt_refresh_summary.csv"
+    success_count = int((pd.to_numeric(summary.get("QuarterCount"), errors="coerce").fillna(0) > 0).sum())
+    failed = summary[summary.get("Error", "").fillna("").astype(str).str.len() > 0] if "Error" in summary.columns else pd.DataFrame()
+    if success_count == len(summary):
+        status = "ok"
+    elif success_count > 0:
+        status = "partial"
+    else:
+        status = "error"
+    detail = ""
+    if not failed.empty:
+        detail = "; ".join(
+            f"{row.Ticker}: {str(row.Error)[:160]}"
+            for row in failed.head(10).itertuples(index=False)
+            if hasattr(row, "Ticker") and hasattr(row, "Error")
+        )
+    statuses.append(
+        _source_status(
+            "Vietstock BCTT refresh summary",
+            attempted=True,
+            status=status,
+            ticker_count=len(summary),
+            row_count=success_count,
+            detail=detail,
+            output="source_status/bctt_refresh_summary.csv",
+        )
+    )
+
+
+def append_industry_map_refresh_summary_status(output: Path, statuses: List[Dict[str, object]], files: Dict[str, object]) -> None:
+    summary_path = Path("out/data_hub/industry_map_refresh_summary.csv")
+    if not summary_path.exists():
+        return
+    summary = pd.read_csv(summary_path)
+    status_dir = output / "source_status"
+    status_dir.mkdir(parents=True, exist_ok=True)
+    dest = status_dir / "industry_map_refresh_summary.csv"
+    summary.to_csv(dest, index=False)
+    files["industry_map_refresh_summary"] = "source_status/industry_map_refresh_summary.csv"
+    ok_count = int((summary.get("Status", "").fillna("").astype(str) == "ok").sum()) if "Status" in summary.columns else 0
+    failed = summary[summary.get("Status", "").fillna("").astype(str) == "error"] if "Status" in summary.columns else pd.DataFrame()
+    if ok_count == len(summary):
+        status = "ok"
+    elif ok_count > 0:
+        status = "partial"
+    else:
+        status = "error"
+    detail = ""
+    if not failed.empty:
+        detail = "; ".join(
+            f"{row.Ticker}: {str(row.Error)[:160]}"
+            for row in failed.head(10).itertuples(index=False)
+            if hasattr(row, "Ticker") and hasattr(row, "Error")
+        )
+    statuses.append(
+        _source_status(
+            "Vietstock sector profiles",
+            attempted=True,
+            status=status,
+            ticker_count=len(summary),
+            row_count=ok_count,
+            detail=detail,
+            output="source_status/industry_map_refresh_summary.csv",
+        )
+    )
+
+
 def _json_safe(value: object) -> object:
     if isinstance(value, dict):
         return {str(k): _json_safe(v) for k, v in value.items()}
@@ -660,39 +762,134 @@ def _json_safe(value: object) -> object:
     return value
 
 
-def refresh_sources(config: Mapping[str, object], tickers: Sequence[str], *, refresh_all: bool) -> None:
+def refresh_sources(config: Mapping[str, object], tickers: Sequence[str], *, refresh_all: bool) -> List[Dict[str, object]]:
+    statuses: List[Dict[str, object]] = []
     daily_dir = _path(config, "daily_cache", "out/data")
     intraday_dir = _path(config, "intraday_cache", "out/data/intraday_1m")
     depth_dir = _path(config, "depth_cache", "out/data/depth_snapshots")
     if _refresh_enabled(config, "daily", refresh_all):
+        errors = []
         for ticker in tickers:
-            ensure_ohlc_cache(ticker, outdir=str(daily_dir), min_days=_window(config, "daily_history_days", 900))
-    if _refresh_enabled(config, "intraday", refresh_all):
-        for ticker in tickers:
-            ensure_intraday_cache(ticker, outdir=str(intraday_dir), min_days=_window(config, "intraday_history_days", 30), resolution="1")
-    if _refresh_enabled(config, "depth", refresh_all):
-        equity_tickers = [ticker for ticker in tickers if not ticker.startswith("VN")]
-        if equity_tickers:
-            refresh_depth_for_intraday_cache(equity_tickers, intraday_dir, resolution="1", depth_dir=depth_dir)
-    if _refresh_enabled(config, "vietstock_overview", refresh_all):
-        equity_tickers = [ticker for ticker in tickers if not ticker.startswith("VN")]
-        if equity_tickers:
-            build_fundamental_frame(equity_tickers, _path(config, "vietstock_overview_cache", "out/vietstock_overview"), max_age_hours=24)
-    if _refresh_enabled(config, "vietstock_bctt", refresh_all):
-        equity_tickers = [ticker for ticker in tickers if not ticker.startswith("VN")]
-        if equity_tickers:
-            load_or_fetch_bctt_feature_frame(
-                equity_tickers,
-                _path(config, "vietstock_bctt_cache", "out/vietstock_bctt"),
-                max_age_hours=720,
+            try:
+                ensure_ohlc_cache(ticker, outdir=str(daily_dir), min_days=_window(config, "daily_history_days", 900))
+            except Exception as exc:
+                errors.append(f"{ticker}: {exc}")
+        statuses.append(
+            _source_status(
+                "VNDIRECT dchart daily",
+                attempted=True,
+                status="partial" if errors else "ok",
+                ticker_count=len(tickers),
+                detail="; ".join(errors[:10]),
+                output=str(daily_dir),
             )
+        )
+    else:
+        statuses.append(_source_status("VNDIRECT dchart daily", attempted=False, status="skipped_disabled", ticker_count=len(tickers), output=str(daily_dir)))
+    if _refresh_enabled(config, "intraday", refresh_all):
+        errors = []
+        for ticker in tickers:
+            try:
+                ensure_intraday_cache(ticker, outdir=str(intraday_dir), min_days=_window(config, "intraday_history_days", 30), resolution="1")
+            except Exception as exc:
+                errors.append(f"{ticker}: {exc}")
+        statuses.append(
+            _source_status(
+                "VNDIRECT dchart intraday 1m",
+                attempted=True,
+                status="partial" if errors else "ok",
+                ticker_count=len(tickers),
+                detail="; ".join(errors[:10]),
+                output=str(intraday_dir),
+            )
+        )
+    else:
+        statuses.append(_source_status("VNDIRECT dchart intraday 1m", attempted=False, status="skipped_disabled", ticker_count=len(tickers), output=str(intraday_dir)))
+    if _refresh_enabled(config, "depth", refresh_all):
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        if equity_tickers:
+            try:
+                depth = refresh_depth_for_intraday_cache(equity_tickers, intraday_dir, resolution="1", depth_dir=depth_dir)
+                statuses.append(_source_status("VNDIRECT priceboard depth", attempted=True, status="ok", ticker_count=len(equity_tickers), row_count=len(depth), output=str(depth_dir)))
+            except Exception as exc:
+                statuses.append(_source_status("VNDIRECT priceboard depth", attempted=True, status="error", ticker_count=len(equity_tickers), detail=str(exc), output=str(depth_dir)))
+        else:
+            statuses.append(_source_status("VNDIRECT priceboard depth", attempted=True, status="no_equity_tickers", ticker_count=0, output=str(depth_dir)))
+    else:
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        statuses.append(_source_status("VNDIRECT priceboard depth", attempted=False, status="skipped_disabled", ticker_count=len(equity_tickers), output=str(depth_dir)))
+    if _refresh_enabled(config, "vietstock_overview", refresh_all):
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        if equity_tickers:
+            try:
+                overview = build_fundamental_frame(equity_tickers, _path(config, "vietstock_overview_cache", "out/vietstock_overview"), max_age_hours=24)
+                statuses.append(_source_status("Vietstock overview", attempted=True, status="ok", ticker_count=len(equity_tickers), row_count=len(overview), output=str(_path(config, "vietstock_overview_cache", "out/vietstock_overview"))))
+            except Exception as exc:
+                statuses.append(_source_status("Vietstock overview", attempted=True, status="error", ticker_count=len(equity_tickers), detail=str(exc), output=str(_path(config, "vietstock_overview_cache", "out/vietstock_overview"))))
+        else:
+            statuses.append(_source_status("Vietstock overview", attempted=True, status="no_equity_tickers", ticker_count=0, output=str(_path(config, "vietstock_overview_cache", "out/vietstock_overview"))))
+    else:
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        statuses.append(_source_status("Vietstock overview", attempted=False, status="skipped_disabled", ticker_count=len(equity_tickers), output=str(_path(config, "vietstock_overview_cache", "out/vietstock_overview"))))
+    if _refresh_enabled(config, "vietstock_bctt", refresh_all):
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        if equity_tickers:
+            try:
+                bctt = load_or_fetch_bctt_feature_frame(
+                    equity_tickers,
+                    _path(config, "vietstock_bctt_cache", "out/vietstock_bctt"),
+                    max_age_hours=720,
+                )
+                statuses.append(_source_status("Vietstock BCTT", attempted=True, status="ok", ticker_count=len(equity_tickers), row_count=len(bctt), output=str(_path(config, "vietstock_bctt_cache", "out/vietstock_bctt"))))
+            except Exception as exc:
+                statuses.append(_source_status("Vietstock BCTT", attempted=True, status="error", ticker_count=len(equity_tickers), detail=str(exc), output=str(_path(config, "vietstock_bctt_cache", "out/vietstock_bctt"))))
+        else:
+            statuses.append(_source_status("Vietstock BCTT", attempted=True, status="no_equity_tickers", ticker_count=0, output=str(_path(config, "vietstock_bctt_cache", "out/vietstock_bctt"))))
+    else:
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        statuses.append(
+            _source_status(
+                "Vietstock BCTT",
+                attempted=False,
+                status="skipped_disabled_use_refresh_bctt",
+                ticker_count=len(equity_tickers),
+                output=str(_path(config, "vietstock_bctt_cache", "out/vietstock_bctt")),
+            )
+        )
     if _refresh_enabled(config, "cafef_flows", refresh_all):
         cache = CafeFFlowCache(_path(config, "cafef_cache", "out/cafef_flows"), max_age_hours=4)
-        for ticker in [item for item in tickers if not item.startswith("VN")]:
-            ensure_foreign_flow_df(ticker, cache)
-            ensure_proprietary_flow_df(ticker, cache)
+        errors = []
+        ok_count = 0
+        for ticker in [item for item in tickers if not _is_index_ticker(item)]:
+            try:
+                ensure_foreign_flow_df(ticker, cache)
+                ensure_proprietary_flow_df(ticker, cache)
+                ok_count += 1
+            except Exception as exc:
+                errors.append(f"{ticker}: {exc}")
+        statuses.append(
+            _source_status(
+                "CafeF foreign/proprietary flows",
+                attempted=True,
+                status="partial" if errors else "ok",
+                ticker_count=ok_count + len(errors),
+                row_count=ok_count,
+                detail="; ".join(errors[:10]),
+                output=str(_path(config, "cafef_cache", "out/cafef_flows")),
+            )
+        )
+    else:
+        equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
+        statuses.append(_source_status("CafeF foreign/proprietary flows", attempted=False, status="skipped_disabled", ticker_count=len(equity_tickers), output=str(_path(config, "cafef_cache", "out/cafef_flows"))))
     if _refresh_enabled(config, "macro", refresh_all):
-        refresh_macro_factor_cache(Path("config/macro_factors.yaml"), _path(config, "macro_cache", "out/macro_factors"), max_age_hours=24)
+        try:
+            summary = refresh_macro_factor_cache(Path("config/macro_factors.yaml"), _path(config, "macro_cache", "out/macro_factors"), max_age_hours=24)
+            statuses.append(_source_status("FRED/Stooq macro cache", attempted=True, status="ok", row_count=len(summary), output=str(_path(config, "macro_cache", "out/macro_factors"))))
+        except Exception as exc:
+            statuses.append(_source_status("FRED/Stooq macro cache", attempted=True, status="error", detail=str(exc), output=str(_path(config, "macro_cache", "out/macro_factors"))))
+    else:
+        statuses.append(_source_status("FRED/Stooq macro cache", attempted=False, status="skipped_disabled", output=str(_path(config, "macro_cache", "out/macro_factors"))))
+    return statuses
 
 
 def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh_all: bool = False) -> Dict[str, object]:
@@ -703,7 +900,7 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
     intraday_dir = _path(config, "intraday_cache", "out/data/intraday_1m")
     depth_dir = _path(config, "depth_cache", "out/data/depth_snapshots")
     _clean_dir(output)
-    refresh_sources(config, tickers, refresh_all=refresh_all)
+    source_status = refresh_sources(config, tickers, refresh_all=refresh_all)
 
     (output / "daily").mkdir(parents=True, exist_ok=True)
     (output / "intraday").mkdir(parents=True, exist_ok=True)
@@ -783,6 +980,16 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
     files.update(macro_files)
 
     sector_map = load_sector_map(_path(config, "sector_map", "data/industry_map.csv"))
+    source_status.append(
+        _source_status(
+            "Market membership / sector map",
+            attempted=False,
+            status="cache_loaded" if not sector_map.empty else "missing_cache",
+            ticker_count=int(sector_map["Ticker"].nunique()) if not sector_map.empty else 0,
+            row_count=len(sector_map),
+            output=str(_path(config, "sector_map", "data/industry_map.csv")),
+        )
+    )
     cross_section = build_cross_section_latest(latest)
     if not cross_section.empty:
         (output / "market").mkdir(parents=True, exist_ok=True)
@@ -793,6 +1000,13 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
         (output / "market").mkdir(parents=True, exist_ok=True)
         sector_latest.to_csv(output / "market" / "sector_latest.csv", index=False)
         files["sector_latest"] = "market/sector_latest.csv"
+
+    append_industry_map_refresh_summary_status(output, source_status, files)
+    append_bctt_refresh_summary_status(output, source_status, files)
+    pd.DataFrame(source_status).to_csv(output / "source_status.csv", index=False)
+    (output / "source_status.json").write_text(json.dumps(_json_safe(source_status), ensure_ascii=False, indent=2), encoding="utf-8")
+    files["source_status"] = "source_status.csv"
+    files["source_status_json"] = "source_status.json"
 
     latest.to_csv(output / "latest_metrics.csv", index=False)
     pd.DataFrame(API_CATALOG).to_csv(output / "api_catalog.csv", index=False)
@@ -816,6 +1030,7 @@ def build_data_hub(config_path: Path, output_dir: Path | None = None, *, refresh
         "purpose": "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.",
         "read_order_for_chatgpt": [
             "manifest.json",
+            "source_status.csv",
             "latest_metrics.csv",
             "api_catalog.csv",
             "calculation_catalog.csv",

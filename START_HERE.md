@@ -11,13 +11,14 @@ Repo này chỉ chuẩn bị dữ liệu số cho ChatGPT đọc nhanh.
 Sau đó đọc:
 
 1. `data-hub/latest/manifest.json`
-2. `data-hub/latest/latest_metrics.csv`
-3. `data-hub/latest/api_catalog.csv`
-4. `data-hub/latest/calculation_catalog.csv`
-5. `data-hub/latest/market/cross_section_latest.csv`
-6. `data-hub/latest/market/breadth_daily.csv`
-7. `data-hub/latest/daily/{TICKER}.csv`
-8. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
+2. `data-hub/latest/source_status.csv`
+3. `data-hub/latest/latest_metrics.csv`
+4. `data-hub/latest/api_catalog.csv`
+5. `data-hub/latest/calculation_catalog.csv`
+6. `data-hub/latest/market/cross_section_latest.csv`
+7. `data-hub/latest/market/breadth_daily.csv`
+8. `data-hub/latest/daily/{TICKER}.csv`
+9. `data-hub/latest/intraday/minute_profile/{TICKER}.csv`
 
 ## Khi Cần Refresh API
 
