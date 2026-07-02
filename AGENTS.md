@@ -37,6 +37,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
   - `./broker.sh ohlc`: dự báo OHLC T+n.
   - `./broker.sh intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV/depth nếu đang trong phiên hỗ trợ.
   - `./broker.sh eval_vic_index_expiry --models hist_gbm`: kiểm tra thêm feature VNINDEX/ex-Vin/derivative-expiry khi cần audit forecast daily.
+  - `./broker.sh select_vic_model`: tuyển đúng một model VIC theo holdout 5 phiên gần nhất; winner có thể là model giá hoặc model chiều hướng.
   - `./broker.sh eval_curated_intraday_model`: pooled intraday audit/model khi cần kiểm chứng feature theo walk-back.
 - Mỗi forecast phải đi cùng validation: model name/family/class, MAE, direction hit hoặc metric tương đương, sample/backtest window nếu artifact có.
 - `T+N` luôn nghĩa là `N phiên giao dịch sau snapshot`, không phải ngày dương lịch.

@@ -1,0 +1,63 @@
+{
+  "Ticker": "VIC",
+  "HoldoutBaseDate": "2026-06-24",
+  "HoldoutActualDates": [
+    "2026-06-25",
+    "2026-06-26",
+    "2026-06-29",
+    "2026-06-30",
+    "2026-07-01"
+  ],
+  "Horizons": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "FeatureSets": {
+    "baseline_ohlc": 161,
+    "index_expiry_exvin": 257,
+    "engineered_all": 274
+  },
+  "EngineeredFeatures": [
+    "TickerRetStackMeanPct",
+    "TickerRetStackAbsMaxPct",
+    "TickerVsIndexRet5Pct",
+    "TickerVsIndexRet20Pct",
+    "TickerVsVN30Ret5Pct",
+    "TickerBreakoutStateCount",
+    "TickerRiskStateComposite",
+    "TickerDistSMA20PerVol10",
+    "TickerDistSMA50PerVol10",
+    "TickerRet20VolumePressure",
+    "TickerRangeVolumePressure",
+    "TickerWickImbalancePct",
+    "TickerRangePosSpread20v60",
+    "TickerPriorHighPressure20",
+    "TickerPriorHighPressure60",
+    "TickerPriorHighPressure120",
+    "TickerPriorHighPressure252"
+  ],
+  "CandidateRows": 18,
+  "Winner": {
+    "FeatureSet": "baseline_ohlc",
+    "Model": "logit_direction",
+    "Objective": "direction",
+    "SelectionScore": 32.6875,
+    "HoldoutRows": 5,
+    "HoldoutCloseMAEPct": null,
+    "HoldoutDirectionHitPct": 80.0,
+    "HoldoutPredDownPct": 80.0,
+    "WalkbackRows": 80,
+    "WalkbackCloseMAEPct": null,
+    "WalkbackDirectionHitPct": 63.74999999999999,
+    "WalkbackPredDownPct": 50.0
+  },
+  "Outputs": {
+    "Candidates": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_candidates.csv",
+    "Holdout": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_holdout.csv",
+    "Walkback": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_walkback.csv",
+    "Current": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_current.csv"
+  }
+}

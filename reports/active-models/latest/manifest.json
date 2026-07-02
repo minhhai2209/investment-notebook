@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-01T11:42:05.443360+07:00",
+  "generated_at": "2026-07-02T08:25:50.231318+07:00",
   "ticker": "VIC",
   "github": {
     "run_id": null,
@@ -68,6 +68,21 @@
       "label": "vic_index_expiry_summary",
       "source": "out/analysis/vic_index_expiry_summary.json",
       "path": "reports/active-models/latest/raw/vic_index_expiry_summary.json"
+    },
+    {
+      "label": "vic_single_model_current",
+      "source": "out/analysis/vic_single_model_current.csv",
+      "path": "reports/active-models/latest/raw/vic_single_model_current.csv"
+    },
+    {
+      "label": "vic_single_model_candidates",
+      "source": "out/analysis/vic_single_model_candidates.csv",
+      "path": "reports/active-models/latest/raw/vic_single_model_candidates.csv"
+    },
+    {
+      "label": "vic_single_model_summary",
+      "source": "out/analysis/vic_single_model_summary.json",
+      "path": "reports/active-models/latest/raw/vic_single_model_summary.json"
     }
   ],
   "filtered": {
@@ -420,6 +435,46 @@
         "CumDownsideMissMAEPct",
         "CloseDirHitPct",
         "SelectionScore"
+      ]
+    },
+    "vic_single_model_current": {
+      "source_rows": 5,
+      "ticker_rows": 5,
+      "columns": [
+        "Date",
+        "Ticker",
+        "Horizon",
+        "ForecastWindow",
+        "BaseClose",
+        "ForecastDate",
+        "FeatureSet",
+        "Model",
+        "Objective",
+        "UsedFeatureCount",
+        "TrainRows",
+        "TrainEndDate",
+        "PredUpProb",
+        "PredDirectionUp",
+        "PredCloseRetPct",
+        "PredClose"
+      ]
+    },
+    "vic_single_model_candidates": {
+      "source_rows": 18,
+      "ticker_rows": 18,
+      "columns": [
+        "FeatureSet",
+        "Model",
+        "Objective",
+        "SelectionScore",
+        "HoldoutRows",
+        "HoldoutCloseMAEPct",
+        "HoldoutDirectionHitPct",
+        "HoldoutPredDownPct",
+        "WalkbackRows",
+        "WalkbackCloseMAEPct",
+        "WalkbackDirectionHitPct",
+        "WalkbackPredDownPct"
       ]
     }
   },

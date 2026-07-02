@@ -12,6 +12,7 @@ Nếu muốn precompute hai active forecast tasks trước khi hỏi:
 
 1. `./broker.sh ohlc`
 2. `./broker.sh intraday`
+3. `./broker.sh select_vic_model` nếu muốn chọn một winner VIC theo holdout 5 phiên gần nhất
 
 Nếu đang trong phiên và muốn xem case đang đỏ/xanh có khả năng đóng cửa ra sao:
 

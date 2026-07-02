@@ -29,7 +29,25 @@ REPORT_FILES = {
     "vic_index_expiry_current": "out/analysis/vic_index_expiry_current_forecasts.csv",
     "vic_index_expiry_metrics": "out/analysis/vic_index_expiry_model_metrics.csv",
     "vic_index_expiry_summary": "out/analysis/vic_index_expiry_summary.json",
+    "vic_single_model_current": "out/analysis/vic_single_model_current.csv",
+    "vic_single_model_candidates": "out/analysis/vic_single_model_candidates.csv",
+    "vic_single_model_summary": "out/analysis/vic_single_model_summary.json",
 }
+
+
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return value
 
 
 def _clean_dir(path: Path) -> None:
@@ -124,6 +142,20 @@ def _build_vic_summary(output_dir: Path, ticker: str) -> Dict[str, object]:
                 "pred_close": row.get("PredClose"),
                 "pred_high": row.get("PredHigh"),
             }
+
+    single_model_path = output_dir / "vic" / "vic_single_model_current.csv"
+    if single_model_path.exists():
+        frame = pd.read_csv(single_model_path)
+        if not frame.empty:
+            rows = frame.sort_values("Horizon").to_dict(orient="records") if "Horizon" in frame.columns else frame.to_dict(orient="records")
+            first = rows[0]
+            summary["vic_single_model"] = {
+                "snapshot_date": first.get("Date"),
+                "feature_set": first.get("FeatureSet"),
+                "model": first.get("Model"),
+                "objective": first.get("Objective"),
+                "rows": rows,
+            }
     return summary
 
 
@@ -164,7 +196,10 @@ def publish_reports(*, source_root: Path, output_dir: Path, ticker: str) -> Dict
     }
     vic_summary = _build_vic_summary(output_dir, ticker)
     (output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
-    (output_dir / "vic" / "summary.json").write_text(json.dumps(vic_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (output_dir / "vic" / "summary.json").write_text(
+        json.dumps(_json_safe(vic_summary), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     (output_dir / "README.md").write_text(
         "\n".join(
             [
@@ -172,8 +207,8 @@ def publish_reports(*, source_root: Path, output_dir: Path, ticker: str) -> Dict
                 "",
                 f"Generated at `{generated_at}`.",
                 "",
-                "This directory is overwritten by the scheduled GitHub Action.",
-                "Detailed raw training histories remain in GitHub Action artifacts; this repo path stores lightweight latest forecasts and metrics.",
+                "This directory is overwritten by the local publish step.",
+                "Detailed raw training histories remain in `out/analysis`; this repo path stores lightweight latest forecasts and metrics.",
                 "",
                 "- `vic/summary.json`: compact VIC forecast summary.",
                 "- `vic/*.csv`: VIC-filtered forecast and metric tables.",

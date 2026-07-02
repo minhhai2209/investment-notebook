@@ -44,10 +44,12 @@ Active forecast tasks:
 ```bash
 ./broker.sh ohlc
 ./broker.sh intraday
+./broker.sh select_vic_model
 ```
 
 - `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) từ daily OHLCV.
 - `intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV và depth/order-book feature nếu nguồn dữ liệu có sẵn.
+- `select_vic_model`: tuyển đúng một model VIC theo holdout 5 phiên gần nhất, cho phép winner là model giá hoặc model chiều hướng.
 - Các builder cũ như `range`, `cycle`, `timing`, `entry_ladder`, `sequence_dl`, `candidates`, `momentum`, `deep`, `position_ml` chỉ là legacy/diagnostic khi gọi tay, không phải output mặc định.
 
 Ví dụ prompt:
@@ -98,6 +100,7 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 ./broker.sh eval_macro
 ./broker.sh eval_bctt
 ./broker.sh eval_vic_index_expiry --models hist_gbm
+./broker.sh select_vic_model
 ./broker.sh eval_intraday_features
 ./broker.sh eval_daily_features
 ./broker.sh eval_curated_intraday_model
@@ -116,6 +119,8 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 - `out/analysis/ml_intraday_rest_of_session.csv`: active intraday close forecast; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict`
 - `out/analysis/ml_intraday_rest_of_session_metrics.csv`: validation metrics của intraday model theo bucket/time window
 - `out/analysis/ml_intraday_rest_of_session_backtest.csv`: recent holdout predictions của intraday model theo bucket
+- `out/analysis/vic_single_model_current.csv`: winner duy nhất cho VIC theo selector last-5 holdout; có thể là model `price` hoặc `direction`
+- `out/analysis/vic_single_model_candidates.csv`: bảng candidate để audit vì sao winner được chọn
 - `out/analysis/macro_factor_*.csv`: độ nhạy/correlation với dầu, vàng, USD, VIX, lợi suất Mỹ và các chỉ số chứng khoán lớn
 - `out/analysis/ml_macro_*.csv`: walk-forward feature-lift của ML khi thêm macro/global equity features
 - `reports/active-models/latest/`: bản publish nhẹ của các forecast/report mới nhất để lưu trong repo khi cần

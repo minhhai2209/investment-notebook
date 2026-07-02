@@ -265,6 +265,10 @@ run_eval_vic_index_expiry() {
   run_module eval_vic_index_expiry scripts.analysis.evaluate_vic_index_expiry_features "$@"
 }
 
+run_select_vic_model() {
+  run_module select_vic_model scripts.analysis.select_vic_single_model "$@"
+}
+
 run_eval_intraday_features() {
   run_module eval_intraday_features scripts.analysis.evaluate_intraday_feature_families "$@"
 }
@@ -362,6 +366,7 @@ Offline evaluation:
   eval_macro           Run macro-factor sensitivity evaluation
   eval_macro_lift      Compare ML prediction with/without macro/global equity features
   eval_vic_index_expiry Compare VIC forecast with VNINDEX/ex-Vin/derivative-expiry features
+  select_vic_model     Select one VIC model for price or direction using last-5 holdout
   eval_intraday_features Walk-back audit of 1-minute intraday feature families
   eval_curated_intraday_model Walk-forward model test using curated minute price/volume features
   eval_daily_features  Walk-back audit of daily OHLC feature families
@@ -472,6 +477,9 @@ main() {
       ;;
     eval_vic_index_expiry)
       run_eval_vic_index_expiry "$@"
+      ;;
+    select_vic_model)
+      run_select_vic_model "$@"
       ;;
     eval_intraday_features)
       run_eval_intraday_features "$@"
