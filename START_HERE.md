@@ -8,17 +8,12 @@ Nếu đây là session Codex mới, flow ngắn nhất là:
 Codex phải tự hiểu rằng nếu artifact thiếu hoặc stale thì phải tự chạy tuần tự và tự đợi xong trước khi trả lời. Không được nhả ra một câu trả lời kiểu `đợi batch chạy xong rồi tính tiếp`.
 Nếu có tra cứu web/news/source mạng để tổng hợp bối cảnh, phải tách riêng khỏi phần model predict.
 
-Nếu muốn precompute hai active forecast tasks trước khi hỏi:
+Nếu muốn precompute active forecast task trước khi hỏi:
 
-1. `./broker.sh ohlc`
-2. `./broker.sh intraday`
-3. `./broker.sh select_vic_model` nếu muốn chọn một winner VIC theo holdout 5 phiên gần nhất
+1. `./broker.sh select_vic_model`
+2. đọc `out/analysis/vic_single_model_current.csv`, `out/analysis/vic_single_model_holdout.csv`, `out/analysis/vic_single_model_walkback.csv`, và `out/analysis/vic_single_model_candidates.csv`
 
-Nếu đang trong phiên và muốn xem case đang đỏ/xanh có khả năng đóng cửa ra sao:
-
-1. `./broker.sh intraday`
-2. đọc `out/analysis/ml_intraday_rest_of_session.csv`, nhất là forecast low/mid/high, `PredCloseUpFromSnapshotProbPct`, `PredRecoverToPrevCloseProbPct`, calibration rows, `RecoverySetup`, và `RecoveryCalibrationConflict`
-3. pipeline intraday tự refresh 1-minute OHLCV và VNDIRECT priceboard depth trước khi build forecast.
+Active model hiện tại là `baseline_ohlc / logit_direction`: dự đoán chiều T+1..T+5, không dự đoán giá. Các model OHLC/intraday/index-expiry cũ chỉ là diagnostics khi gọi tay.
 
 Prompt gợi ý:
 
@@ -27,13 +22,13 @@ Prompt gợi ý:
 - `Dùng snapshot mới nhất, chỉ dự báo VIC.`
 - `Chỉ đưa forecast/validation, không đưa khuyến nghị mua bán, không tính size, không dùng ngân sách hay danh mục.`
 - `Tách phần Model predict và External synthesis. Model predict chỉ lấy từ artifact/model trong repo; External synthesis nếu có tra cứu web/news thì ghi rõ nguồn và không trộn vào số forecast.`
-- `Trả lời bằng OHLC T+1, multi-session tới T+20 nếu có, intraday forecast nếu đang trong phiên, kèm MAE/hit rate/model family.`
-- `Model OHLC dùng daily OHLCV. Model intraday chuẩn phải tự refresh và dùng 1-minute OHLCV cộng độ sâu thị trường/order book nếu có.`
+- `Trả lời bằng active single model: direction T+1..T+5, xác suất up, holdout hit, walkback hit.`
+- `Feature engineering/candidate results nằm trong vic_single_model_candidates và vic_single_model_summary; giữ lại để audit, nhưng không dùng candidate thua làm forecast chính.`
 - `Macro/global market từ tra cứu ngoài chỉ là External synthesis. Chỉ coi là tín hiệu predict nếu đã thành factor cache/feature trong repo và được kiểm chứng bằng eval_macro/eval_macro_lift.`
 - `Với VIC, pair-feature ML nếu còn trong schema chỉ là context kỹ thuật; không tự kéo pair ticker vào phân tích mặc định. Breakout là feature cho model, không phải tiêu chí hard-code.`
 - `Phải nói rõ T+N là N phiên giao dịch sau snapshot; nếu cần khung xa hơn thì đọc OHLC T+15/T+20 thay vì chỉ nhìn T+1/T+3.`
 - `Không dùng nhãn cảm tính như nóng/khỏe/yếu/mạnh. Nếu nhắc RSI/SMA/ret5d thì phải là feature hoặc validation metric, không phải rule hành động.`
-- `Nếu active daily và intraday mâu thuẫn thì gọi rõ model conflict bằng số liệu.`
+- `Nếu legacy diagnostics mâu thuẫn với active model thì gọi rõ diagnostics conflict, không thay active forecast.`
 - `Nếu cần chạy batch thì tự chạy tuần tự rồi mới trả lời.`
 
 Scope hiện tại:

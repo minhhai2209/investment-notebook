@@ -33,12 +33,15 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
 
 ## Active Model Surface
 
-- Active forecast task mặc định:
-  - `./broker.sh ohlc`: dự báo OHLC T+n.
-  - `./broker.sh intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV/depth nếu đang trong phiên hỗ trợ.
-  - `./broker.sh eval_vic_index_expiry --models hist_gbm`: kiểm tra thêm feature VNINDEX/ex-Vin/derivative-expiry khi cần audit forecast daily.
+- Active forecast task mặc định chỉ còn:
   - `./broker.sh select_vic_model`: tuyển đúng một model VIC theo holdout 5 phiên gần nhất; winner có thể là model giá hoặc model chiều hướng.
-  - `./broker.sh eval_curated_intraday_model`: pooled intraday audit/model khi cần kiểm chứng feature theo walk-back.
+- Model active hiện tại là `baseline_ohlc / logit_direction`, một classifier dự đoán chiều `TargetCloseRetPct > 0` cho T+1..T+5.
+- Các model khác như OHLC regression, intraday, index-expiry, curated intraday chỉ là legacy/diagnostic tooling khi gọi tay; không publish như forecast chính.
+- Khi dùng `select_vic_model`, phải đọc cả:
+  - `vic_single_model_current.csv`: output active duy nhất
+  - `vic_single_model_holdout.csv`: backtest 5 phiên gần nhất, train bằng dữ liệu trước holdout
+  - `vic_single_model_walkback.csv`: walkback trước holdout
+  - `vic_single_model_candidates.csv`: kết quả candidate/feature engineering để audit
 - Mỗi forecast phải đi cùng validation: model name/family/class, MAE, direction hit hoặc metric tương đương, sample/backtest window nếu artifact có.
 - `T+N` luôn nghĩa là `N phiên giao dịch sau snapshot`, không phải ngày dương lịch.
 - Các mốc kỹ thuật như breakout, high 20/60/120/252, RSI, SMA distance, return 5/20d chỉ được nhắc như feature/input hoặc diagnostics; không dùng làm rule hành động.
@@ -53,7 +56,7 @@ Phần lệnh/tool và cách chạy nằm ở `README.md` và `START_HERE.md`.
   - validation/error band đủ để hiểu forecast đáng tin đến đâu
   - cảnh báo stale/missing artifact nếu có
 - Không đưa recommendation, position sizing, order ladder, hoặc opportunity-cost vốn.
-- Nếu forecast daily và intraday mâu thuẫn materially, gọi rõ là `model conflict` và mô tả mâu thuẫn bằng số liệu.
+- Nếu legacy diagnostics mâu thuẫn với active model, gọi rõ là diagnostics conflict và không dùng chúng để thay active forecast.
 - Nếu có tra cứu ngoài repo, câu trả lời phải có phần `External synthesis` tách khỏi `Model predict`; không trộn bối cảnh web/news vào forecast/validation.
 - Nếu muốn biến macro/event/factor thành tín hiệu predict thì phải mã hoá thành feature trong repo và kiểm chứng bằng walk-forward/feature-lift trước khi coi là model evidence.
 - `config/market_events.json` là input dữ liệu nội bộ nếu model/pipeline dùng; tra cứu lịch/tin ngoài repo chỉ thuộc `External synthesis` cho bối cảnh, không tự động thành feature.

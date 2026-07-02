@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T08:25:50.231318+07:00",
+  "generated_at": "2026-07-02T08:45:26.083449+07:00",
   "ticker": "VIC",
   "github": {
     "run_id": null,
@@ -15,61 +15,6 @@
       "path": "reports/active-models/latest/raw/universe.csv"
     },
     {
-      "label": "ohlc_next_session",
-      "source": "out/analysis/ml_ohlc_next_session.csv",
-      "path": "reports/active-models/latest/raw/ml_ohlc_next_session.csv"
-    },
-    {
-      "label": "ohlc_multi_session",
-      "source": "out/analysis/ml_ohlc_multi_session.csv",
-      "path": "reports/active-models/latest/raw/ml_ohlc_multi_session.csv"
-    },
-    {
-      "label": "ohlc_model_metrics",
-      "source": "out/analysis/ml_ohlc_model_metrics.csv",
-      "path": "reports/active-models/latest/raw/ml_ohlc_model_metrics.csv"
-    },
-    {
-      "label": "intraday_forecast",
-      "source": "out/analysis/ml_intraday_rest_of_session.csv",
-      "path": "reports/active-models/latest/raw/ml_intraday_rest_of_session.csv"
-    },
-    {
-      "label": "intraday_metrics",
-      "source": "out/analysis/ml_intraday_rest_of_session_metrics.csv",
-      "path": "reports/active-models/latest/raw/ml_intraday_rest_of_session_metrics.csv"
-    },
-    {
-      "label": "curated_intraday_current",
-      "source": "out/analysis/curated_intraday_model_locked/curated_intraday_model_current.csv",
-      "path": "reports/active-models/latest/raw/curated_intraday_model_current.csv"
-    },
-    {
-      "label": "curated_intraday_metrics",
-      "source": "out/analysis/curated_intraday_model_locked/curated_intraday_model_metrics.csv",
-      "path": "reports/active-models/latest/raw/curated_intraday_model_metrics.csv"
-    },
-    {
-      "label": "curated_intraday_summary",
-      "source": "out/analysis/curated_intraday_model_locked/curated_intraday_model_summary.json",
-      "path": "reports/active-models/latest/raw/curated_intraday_model_summary.json"
-    },
-    {
-      "label": "vic_index_expiry_current",
-      "source": "out/analysis/vic_index_expiry_current_forecasts.csv",
-      "path": "reports/active-models/latest/raw/vic_index_expiry_current_forecasts.csv"
-    },
-    {
-      "label": "vic_index_expiry_metrics",
-      "source": "out/analysis/vic_index_expiry_model_metrics.csv",
-      "path": "reports/active-models/latest/raw/vic_index_expiry_model_metrics.csv"
-    },
-    {
-      "label": "vic_index_expiry_summary",
-      "source": "out/analysis/vic_index_expiry_summary.json",
-      "path": "reports/active-models/latest/raw/vic_index_expiry_summary.json"
-    },
-    {
       "label": "vic_single_model_current",
       "source": "out/analysis/vic_single_model_current.csv",
       "path": "reports/active-models/latest/raw/vic_single_model_current.csv"
@@ -78,6 +23,21 @@
       "label": "vic_single_model_candidates",
       "source": "out/analysis/vic_single_model_candidates.csv",
       "path": "reports/active-models/latest/raw/vic_single_model_candidates.csv"
+    },
+    {
+      "label": "vic_single_model_holdout",
+      "source": "out/analysis/vic_single_model_holdout.csv",
+      "path": "reports/active-models/latest/raw/vic_single_model_holdout.csv"
+    },
+    {
+      "label": "vic_single_model_walkback",
+      "source": "out/analysis/vic_single_model_walkback.csv",
+      "path": "reports/active-models/latest/raw/vic_single_model_walkback.csv"
+    },
+    {
+      "label": "vic_single_model_feature_engineering",
+      "source": "out/analysis/vic_single_model_feature_engineering.csv",
+      "path": "reports/active-models/latest/raw/vic_single_model_feature_engineering.csv"
     },
     {
       "label": "vic_single_model_summary",
@@ -163,280 +123,6 @@
         "VNINDEX_ATR14PctRank"
       ]
     },
-    "ohlc_next_session": {
-      "source_rows": 1,
-      "ticker_rows": 1,
-      "columns": [
-        "SnapshotDate",
-        "Ticker",
-        "Horizon",
-        "ForecastWindow",
-        "Base",
-        "ForecastDate",
-        "Model",
-        "ModelFamily",
-        "ModelClass",
-        "EvalRows",
-        "OpenMAEPct",
-        "HighMAEPct",
-        "LowMAEPct",
-        "CumHighMAEPct",
-        "CumLowMAEPct",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore",
-        "ForecastOpen",
-        "ForecastHigh",
-        "ForecastLow",
-        "ForecastCumHigh",
-        "ForecastCumLow",
-        "ForecastClose",
-        "ForecastCloseRetPct",
-        "ForecastCumHighRetPct",
-        "ForecastCumLowRetPct",
-        "ForecastRangePct",
-        "ForecastCandleBias",
-        "TickerColorStreakState",
-        "TickerLimitProxyState",
-        "TickerShockState1D",
-        "TickerImpulseState3D",
-        "TickerWideRangeState",
-        "TickerTrendRegimeState",
-        "TickerCompressionState",
-        "TickerReclaimState",
-        "TickerRelativeRotationState",
-        "TickerExhaustionState",
-        "IndexColorStreakState",
-        "VN30ColorStreakState"
-      ]
-    },
-    "ohlc_multi_session": {
-      "source_rows": 7,
-      "ticker_rows": 7,
-      "columns": [
-        "SnapshotDate",
-        "Ticker",
-        "Horizon",
-        "ForecastWindow",
-        "Base",
-        "ForecastDate",
-        "Model",
-        "ModelFamily",
-        "ModelClass",
-        "EvalRows",
-        "OpenMAEPct",
-        "HighMAEPct",
-        "LowMAEPct",
-        "CumHighMAEPct",
-        "CumLowMAEPct",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore",
-        "ForecastOpen",
-        "ForecastHigh",
-        "ForecastLow",
-        "ForecastCumHigh",
-        "ForecastCumLow",
-        "ForecastClose",
-        "ForecastCloseRetPct",
-        "ForecastCumHighRetPct",
-        "ForecastCumLowRetPct",
-        "ForecastRangePct",
-        "ForecastCandleBias",
-        "TickerColorStreakState",
-        "TickerLimitProxyState",
-        "TickerShockState1D",
-        "TickerImpulseState3D",
-        "TickerWideRangeState",
-        "TickerTrendRegimeState",
-        "TickerCompressionState",
-        "TickerReclaimState",
-        "TickerRelativeRotationState",
-        "TickerExhaustionState",
-        "IndexColorStreakState",
-        "VN30ColorStreakState"
-      ]
-    },
-    "ohlc_model_metrics": {
-      "source_rows": 7,
-      "ticker_rows": 7,
-      "columns": [
-        "Ticker",
-        "Model",
-        "ModelFamily",
-        "ModelClass",
-        "Horizon",
-        "EvalRows",
-        "OpenMAEPct",
-        "HighMAEPct",
-        "LowMAEPct",
-        "CumHighMAEPct",
-        "CumLowMAEPct",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "UpsideMissMAEPct",
-        "DownsideMissMAEPct",
-        "CumUpsideMissMAEPct",
-        "CumDownsideMissMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore"
-      ]
-    },
-    "intraday_forecast": {
-      "source_rows": 1,
-      "ticker_rows": 1,
-      "columns": [
-        "SnapshotDate",
-        "SnapshotTimeBucket",
-        "Ticker",
-        "PrevClose",
-        "Base",
-        "SnapshotRetFromPrevClosePct",
-        "SnapshotRedFromPrevClose",
-        "Low",
-        "Mid",
-        "High",
-        "PredLowRetPct",
-        "PredMidRetPct",
-        "PredHighRetPct",
-        "Model",
-        "EvalRows",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "CloseDirHitPct",
-        "PredCloseUpFromSnapshot",
-        "PredCloseUpFromSnapshotProbPct",
-        "PredCloseUpFromSnapshotCalibrationRows",
-        "PredRecoverToPrevClose",
-        "PredRecoverToPrevCloseProbPct",
-        "PredRecoverToPrevCloseCalibrationRows",
-        "PredFinalCloseVsPrevClosePct",
-        "RecoverySetup",
-        "RecoveryCalibrationConflict",
-        "SelectionScore"
-      ]
-    },
-    "intraday_metrics": {
-      "source_rows": 4,
-      "ticker_rows": 4,
-      "columns": [
-        "Ticker",
-        "SnapshotTimeBucket",
-        "Model",
-        "EvalRows",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "UpsideMissMAEPct",
-        "DownsideMissMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore"
-      ]
-    },
-    "curated_intraday_current": {
-      "source_rows": 30,
-      "ticker_rows": 1,
-      "columns": [
-        "TradeDate",
-        "SnapshotDate",
-        "SnapshotTs",
-        "SnapshotTimeBucket",
-        "Ticker",
-        "PrevClose",
-        "Base",
-        "SnapshotRetFromPrevClosePct",
-        "FeatureSet",
-        "Model",
-        "UsedFeatureCount",
-        "PredTargetLowRetPct",
-        "PredTargetCloseRetPct",
-        "PredTargetHighRetPct",
-        "PredLow",
-        "PredClose",
-        "PredHigh"
-      ]
-    },
-    "curated_intraday_metrics": {
-      "source_rows": 124,
-      "ticker_rows": 4,
-      "columns": [
-        "Scope",
-        "Ticker",
-        "SnapshotTimeBucket",
-        "FeatureSet",
-        "Model",
-        "Rows",
-        "UsedFeatureCount",
-        "CloseMAEPct",
-        "HighMAEPct",
-        "LowMAEPct",
-        "RangeMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore"
-      ]
-    },
-    "vic_index_expiry_current": {
-      "source_rows": 7,
-      "ticker_rows": 7,
-      "columns": [
-        "Date",
-        "Ticker",
-        "Horizon",
-        "ForecastWindow",
-        "BaseClose",
-        "ForecastDate",
-        "FeatureSet",
-        "Model",
-        "PredTargetOpenRetPct",
-        "PredTargetCloseRetPct",
-        "PredTargetUpperWickPct",
-        "PredTargetLowerWickPct",
-        "PredTargetCumHighRetPct",
-        "PredTargetCumLowRetPct",
-        "PredOpen",
-        "PredHigh",
-        "PredLow",
-        "PredClose",
-        "PredCumHigh",
-        "PredCumLow",
-        "PredOpenRetPct",
-        "PredHighRetPct",
-        "PredLowRetPct",
-        "PredCloseRetPct",
-        "PredCumHighRetPct",
-        "PredCumLowRetPct",
-        "PredRangePct",
-        "EvalRows",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "CumHighMAEPct",
-        "CumLowMAEPct",
-        "CumUpsideMissMAEPct",
-        "CumDownsideMissMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore"
-      ]
-    },
-    "vic_index_expiry_metrics": {
-      "source_rows": 14,
-      "ticker_rows": 14,
-      "columns": [
-        "Ticker",
-        "Horizon",
-        "FeatureSet",
-        "Model",
-        "EvalRows",
-        "CloseMAEPct",
-        "RangeMAEPct",
-        "CumHighMAEPct",
-        "CumLowMAEPct",
-        "CumUpsideMissMAEPct",
-        "CumDownsideMissMAEPct",
-        "CloseDirHitPct",
-        "SelectionScore"
-      ]
-    },
     "vic_single_model_current": {
       "source_rows": 5,
       "ticker_rows": 5,
@@ -474,7 +160,73 @@
         "WalkbackRows",
         "WalkbackCloseMAEPct",
         "WalkbackDirectionHitPct",
-        "WalkbackPredDownPct"
+        "WalkbackPredDownPct",
+        "IsWinner"
+      ]
+    },
+    "vic_single_model_holdout": {
+      "source_rows": 90,
+      "ticker_rows": 90,
+      "columns": [
+        "Date",
+        "Ticker",
+        "Horizon",
+        "ForecastWindow",
+        "BaseClose",
+        "ForecastDate",
+        "ActualClose",
+        "TargetCloseRetPct",
+        "EvalKind",
+        "FeatureSet",
+        "Model",
+        "Objective",
+        "UsedFeatureCount",
+        "TrainRows",
+        "TrainEndDate",
+        "PredCloseRetPct",
+        "PredClose",
+        "PredUpProb",
+        "PredDirectionUp",
+        "ActualDirectionUp",
+        "DirectionHit",
+        "CloseAbsErrPct"
+      ]
+    },
+    "vic_single_model_walkback": {
+      "source_rows": 1440,
+      "ticker_rows": 1440,
+      "columns": [
+        "Date",
+        "Ticker",
+        "Horizon",
+        "ForecastWindow",
+        "BaseClose",
+        "ForecastDate",
+        "ActualClose",
+        "TargetCloseRetPct",
+        "EvalKind",
+        "FeatureSet",
+        "Model",
+        "Objective",
+        "UsedFeatureCount",
+        "TrainRows",
+        "TrainEndDate",
+        "PredCloseRetPct",
+        "PredClose",
+        "PredUpProb",
+        "PredDirectionUp",
+        "ActualDirectionUp",
+        "DirectionHit",
+        "CloseAbsErrPct"
+      ]
+    },
+    "vic_single_model_feature_engineering": {
+      "source_rows": 692,
+      "ticker_rows": 692,
+      "columns": [
+        "FeatureSet",
+        "Feature",
+        "Source"
       ]
     }
   },

@@ -18,19 +18,11 @@ DEFAULT_TICKER = "VIC"
 
 REPORT_FILES = {
     "universe": "out/universe.csv",
-    "ohlc_next_session": "out/analysis/ml_ohlc_next_session.csv",
-    "ohlc_multi_session": "out/analysis/ml_ohlc_multi_session.csv",
-    "ohlc_model_metrics": "out/analysis/ml_ohlc_model_metrics.csv",
-    "intraday_forecast": "out/analysis/ml_intraday_rest_of_session.csv",
-    "intraday_metrics": "out/analysis/ml_intraday_rest_of_session_metrics.csv",
-    "curated_intraday_current": "out/analysis/curated_intraday_model_locked/curated_intraday_model_current.csv",
-    "curated_intraday_metrics": "out/analysis/curated_intraday_model_locked/curated_intraday_model_metrics.csv",
-    "curated_intraday_summary": "out/analysis/curated_intraday_model_locked/curated_intraday_model_summary.json",
-    "vic_index_expiry_current": "out/analysis/vic_index_expiry_current_forecasts.csv",
-    "vic_index_expiry_metrics": "out/analysis/vic_index_expiry_model_metrics.csv",
-    "vic_index_expiry_summary": "out/analysis/vic_index_expiry_summary.json",
     "vic_single_model_current": "out/analysis/vic_single_model_current.csv",
     "vic_single_model_candidates": "out/analysis/vic_single_model_candidates.csv",
+    "vic_single_model_holdout": "out/analysis/vic_single_model_holdout.csv",
+    "vic_single_model_walkback": "out/analysis/vic_single_model_walkback.csv",
+    "vic_single_model_feature_engineering": "out/analysis/vic_single_model_feature_engineering.csv",
     "vic_single_model_summary": "out/analysis/vic_single_model_summary.json",
 }
 
@@ -86,63 +78,6 @@ def _filter_csv(source: Path, destination: Path, ticker: str) -> Dict[str, objec
 def _build_vic_summary(output_dir: Path, ticker: str) -> Dict[str, object]:
     summary: Dict[str, object] = {"ticker": ticker}
 
-    ohlc_path = output_dir / "vic" / "ohlc_next_session.csv"
-    if ohlc_path.exists():
-        frame = pd.read_csv(ohlc_path)
-        if not frame.empty:
-            row = frame.iloc[0].to_dict()
-            summary["ohlc_t1"] = {
-                "snapshot_date": row.get("SnapshotDate"),
-                "base": row.get("Base"),
-                "forecast_open": row.get("ForecastOpen"),
-                "forecast_low": row.get("ForecastLow"),
-                "forecast_high": row.get("ForecastHigh"),
-                "forecast_close": row.get("ForecastClose"),
-                "forecast_close_ret_pct": row.get("ForecastCloseRetPct"),
-                "forecast_cum_high_ret_pct": row.get("ForecastCumHighRetPct"),
-                "forecast_cum_low_ret_pct": row.get("ForecastCumLowRetPct"),
-                "model": row.get("Model"),
-                "selection_score": row.get("SelectionScore"),
-                "close_mae_pct": row.get("CloseMAEPct"),
-                "close_dir_hit_pct": row.get("CloseDirHitPct"),
-            }
-
-    expiry_path = output_dir / "vic" / "vic_index_expiry_current.csv"
-    if expiry_path.exists():
-        frame = pd.read_csv(expiry_path)
-        t1 = frame[pd.to_numeric(frame.get("Horizon"), errors="coerce").eq(1)] if "Horizon" in frame else frame
-        if not t1.empty:
-            row = t1.iloc[0].to_dict()
-            summary["index_expiry_t1"] = {
-                "snapshot_date": row.get("Date"),
-                "base": row.get("BaseClose"),
-                "feature_set": row.get("FeatureSet"),
-                "model": row.get("Model"),
-                "pred_open": row.get("PredOpen"),
-                "pred_low": row.get("PredLow"),
-                "pred_high": row.get("PredHigh"),
-                "pred_close": row.get("PredClose"),
-                "pred_close_ret_pct": row.get("PredCloseRetPct"),
-                "pred_cum_high_ret_pct": row.get("PredCumHighRetPct"),
-                "pred_cum_low_ret_pct": row.get("PredCumLowRetPct"),
-            }
-
-    curated_path = output_dir / "vic" / "curated_intraday_current.csv"
-    if curated_path.exists():
-        frame = pd.read_csv(curated_path)
-        if not frame.empty:
-            row = frame.iloc[0].to_dict()
-            summary["curated_intraday_latest"] = {
-                "snapshot_date": row.get("SnapshotDate"),
-                "snapshot_bucket": row.get("SnapshotTimeBucket"),
-                "base": row.get("Base"),
-                "feature_set": row.get("FeatureSet"),
-                "model": row.get("Model"),
-                "pred_low": row.get("PredLow"),
-                "pred_close": row.get("PredClose"),
-                "pred_high": row.get("PredHigh"),
-            }
-
     single_model_path = output_dir / "vic" / "vic_single_model_current.csv"
     if single_model_path.exists():
         frame = pd.read_csv(single_model_path)
@@ -156,6 +91,20 @@ def _build_vic_summary(output_dir: Path, ticker: str) -> Dict[str, object]:
                 "objective": first.get("Objective"),
                 "rows": rows,
             }
+    selector_summary_path = output_dir / "raw" / "vic_single_model_summary.json"
+    if selector_summary_path.exists():
+        selector_summary = json.loads(selector_summary_path.read_text(encoding="utf-8"))
+        summary["selector_backtest"] = {
+            "holdout_base_date": selector_summary.get("HoldoutBaseDate"),
+            "holdout_actual_dates": selector_summary.get("HoldoutActualDates"),
+            "horizons": selector_summary.get("Horizons"),
+            "winner": selector_summary.get("Winner"),
+        }
+        summary["feature_engineering"] = {
+            "feature_sets": selector_summary.get("FeatureSets"),
+            "engineered_features": selector_summary.get("EngineeredFeatures"),
+            "candidate_rows": selector_summary.get("CandidateRows"),
+        }
     return summary
 
 
@@ -211,8 +160,12 @@ def publish_reports(*, source_root: Path, output_dir: Path, ticker: str) -> Dict
                 "Detailed raw training histories remain in `out/analysis`; this repo path stores lightweight latest forecasts and metrics.",
                 "",
                 "- `vic/summary.json`: compact VIC forecast summary.",
-                "- `vic/*.csv`: VIC-filtered forecast and metric tables.",
-                "- `raw/`: copied latest model artifacts before filtering.",
+                "- `vic/vic_single_model_current.csv`: the only active VIC model output.",
+                "- `vic/vic_single_model_holdout.csv`: last-5-session holdout backtest.",
+                "- `vic/vic_single_model_walkback.csv`: pre-holdout walkback backtest.",
+                "- `vic/vic_single_model_candidates.csv`: feature/model candidate audit table.",
+                "- `vic/vic_single_model_feature_engineering.csv`: retained feature-set and engineered-feature audit table.",
+                "- `raw/`: copied latest selector artifacts before filtering.",
                 "",
             ]
         ),

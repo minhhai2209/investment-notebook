@@ -1,2 +1,0 @@
-TradeDate,SnapshotDate,SnapshotTs,SnapshotTimeBucket,Ticker,PrevClose,Base,SnapshotRetFromPrevClosePct,FeatureSet,Model,UsedFeatureCount,PredTargetLowRetPct,PredTargetCloseRetPct,PredTargetHighRetPct,PredLow,PredClose,PredHigh
-2026-06-30 00:00:00+07:00,2026-06-30,2026-06-30 14:15:00+07:00,PM_LATE,VIC,217.2,219.3,0.9668508287292932,range_micro_volume,ridge,67,-0.4422113786748983,0.5309883784460558,0.8767535979295745,218.33023044656596,220.4644575139322,221.2227206402596

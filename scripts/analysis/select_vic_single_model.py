@@ -36,6 +36,7 @@ OUTPUT_HOLDOUT = "vic_single_model_holdout.csv"
 OUTPUT_WALKBACK = "vic_single_model_walkback.csv"
 OUTPUT_CURRENT = "vic_single_model_current.csv"
 OUTPUT_SUMMARY = "vic_single_model_summary.json"
+OUTPUT_FEATURE_ENGINEERING = "vic_single_model_feature_engineering.csv"
 
 
 @dataclass(frozen=True)
@@ -399,6 +400,33 @@ def select_winner(candidates: pd.DataFrame, *, expected_holdout_rows: int) -> Di
     return candidates.iloc[0].to_dict()
 
 
+def build_feature_engineering_audit(
+    feature_sets: Mapping[str, Sequence[str]],
+    *,
+    added_columns: Sequence[str],
+    engineered_columns: Sequence[str],
+) -> pd.DataFrame:
+    rows: List[Dict[str, object]] = []
+    added = set(added_columns)
+    engineered = set(engineered_columns)
+    for feature_set, columns in feature_sets.items():
+        for column in columns:
+            if column in engineered:
+                source = "engineered"
+            elif column in added:
+                source = "index_expiry_exvin"
+            else:
+                source = "baseline_ohlc"
+            rows.append(
+                {
+                    "FeatureSet": feature_set,
+                    "Feature": column,
+                    "Source": source,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def current_forecast(
     sample: pd.DataFrame,
     feature_sets: Mapping[str, Sequence[str]],
@@ -491,13 +519,29 @@ def run_selection(
     predictions = pd.concat([frame for frame in frames if not frame.empty], ignore_index=True)
     candidates = summarise_candidates(predictions)
     winner = select_winner(candidates, expected_holdout_rows=len(horizons))
+    winner_mask = (
+        candidates["FeatureSet"].astype(str).eq(str(winner["FeatureSet"]))
+        & candidates["Model"].astype(str).eq(str(winner["Model"]))
+        & candidates["Objective"].astype(str).eq(str(winner["Objective"]))
+    )
+    candidates["IsWinner"] = winner_mask
+    candidates = candidates.sort_values(
+        ["IsWinner", "SelectionScore", "HoldoutDirectionHitPct", "HoldoutCloseMAEPct"],
+        ascending=[False, True, False, True],
+    ).reset_index(drop=True)
     current = current_forecast(sample, feature_sets, winner)
+    feature_audit = build_feature_engineering_audit(
+        feature_sets,
+        added_columns=added_columns,
+        engineered_columns=engineered_columns,
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     predictions[predictions["EvalKind"].eq("current")].to_csv(output_dir / OUTPUT_HOLDOUT, index=False)
     predictions[predictions["EvalKind"].eq("walkback")].to_csv(output_dir / OUTPUT_WALKBACK, index=False)
     candidates.to_csv(output_dir / OUTPUT_CANDIDATES, index=False)
     current.to_csv(output_dir / OUTPUT_CURRENT, index=False)
+    feature_audit.to_csv(output_dir / OUTPUT_FEATURE_ENGINEERING, index=False)
 
     payload = {
         "Ticker": ticker,
@@ -513,6 +557,7 @@ def run_selection(
             "Holdout": str(output_dir / OUTPUT_HOLDOUT),
             "Walkback": str(output_dir / OUTPUT_WALKBACK),
             "Current": str(output_dir / OUTPUT_CURRENT),
+            "FeatureEngineering": str(output_dir / OUTPUT_FEATURE_ENGINEERING),
         },
     }
     payload = _json_safe(payload)

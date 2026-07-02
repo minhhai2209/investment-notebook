@@ -42,15 +42,12 @@ Nếu chỉ muốn rebuild artifact từ map hiện có:
 Active forecast tasks:
 
 ```bash
-./broker.sh ohlc
-./broker.sh intraday
 ./broker.sh select_vic_model
 ```
 
-- `ohlc`: dự báo giá T+n (`T+1/T+2/T+3/T+5/T+10/T+15/T+20`) từ daily OHLCV.
-- `intraday`: dự báo close còn lại của phiên từ 1-minute OHLCV và depth/order-book feature nếu nguồn dữ liệu có sẵn.
-- `select_vic_model`: tuyển đúng một model VIC theo holdout 5 phiên gần nhất, cho phép winner là model giá hoặc model chiều hướng.
-- Các builder cũ như `range`, `cycle`, `timing`, `entry_ladder`, `sequence_dl`, `candidates`, `momentum`, `deep`, `position_ml` chỉ là legacy/diagnostic khi gọi tay, không phải output mặc định.
+- `select_vic_model`: active model duy nhất cho VIC. Selector thử các candidate giá/chiều hướng, feature-set thường và feature-engineered, rồi giữ đúng một winner theo holdout 5 phiên gần nhất cộng walkback trước holdout.
+- Winner hiện tại là `baseline_ohlc / logit_direction`: logistic classifier dự đoán chiều `TargetCloseRetPct > 0` cho T+1..T+5.
+- Các builder/model cũ như `ohlc`, `intraday`, `eval_vic_index_expiry`, `eval_curated_intraday_model`, `range`, `cycle`, `timing`, `sequence_dl` chỉ là legacy/diagnostic khi gọi tay, không phải output mặc định hay model publish chính.
 
 Ví dụ prompt:
 
@@ -58,8 +55,8 @@ Ví dụ prompt:
 - `Chỉ dự báo VIC bằng snapshot mới nhất; không đưa khuyến nghị mua bán.`
 - `Không dùng ngân sách, không tính size, không đọc danh mục.`
 - `Tách phần Model predict và External synthesis. Model predict chỉ lấy từ artifact/model trong repo; External synthesis nếu có tra cứu web/news thì ghi rõ nguồn và không trộn vào số forecast.`
-- `Trả lời bằng OHLC T+1, multi-session tới T+20 nếu có, intraday forecast nếu đang trong phiên, kèm MAE/hit rate/model family.`
-- `Nếu daily forecast và intraday forecast mâu thuẫn thì gọi rõ model conflict bằng số liệu.`
+- `Trả lời bằng single active model: direction T+1..T+5, xác suất up, holdout hit, walkback hit.`
+- `Nếu legacy diagnostics mâu thuẫn với active model thì gọi rõ diagnostics conflict và không dùng chúng thay forecast chính.`
 - `Phải nói rõ T+N là N phiên giao dịch sau snapshot.`
 - `Nếu cần chạy batch thì tự chạy tuần tự xong rồi mới trả lời, không trả lời giữa chừng rằng vẫn đang đợi artifact.`
 
@@ -77,8 +74,7 @@ Ví dụ prompt:
 ./broker.sh refresh_macro
 ./broker.sh eval_macro --no-refresh-factors --case-tickers VIC
 ./broker.sh eval_macro_lift --case-tickers VIC
-./broker.sh ohlc
-./broker.sh intraday
+./broker.sh select_vic_model
 ```
 
 Các harness/builder legacy vẫn còn để audit khi cần:
@@ -100,7 +96,8 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 ./broker.sh eval_macro
 ./broker.sh eval_bctt
 ./broker.sh eval_vic_index_expiry --models hist_gbm
-./broker.sh select_vic_model
+./broker.sh ohlc
+./broker.sh intraday
 ./broker.sh eval_intraday_features
 ./broker.sh eval_daily_features
 ./broker.sh eval_curated_intraday_model
@@ -113,18 +110,25 @@ Các harness/builder legacy vẫn còn để audit khi cần:
 - `out/market_summary.json`: breadth, range, co-movement ở cấp thị trường
 - `out/sector_summary.csv`: breadth/relative strength ở cấp ngành
 - `out/analysis/`: các report ML và evaluation
-- `out/analysis/ml_ohlc_next_session.csv`: active T+n price forecast cho phiên kế tiếp
-- `out/analysis/ml_ohlc_multi_session.csv`: active T+n price forecast nhiều horizon mặc định `T+1/T+2/T+3/T+5/T+10/T+15/T+20`; `T+N` là N phiên giao dịch sau snapshot
-- `out/analysis/ml_ohlc_model_metrics.csv`: backtest metrics của active T+n price model
-- `out/analysis/ml_intraday_rest_of_session.csv`: active intraday close forecast; gồm nhãn/xác suất `PredCloseUpFromSnapshot*`, `PredRecoverToPrevClose*`, số mẫu calibration, và `RecoveryCalibrationConflict`
-- `out/analysis/ml_intraday_rest_of_session_metrics.csv`: validation metrics của intraday model theo bucket/time window
-- `out/analysis/ml_intraday_rest_of_session_backtest.csv`: recent holdout predictions của intraday model theo bucket
-- `out/analysis/vic_single_model_current.csv`: winner duy nhất cho VIC theo selector last-5 holdout; có thể là model `price` hoặc `direction`
-- `out/analysis/vic_single_model_candidates.csv`: bảng candidate để audit vì sao winner được chọn
+- `out/analysis/vic_single_model_current.csv`: output active duy nhất cho VIC theo selector last-5 holdout; có thể là model `price` hoặc `direction`
+- `out/analysis/vic_single_model_holdout.csv`: backtest 5 phiên gần nhất, train bằng dữ liệu trước holdout
+- `out/analysis/vic_single_model_walkback.csv`: walkback trước holdout
+- `out/analysis/vic_single_model_candidates.csv`: bảng candidate/feature engineering để audit vì sao winner được chọn
+- `out/analysis/vic_single_model_feature_engineering.csv`: bảng giữ lại feature-set và engineered features để tái dùng/audit sau này
+- `out/analysis/ml_ohlc_*.csv`, `out/analysis/ml_intraday_*.csv`, `out/analysis/vic_index_expiry_*.csv`: legacy diagnostics, không phải model publish chính
 - `out/analysis/macro_factor_*.csv`: độ nhạy/correlation với dầu, vàng, USD, VIX, lợi suất Mỹ và các chỉ số chứng khoán lớn
 - `out/analysis/ml_macro_*.csv`: walk-forward feature-lift của ML khi thêm macro/global equity features
 - `reports/active-models/latest/`: bản publish nhẹ của các forecast/report mới nhất để lưu trong repo khi cần
 - `research/`: bundle research theo mã để Codex đọc nhanh hơn trong session tương tác
+
+## VIC Single Model Technical Notes
+
+- Target active hiện tại là direction: `TargetCloseRetPct > 0` cho từng horizon T+1..T+5.
+- Winner hiện tại là `baseline_ohlc / logit_direction`, dùng `LogisticRegression(class_weight="balanced")` sau `median imputer + StandardScaler`.
+- Holdout chuẩn là 5 phiên cuối trong daily cache; mỗi horizon được train bằng dữ liệu có `Date < holdout_base_date`, nên không nhìn vào 5 phiên test.
+- Walkback dùng các mốc trước holdout để kiểm tra generalization trước khi chấp nhận winner.
+- Candidate search vẫn thử cả model giá và model chiều hướng trên `baseline_ohlc`, `index_expiry_exvin`, và `engineered_all`.
+- Feature engineering được giữ lại trong `vic_single_model_feature_engineering.csv`; candidate metrics giữ trong `vic_single_model_candidates.csv`. Candidate thua không được publish như forecast chính.
 
 ## Portfolio
 

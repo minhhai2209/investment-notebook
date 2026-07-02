@@ -299,8 +299,7 @@ run_prepare() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_engine "$config_path"
   clean_notebook_artifacts
-  run_ohlc_report
-  run_intraday_report
+  run_select_vic_model
   run_research_bundle
 }
 
@@ -308,8 +307,7 @@ run_prepare_core() {
   local config_path="${1:-$DEFAULT_CONFIG_PATH}"
   run_engine "$config_path"
   clean_notebook_artifacts
-  run_ohlc_report
-  run_intraday_report
+  run_select_vic_model
 }
 
 run_prepare_default() {
@@ -343,10 +341,11 @@ Universe helpers:
   refresh_macro        Refresh cached macro/global equity factors
 
 Active model builders:
-  ohlc                 Build the consolidated T+n price model report
-  intraday             Build the consolidated morning-data close model report
+  select_vic_model     Select the single active VIC direction/price model using last-5 holdout
 
 Legacy/diagnostic builders:
+  ohlc                 Legacy consolidated T+n price model report
+  intraday             Legacy morning-data close model report
   candidates [mode]    Build ranked candidate watchlist (`auto`, `core`, or `full`)
   deep <ticker>        Build a deep per-ticker ML + research synthesis report
   range                Build range forecast reports
@@ -366,7 +365,6 @@ Offline evaluation:
   eval_macro           Run macro-factor sensitivity evaluation
   eval_macro_lift      Compare ML prediction with/without macro/global equity features
   eval_vic_index_expiry Compare VIC forecast with VNINDEX/ex-Vin/derivative-expiry features
-  select_vic_model     Select one VIC model for price or direction using last-5 holdout
   eval_intraday_features Walk-back audit of 1-minute intraday feature families
   eval_curated_intraday_model Walk-forward model test using curated minute price/volume features
   eval_daily_features  Walk-back audit of daily OHLC feature families

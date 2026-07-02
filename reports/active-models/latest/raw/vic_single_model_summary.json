@@ -58,6 +58,7 @@
     "Candidates": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_candidates.csv",
     "Holdout": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_holdout.csv",
     "Walkback": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_walkback.csv",
-    "Current": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_current.csv"
+    "Current": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_current.csv",
+    "FeatureEngineering": "/Users/hai/workspaces/everything/workspaces/personal/repos/minhhai2209/investment-notebook/out/analysis/vic_single_model_feature_engineering.csv"
   }
 }

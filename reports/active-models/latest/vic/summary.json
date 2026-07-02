@@ -1,43 +1,5 @@
 {
   "ticker": "VIC",
-  "ohlc_t1": {
-    "snapshot_date": "2026-07-01",
-    "base": 220.0,
-    "forecast_open": 220.1805295235363,
-    "forecast_low": 217.65776592949453,
-    "forecast_high": 221.97067060363247,
-    "forecast_close": 219.8262914848255,
-    "forecast_close_ret_pct": -0.078958415988406,
-    "forecast_cum_high_ret_pct": 1.7344835705206174,
-    "forecast_cum_low_ret_pct": -1.609817741760522,
-    "model": "random_forest",
-    "selection_score": 5.125248966217512,
-    "close_mae_pct": 2.057387801571993,
-    "close_dir_hit_pct": 50.0
-  },
-  "index_expiry_t1": {
-    "snapshot_date": "2026-07-01",
-    "base": 220.0,
-    "feature_set": "baseline_ohlc",
-    "model": "hist_gbm",
-    "pred_open": 219.57125846930245,
-    "pred_low": 216.47649108944051,
-    "pred_high": 220.78669372763613,
-    "pred_close": 219.2135940864639,
-    "pred_close_ret_pct": -0.3574572334254955,
-    "pred_cum_high_ret_pct": 1.810852076798719,
-    "pred_cum_low_ret_pct": -1.8602456804872711
-  },
-  "curated_intraday_latest": {
-    "snapshot_date": "2026-06-30",
-    "snapshot_bucket": "PM_LATE",
-    "base": 219.3,
-    "feature_set": "range_micro_volume",
-    "model": "ridge",
-    "pred_low": 218.33023044656596,
-    "pred_close": 220.4644575139322,
-    "pred_high": 221.2227206402596
-  },
   "vic_single_model": {
     "snapshot_date": "2026-07-01",
     "feature_set": "baseline_ohlc",
@@ -135,5 +97,63 @@
         "PredClose": null
       }
     ]
+  },
+  "selector_backtest": {
+    "holdout_base_date": "2026-06-24",
+    "holdout_actual_dates": [
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-29",
+      "2026-06-30",
+      "2026-07-01"
+    ],
+    "horizons": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "winner": {
+      "FeatureSet": "baseline_ohlc",
+      "Model": "logit_direction",
+      "Objective": "direction",
+      "SelectionScore": 32.6875,
+      "HoldoutRows": 5,
+      "HoldoutCloseMAEPct": null,
+      "HoldoutDirectionHitPct": 80.0,
+      "HoldoutPredDownPct": 80.0,
+      "WalkbackRows": 80,
+      "WalkbackCloseMAEPct": null,
+      "WalkbackDirectionHitPct": 63.74999999999999,
+      "WalkbackPredDownPct": 50.0
+    }
+  },
+  "feature_engineering": {
+    "feature_sets": {
+      "baseline_ohlc": 161,
+      "index_expiry_exvin": 257,
+      "engineered_all": 274
+    },
+    "engineered_features": [
+      "TickerRetStackMeanPct",
+      "TickerRetStackAbsMaxPct",
+      "TickerVsIndexRet5Pct",
+      "TickerVsIndexRet20Pct",
+      "TickerVsVN30Ret5Pct",
+      "TickerBreakoutStateCount",
+      "TickerRiskStateComposite",
+      "TickerDistSMA20PerVol10",
+      "TickerDistSMA50PerVol10",
+      "TickerRet20VolumePressure",
+      "TickerRangeVolumePressure",
+      "TickerWickImbalancePct",
+      "TickerRangePosSpread20v60",
+      "TickerPriorHighPressure20",
+      "TickerPriorHighPressure60",
+      "TickerPriorHighPressure120",
+      "TickerPriorHighPressure252"
+    ],
+    "candidate_rows": 18
   }
 }
