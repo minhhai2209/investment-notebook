@@ -74,10 +74,10 @@
   {
     "Source": "Vietstock sector profiles",
     "Attempted": true,
-    "Status": "error",
-    "TickerCount": 30,
-    "RowCount": 0,
-    "Detail": "ACB: Vietstock company profile is missing the sector-level block; BID: Vietstock company profile is missing the sector-level block; BSR: Vietstock company profile is missing the sector-level block; CTG: Vietstock company profile is missing the sector-level block; FPT: Vietstock company profile is missing the sector-level block; GAS: Vietstock company profile is missing the sector-level block; GVR: Vietstock company profile is missing the sector-level block; HDB: Vietstock company profile is missing the sector-level block; HPG: Vietstock company profile is missing the sector-level block; LPB: Vietstock company profile is missing the sector-level block",
+    "Status": "ok",
+    "TickerCount": 2,
+    "RowCount": 2,
+    "Detail": "",
     "Output": "source_status/industry_map_refresh_summary.csv"
   },
   {

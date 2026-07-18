@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T04:52:06.334160+00:00",
+  "generated_at": "2026-07-18T15:05:39.116778+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -20,21 +20,21 @@
     {
       "path": "bundles/source_audit.csv",
       "exists": true,
-      "bytes": 1400,
+      "bytes": 738,
       "rows": 10,
       "columns": 7
     },
     {
       "path": "bundles/market_snapshot.csv",
       "exists": true,
-      "bytes": 1153,
+      "bytes": 1172,
       "rows": 30,
       "columns": 3
     },
     {
       "path": "bundles/symbol_latest.csv",
       "exists": true,
-      "bytes": 12881,
+      "bytes": 13051,
       "rows": 32,
       "columns": 28
     },
@@ -48,19 +48,18 @@
     {
       "path": "index/file_catalog.csv",
       "exists": true,
-      "bytes": 6724,
+      "bytes": 6751,
       "rows": 122,
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-07-02T03:52:34.228947+00:00",
+  "manifest_generated_at": "2026-07-12T17:32:07.141039+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
-      "ok": 7,
+      "ok": 8,
       "skipped_disabled_use_refresh_bctt": 1,
-      "cache_loaded": 1,
-      "error": 1
+      "cache_loaded": 1
     }
   },
   "file_catalog_rows": 122,
@@ -77,36 +76,34 @@
     "DailyPath": {
       "path": "daily/VIC.csv",
       "exists": true,
-      "bytes": 212872,
+      "bytes": 212849,
       "rows": 260,
       "columns": 54
     },
     "IntradayPath": {
       "path": "intraday/VIC.csv",
       "exists": true,
-      "bytes": 85095,
+      "bytes": 85673,
       "rows": 390,
       "columns": 28
     },
     "MinuteProfilePath": {
       "path": "intraday/minute_profile/VIC.csv",
       "exists": true,
-      "bytes": 20193,
-      "rows": 94,
+      "bytes": 48833,
+      "rows": 222,
       "columns": 28
     },
     "symbol_latest": {
       "Ticker": "VIC",
-      "LatestDate": "2026-07-02",
-      "LastClose": 218.5,
-      "Ret1dPct": 0.6448641179180203,
-      "Ret20dPct": 9.140859140859137,
-      "DailyVolume": 496600,
-      "IntradayLast": 218.5
+      "LatestDate": "2026-07-10",
+      "LastClose": 223.0,
+      "Ret1dPct": 0.9049773755656076,
+      "Ret20dPct": 14.066496163682874,
+      "DailyVolume": 3999100,
+      "IntradayLast": 223.0
     }
   },
-  "warnings": [
-    "1 source audit row(s) report error; see bundles/source_audit.csv"
-  ],
+  "warnings": [],
   "failures": []
 }
