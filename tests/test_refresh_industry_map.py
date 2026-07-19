@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -231,9 +232,8 @@ class RefreshIndustryMapTest(unittest.TestCase):
 
     def test_script_entrypoint_help_works_when_run_directly(self) -> None:
         repo_root = Path(__file__).resolve().parents[1]
-        python_bin = repo_root / "venv" / "bin" / "python"
         result = subprocess.run(
-            [str(python_bin), "scripts/tools/refresh_industry_map.py", "--help"],
+            [sys.executable, "scripts/tools/refresh_industry_map.py", "--help"],
             cwd=repo_root,
             capture_output=True,
             text=True,
