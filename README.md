@@ -28,6 +28,12 @@ Khi muốn gọi API và làm mới cache số:
 
 `collect` refresh các nguồn số nhanh được bật trong `config/data_hub.yaml`: OHLCV daily/intraday, depth, CafeF flows, Vietstock overview và macro cache. Vietstock BCTT có command riêng vì dữ liệu quarterly và collector dùng Playwright.
 
+## Tự Động Cập Nhật
+
+GitHub Action `Refresh Numeric Data` chạy từ thứ Hai đến thứ Sáu lúc 11:45 và 15:15 theo giờ Việt Nam, đồng thời hỗ trợ chạy tay. Workflow chạy test, refresh nguồn, tính lại data hub, kiểm tra layout rồi commit kết quả vào `main`.
+
+Các cache nguồn và refresh-summary cần cho lần chạy incremental được lưu có chọn lọc trong `out/`. Daily giữ 900 ngày; intraday 1 phút và depth snapshot giữ rolling 30 ngày. ChatGPT vẫn đọc từ `data-hub/latest/`; `out/` chỉ là dữ liệu nguồn để collector tiếp tục từ lần trước hoặc để audit sâu.
+
 ## Dữ Liệu Có Thể Tính
 
 Nguồn số đang được inventory trong repo:

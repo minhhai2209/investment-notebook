@@ -128,7 +128,7 @@ def fetch_depth_snapshots(tickers: Iterable[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def append_depth_snapshot_cache(depth_df: pd.DataFrame, depth_dir: Path) -> None:
+def append_depth_snapshot_cache(depth_df: pd.DataFrame, depth_dir: Path, retention_days: int = 30) -> None:
     if depth_df.empty:
         return
     depth_dir.mkdir(parents=True, exist_ok=True)
@@ -140,6 +140,12 @@ def append_depth_snapshot_cache(depth_df: pd.DataFrame, depth_dir: Path) -> None
             merged = merged.drop_duplicates(subset=["Ticker", "FetchedAt"], keep="last")
         else:
             merged = scoped.copy()
+        fetched_at = pd.to_datetime(merged["FetchedAt"], utc=True, errors="coerce")
+        cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=max(1, int(retention_days)))
+        retained = merged.loc[fetched_at >= cutoff].copy()
+        if not retained.empty:
+            merged = retained
+        merged = merged.sort_values("FetchedAt").reset_index(drop=True)
         merged.to_csv(path, index=False)
 
 
@@ -178,9 +184,10 @@ def refresh_depth_for_intraday_cache(
     *,
     resolution: str,
     depth_dir: Path | None = None,
+    retention_days: int = 30,
 ) -> pd.DataFrame:
     depth_df = fetch_depth_snapshots(tickers)
     if depth_dir is not None:
-        append_depth_snapshot_cache(depth_df, depth_dir)
+        append_depth_snapshot_cache(depth_df, depth_dir, retention_days=retention_days)
     merge_depth_into_intraday_cache(depth_df, history_dir, resolution)
     return depth_df

@@ -1092,7 +1092,13 @@ def refresh_sources(config: Mapping[str, object], tickers: Sequence[str], *, ref
         equity_tickers = [ticker for ticker in tickers if not _is_index_ticker(ticker)]
         if equity_tickers:
             try:
-                depth = refresh_depth_for_intraday_cache(equity_tickers, intraday_dir, resolution="1", depth_dir=depth_dir)
+                depth = refresh_depth_for_intraday_cache(
+                    equity_tickers,
+                    intraday_dir,
+                    resolution="1",
+                    depth_dir=depth_dir,
+                    retention_days=_window(config, "depth_history_days", 30),
+                )
                 statuses.append(_source_status("VNDIRECT priceboard depth", attempted=True, status="ok", ticker_count=len(equity_tickers), row_count=len(depth), output=str(depth_dir)))
             except Exception as exc:
                 statuses.append(_source_status("VNDIRECT priceboard depth", attempted=True, status="error", ticker_count=len(equity_tickers), detail=str(exc), output=str(depth_dir)))

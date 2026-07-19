@@ -142,6 +142,23 @@ def first_timestamp_and_count(path: Path) -> Tuple[Optional[int], int]:
     return int(ts.min()), int(len(ts))
 
 
+def trim_history_cache(path: Path, min_timestamp: int) -> int:
+    """Drop bars older than ``min_timestamp`` while preserving a stale cache intact."""
+    import pandas as pd
+    if not path.exists() or path.stat().st_size == 0:
+        return 0
+    frame = pd.read_csv(path)
+    timestamps = pd.to_numeric(frame.get('t'), errors='coerce')
+    retained = frame.loc[timestamps >= int(min_timestamp)].copy()
+    if retained.empty or len(retained) == len(frame):
+        return 0
+    retained = retained.sort_values('t').reset_index(drop=True)
+    ts = pd.to_datetime(retained['t'], unit='s', utc=True).dt.tz_convert(VN_TZ)
+    retained['date_vn'] = ts.dt.strftime('%Y-%m-%d')
+    retained.to_csv(path, index=False)
+    return len(frame) - len(retained)
+
+
 def ensure_ohlc_cache(ticker: str,
                       outdir: str = 'out/data',
                       min_days: int = 400,
@@ -176,6 +193,7 @@ def ensure_history_cache(ticker: str,
     now_dt = datetime.now(VN_TZ)
     now_ts = int(now_dt.timestamp())
     min_start_ts = int((now_dt - timedelta(days=min_days)).timestamp())
+    refreshed = False
 
     # 1) If file missing, fetch full window [now - min_days, now]
     if not outp.exists() or outp.stat().st_size == 0:
@@ -195,6 +213,7 @@ def ensure_history_cache(ticker: str,
             data_old = fetch_history(ticker, resolution, min_start_ts, backfill_to)
             if data_old and data_old.get('s') == 'ok' and data_old.get('t'):
                 merge_incremental(outp, data_old)
+                refreshed = True
                 added_old = sum(1 for x in data_old['t'] if x is not None and int(x) < ft)
                 if added_old > 0:
                     print(f"Backfilled {ticker}: +{added_old} bars")
@@ -207,6 +226,7 @@ def ensure_history_cache(ticker: str,
         data_new = fetch_history(ticker, resolution, frm_new, now_ts)
         if data_new and data_new.get('s') == 'ok' and data_new.get('t'):
             merge_incremental(outp, data_new)
+            refreshed = True
             # Count bars that are strictly newer than the last cached timestamp (best-effort).
             if lt is None:
                 added = len(data_new['t'])
@@ -217,6 +237,10 @@ def ensure_history_cache(ticker: str,
         else:
             # Nothing new – keep silent or log lightly
             pass
+    if refreshed:
+        removed = trim_history_cache(outp, min_start_ts)
+        if removed > 0:
+            print(f"Trimmed {ticker}: -{removed} bars outside {min_days} days")
 
 
 def ensure_intraday_cache(ticker: str,

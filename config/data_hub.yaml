@@ -55,5 +55,6 @@ refresh:
 windows:
   daily_history_days: 900
   intraday_history_days: 30
+  depth_history_days: 30
   recent_daily_rows: 260
   recent_intraday_rows: 390
