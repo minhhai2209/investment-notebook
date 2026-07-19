@@ -4,6 +4,15 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*credentials*
+codex_universe_history/
+**/orders.csv
+**/positions.csv
 .playwright/
 .cache/
 config/data_engine.actions.yaml

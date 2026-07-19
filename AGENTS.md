@@ -7,6 +7,8 @@
 - Không xuất forecast, confidence, target price, khuyến nghị mua/bán, position sizing, ngân sách, danh mục, ladder, hoặc report giao dịch.
 - Không thu thập tin tức. Chỉ dữ liệu số và metadata số/nhóm ngành cần thiết để tính toán.
 - ChatGPT hoặc người dùng sẽ tự phân tích ở ngoài repo dựa trên artifact số.
+- Đây là public repo: không commit credential, `.env`, private key, cookie/session, thông tin tài khoản, số điện thoại/email cá nhân, lịch sử lệnh, vị thế, hoặc dữ liệu danh mục cá nhân.
+- Cache được track chỉ được chứa dữ liệu số lấy từ nguồn công khai và metadata kỹ thuật không nhạy cảm.
 
 ## Default Workflow
 
