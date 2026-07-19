@@ -1,0 +1,7 @@
+{
+  "ticker_count": 30,
+  "success_count": 30,
+  "cache_dir": "out/vietstock_bctt",
+  "summary_csv": "out/data_hub/vietstock_bctt_cache_summary.csv",
+  "latest_available_date_max": "2026-05-15"
+}
