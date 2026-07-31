@@ -4,6 +4,15 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*credentials*
+codex_universe_history/
+**/orders.csv
+**/positions.csv
 .playwright/
 .cache/
 config/data_engine.actions.yaml
@@ -11,7 +20,24 @@ config/data_engine.actions.yaml
 # Data inputs/outputs
 .coverage
 *.xlsx
-out/
+out/*
+!out/data/
+out/data/*
+!out/data/*_daily.csv
+!out/data/intraday_1m/
+!out/data/intraday_1m/*.csv
+!out/data/depth_snapshots/
+!out/data/depth_snapshots/*.csv
+!out/cafef_flows/
+!out/cafef_flows/**
+!out/vietstock_overview/
+!out/vietstock_overview/**
+!out/vietstock_bctt/
+!out/vietstock_bctt/**
+!out/macro_factors/
+!out/macro_factors/**
+!out/data_hub/
+!out/data_hub/**
 /research/
 
 # VSCode

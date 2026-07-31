@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-07-19T05:01:14.807712+00:00",
+  "purpose": "Numeric-only VN market data hub optimized for connector retrieval.",
+  "rules": [
+    "No news.",
+    "No forecast/model output.",
+    "No buy/sell recommendation.",
+    "Check source audit before trusting a metric.",
+    "Use bundles first; open per-ticker files only when drilling down."
+  ],
+  "minimal_read_order": [
+    "START_HERE.json",
+    "bundles/source_audit.csv",
+    "bundles/market_snapshot.csv",
+    "bundles/symbol_latest.csv",
+    "index/ticker_catalog.csv",
+    "index/file_catalog.csv"
+  ],
+  "top_level_files": {
+    "manifest": "manifest.json",
+    "source_audit": "bundles/source_audit.csv",
+    "market_snapshot": "bundles/market_snapshot.csv",
+    "symbol_latest": "bundles/symbol_latest.csv",
+    "ticker_catalog": "index/ticker_catalog.csv",
+    "file_catalog": "index/file_catalog.csv",
+    "column_catalog": "index/column_catalog.csv"
+  },
+  "universe": {
+    "symbol_count": 32,
+    "equity_count": 30,
+    "index_count": 2,
+    "symbols": [
+      "ACB",
+      "BID",
+      "BSR",
+      "CTG",
+      "FPT",
+      "GAS",
+      "GVR",
+      "HDB",
+      "HPG",
+      "LPB",
+      "MBB",
+      "MSN",
+      "MWG",
+      "PLX",
+      "SAB",
+      "SHB",
+      "SSB",
+      "SSI",
+      "STB",
+      "TCB",
+      "TPB",
+      "VCB",
+      "VHM",
+      "VIB",
+      "VIC",
+      "VJC",
+      "VNM",
+      "VPB",
+      "VPL",
+      "VRE",
+      "VNINDEX",
+      "VN30"
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+tickers:
+  - ACB
+  - BID
+  - BSR
+  - CTG
+  - FPT
+  - GAS
+  - GVR
+  - HDB
+  - HPG
+  - LPB
+  - MBB
+  - MSN
+  - MWG
+  - PLX
+  - SAB
+  - SHB
+  - SSB
+  - SSI
+  - STB
+  - TCB
+  - TPB
+  - VCB
+  - VHM
+  - VIB
+  - VIC
+  - VJC
+  - VNM
+  - VPB
+  - VPL
+  - VRE
+  - VNINDEX
+  - VN30
+
+paths:
+  daily_cache: out/data
+  intraday_cache: out/data/intraday_1m
+  depth_cache: out/data/depth_snapshots
+  cafef_cache: out/cafef_flows
+  vietstock_overview_cache: out/vietstock_overview
+  vietstock_bctt_cache: out/vietstock_bctt
+  macro_cache: out/macro_factors
+  sector_map: data/industry_map.csv
+  output_dir: data-hub/latest
+
+refresh:
+  daily: true
+  intraday: true
+  depth: true
+  cafef_flows: true
+  vietstock_overview: true
+  vietstock_bctt: false
+  macro: true
+
+windows:
+  daily_history_days: 900
+  intraday_history_days: 30
+  depth_history_days: 30
+  recent_daily_rows: 260
+  recent_intraday_rows: 390

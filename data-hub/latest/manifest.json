@@ -1,0 +1,235 @@
+{
+  "generated_at": "2026-07-19T05:01:14.807712+00:00",
+  "config": "config/data_hub.yaml",
+  "tickers": [
+    "ACB",
+    "BID",
+    "BSR",
+    "CTG",
+    "FPT",
+    "GAS",
+    "GVR",
+    "HDB",
+    "HPG",
+    "LPB",
+    "MBB",
+    "MSN",
+    "MWG",
+    "PLX",
+    "SAB",
+    "SHB",
+    "SSB",
+    "SSI",
+    "STB",
+    "TCB",
+    "TPB",
+    "VCB",
+    "VHM",
+    "VIB",
+    "VIC",
+    "VJC",
+    "VNM",
+    "VPB",
+    "VPL",
+    "VRE",
+    "VNINDEX",
+    "VN30"
+  ],
+  "purpose": "Numeric-only market data hub for fast ChatGPT browsing. No news, no recommendations, no model forecasts.",
+  "read_order_for_chatgpt": [
+    "START_HERE.json",
+    "bundles/source_audit.csv",
+    "bundles/market_snapshot.csv",
+    "bundles/symbol_latest.csv",
+    "index/ticker_catalog.csv",
+    "index/file_catalog.csv",
+    "manifest.json",
+    "source_status.csv",
+    "latest_metrics.csv",
+    "api_catalog.csv",
+    "calculation_catalog.csv",
+    "market/cross_section_latest.csv if present",
+    "market/breadth_daily.csv if present",
+    "daily/{ticker}.csv",
+    "intraday/{ticker}.csv",
+    "intraday/minute_profile/{ticker}.csv",
+    "depth/latest_depth.csv if present",
+    "fundamentals/vietstock_overview.csv if present",
+    "fundamentals/vietstock_bctt_latest.csv if present",
+    "flows/cafef_flows.csv if present",
+    "macro/latest_macro.csv if present"
+  ],
+  "files": {
+    "intraday_summary": "intraday/summary_by_ticker.csv",
+    "intraday_minute_profile_dir": "intraday/minute_profile/",
+    "breadth_daily": "market/breadth_daily.csv",
+    "latest_depth": "depth/latest_depth.csv",
+    "vietstock_overview": "fundamentals/vietstock_overview.csv",
+    "vietstock_bctt_latest": "fundamentals/vietstock_bctt_latest.csv",
+    "cafef_flows": "flows/cafef_flows.csv",
+    "macro_matrix_tail": "macro/macro_matrix_tail.csv",
+    "latest_macro": "macro/latest_macro.csv",
+    "cross_section_latest": "market/cross_section_latest.csv",
+    "sector_latest": "market/sector_latest.csv",
+    "industry_map_refresh_summary": "source_status/industry_map_refresh_summary.csv",
+    "bctt_refresh_summary": "source_status/bctt_refresh_summary.csv",
+    "source_status": "source_status.csv",
+    "source_status_json": "source_status.json",
+    "latest_metrics": "latest_metrics.csv",
+    "api_catalog": "api_catalog.csv",
+    "calculation_catalog": "calculation_catalog.csv",
+    "tickers": "tickers.csv",
+    "daily_dir": "daily/",
+    "intraday_dir": "intraday/",
+    "bundle_symbol_latest": "bundles/symbol_latest.csv",
+    "bundle_market_snapshot": "bundles/market_snapshot.csv",
+    "bundle_source_audit": "bundles/source_audit.csv",
+    "ticker_catalog": "index/ticker_catalog.csv",
+    "column_catalog": "index/column_catalog.csv",
+    "bundle_retrieval_map": "bundles/retrieval_map.json",
+    "start_here": "START_HERE.json",
+    "file_catalog": "index/file_catalog.csv"
+  },
+  "retrieval_map": {
+    "generated_at": "2026-07-19T05:01:14.807712+00:00",
+    "purpose": "Fast retrieval map for ChatGPT, repo connectors, or Google Drive connectors.",
+    "start_here": "START_HERE.json",
+    "minimal_read_order": [
+      "START_HERE.json",
+      "bundles/source_audit.csv",
+      "bundles/market_snapshot.csv",
+      "bundles/symbol_latest.csv",
+      "index/ticker_catalog.csv",
+      "index/file_catalog.csv"
+    ],
+    "use_cases": {
+      "market_overview": [
+        "bundles/source_audit.csv",
+        "bundles/market_snapshot.csv",
+        "bundles/symbol_latest.csv"
+      ],
+      "single_ticker": [
+        "index/ticker_catalog.csv",
+        "bundles/symbol_latest.csv",
+        "daily/{ticker}.csv",
+        "intraday/minute_profile/{ticker}.csv"
+      ],
+      "source_audit": [
+        "bundles/source_audit.csv",
+        "source_status.csv",
+        "source_status/*.csv"
+      ],
+      "column_lookup": [
+        "index/column_catalog.csv",
+        "latest_metrics.csv"
+      ],
+      "deep_dive": [
+        "manifest.json",
+        "index/file_catalog.csv",
+        "latest_metrics.csv"
+      ]
+    }
+  },
+  "api_catalog": [
+    {
+      "Source": "VNDIRECT dchart",
+      "Kind": "ohlcv",
+      "Endpoint": "https://dchart-api.vndirect.com.vn/dchart/history",
+      "NumericData": "daily/intraday open, high, low, close, volume",
+      "DefaultOutput": "daily/*.csv, intraday/*.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "VNDIRECT priceboard",
+      "Kind": "order_book_depth",
+      "Endpoint": "https://price-streaming-api-free.vndirect.com.vn/v2/stocks/snapshot",
+      "NumericData": "10-level bid/ask depth, match/current price, accumulated volume/value, foreign buy/sell/room, floor/ceiling",
+      "DefaultOutput": "depth/latest_depth.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock overview",
+      "Kind": "fundamental_snapshot",
+      "Endpoint": "https://finance.vietstock.vn/{ticker}-ctcp.htm",
+      "NumericData": "forward PE, PB, derived ROE",
+      "DefaultOutput": "fundamentals/vietstock_overview.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock BCTT",
+      "Kind": "financial_statement_cache",
+      "Endpoint": "finance.vietstock.vn BCTT tables via cached Playwright collector",
+      "NumericData": "EPS4Q, BVPS, PB, margins, ROE/ROA, debt ratios, revenue/profit growth",
+      "DefaultOutput": "available through BCTT cache/features when collected",
+      "News": "no"
+    },
+    {
+      "Source": "CafeF flows",
+      "Kind": "foreign_proprietary_flow",
+      "Endpoint": "CafeF Ajax GDKhoiNgoai/GDTuDoanh",
+      "NumericData": "foreign/proprietary net shares and net value over 1/5/20 sessions",
+      "DefaultOutput": "flows/cafef_flows.csv, latest_metrics.csv",
+      "News": "no"
+    },
+    {
+      "Source": "FRED/Stooq macro cache",
+      "Kind": "macro_market_numeric",
+      "Endpoint": "configured in config/macro_factors.yaml",
+      "NumericData": "oil, gold, USD, VIX, US yields, global equity index closes",
+      "DefaultOutput": "macro/latest_macro.csv, macro/macro_matrix_tail.csv",
+      "News": "no"
+    },
+    {
+      "Source": "Vietstock/VNDIRECT/Investing components",
+      "Kind": "market_membership",
+      "Endpoint": "board/component pages and VNDIRECT stocks API",
+      "NumericData": "membership flags for VN30/VN100/HOSE universe",
+      "DefaultOutput": "universe.csv when collected upstream",
+      "News": "no"
+    }
+  ],
+  "calculation_catalog": [
+    {
+      "Group": "trend_momentum",
+      "Columns": "returns, SMA/EMA distance, RSI, 52-week position",
+      "Inputs": "daily OHLCV",
+      "DefaultOutput": "daily/*.csv, latest_metrics.csv"
+    },
+    {
+      "Group": "risk_volatility",
+      "Columns": "ATR, realized volatility, downside volatility, drawdown, close location",
+      "Inputs": "daily OHLCV",
+      "DefaultOutput": "daily/*.csv, latest_metrics.csv"
+    },
+    {
+      "Group": "liquidity",
+      "Columns": "traded value, ADV, average value, volume/value ratios",
+      "Inputs": "daily/intraday OHLCV",
+      "DefaultOutput": "daily/*.csv, latest_metrics.csv"
+    },
+    {
+      "Group": "relative_strength",
+      "Columns": "excess return versus VNINDEX/VN30, rolling beta/correlation",
+      "Inputs": "ticker daily returns plus index daily returns",
+      "DefaultOutput": "daily/*.csv, latest_metrics.csv"
+    },
+    {
+      "Group": "market_breadth",
+      "Columns": "advancers/decliners, up-value share, above moving-average share, new highs/lows",
+      "Inputs": "configured ticker daily metrics",
+      "DefaultOutput": "market/breadth_daily.csv"
+    },
+    {
+      "Group": "intraday_microstructure",
+      "Columns": "minute return, cumulative VWAP, volume rate, latest-day profile",
+      "Inputs": "1-minute OHLCV plus optional depth snapshot",
+      "DefaultOutput": "intraday/*.csv, intraday/minute_profile/*.csv, intraday/summary_by_ticker.csv"
+    },
+    {
+      "Group": "cross_section",
+      "Columns": "latest return/liquidity/volume-spike ranks across the configured universe",
+      "Inputs": "latest ticker metrics",
+      "DefaultOutput": "market/cross_section_latest.csv"
+    }
+  ]
+}

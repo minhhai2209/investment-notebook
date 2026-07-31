@@ -1,0 +1,92 @@
+[
+  {
+    "Source": "VNDIRECT dchart daily",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 32,
+    "RowCount": 0,
+    "Detail": "",
+    "Output": "out/data"
+  },
+  {
+    "Source": "VNDIRECT dchart intraday 1m",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 32,
+    "RowCount": 0,
+    "Detail": "",
+    "Output": "out/data/intraday_1m"
+  },
+  {
+    "Source": "VNDIRECT priceboard depth",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 30,
+    "RowCount": 30,
+    "Detail": "",
+    "Output": "out/data/depth_snapshots"
+  },
+  {
+    "Source": "Vietstock overview",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 30,
+    "RowCount": 30,
+    "Detail": "",
+    "Output": "out/vietstock_overview"
+  },
+  {
+    "Source": "Vietstock BCTT",
+    "Attempted": false,
+    "Status": "skipped_disabled_use_refresh_bctt",
+    "TickerCount": 30,
+    "RowCount": 0,
+    "Detail": "",
+    "Output": "out/vietstock_bctt"
+  },
+  {
+    "Source": "CafeF foreign/proprietary flows",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 30,
+    "RowCount": 30,
+    "Detail": "",
+    "Output": "out/cafef_flows"
+  },
+  {
+    "Source": "FRED/Stooq macro cache",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 0,
+    "RowCount": 15,
+    "Detail": "",
+    "Output": "out/macro_factors"
+  },
+  {
+    "Source": "Market membership / sector map",
+    "Attempted": false,
+    "Status": "cache_loaded",
+    "TickerCount": 30,
+    "RowCount": 30,
+    "Detail": "",
+    "Output": "data/industry_map.csv"
+  },
+  {
+    "Source": "Vietstock sector profiles",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 2,
+    "RowCount": 2,
+    "Detail": "",
+    "Output": "source_status/industry_map_refresh_summary.csv"
+  },
+  {
+    "Source": "Vietstock BCTT refresh summary",
+    "Attempted": true,
+    "Status": "ok",
+    "TickerCount": 30,
+    "RowCount": 30,
+    "Detail": "",
+    "Output": "source_status/bctt_refresh_summary.csv"
+  }
+]

@@ -228,8 +228,11 @@ def _fetch_rows_from_vietstock_profiles(
     *,
     include_indices: bool,
     sector_level: str,
+    default_sector: str,
+    fallback_lookup: Optional[dict[str, str]] = None,
     timeout: int,
     pause_seconds: float,
+    status_rows: Optional[list[dict[str, object]]] = None,
 ) -> list[IndustryRow]:
     rows: list[IndustryRow] = []
     normalized = _normalize_tickers(tickers, include_indices=include_indices)
@@ -237,9 +240,16 @@ def _fetch_rows_from_vietstock_profiles(
         for idx, ticker in enumerate(normalized):
             try:
                 levels = fetch_vietstock_sector_levels(ticker, session=session, timeout=timeout)
+                sector = select_vietstock_sector(levels, sector_level)
+                rows.append(IndustryRow(ticker=ticker, sector=sector))
+                if status_rows is not None:
+                    status_rows.append({"Ticker": ticker, "Status": "ok", "Sector": sector, "Error": ""})
             except Exception as exc:
-                raise RefreshError(f"Failed fetching Vietstock sector for {ticker}: {exc}") from exc
-            rows.append(IndustryRow(ticker=ticker, sector=select_vietstock_sector(levels, sector_level)))
+                fallback_sector = (fallback_lookup or {}).get(ticker, "")
+                sector = fallback_sector if _has_sector_lookup(fallback_sector, default_sector=default_sector) else default_sector
+                rows.append(IndustryRow(ticker=ticker, sector=sector))
+                if status_rows is not None:
+                    status_rows.append({"Ticker": ticker, "Status": "error", "Sector": sector, "Error": str(exc)})
             if pause_seconds > 0 and idx < len(normalized) - 1:
                 time.sleep(pause_seconds)
     return rows
@@ -263,6 +273,16 @@ def _write_industry_map(rows: list[IndustryRow], out_path: Path) -> None:
             writer.writerow({"Ticker": r.ticker, "Sector": r.sector})
 
 
+def _write_refresh_summary(rows: list[dict[str, object]], out_path: Path) -> None:
+    if not rows:
+        return
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["Ticker", "Status", "Sector", "Error"], lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Refresh data/industry_map.csv (Ticker,Sector) from CSVs, VN100 membership, or Vietstock company profiles."
@@ -281,9 +301,9 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Fetch VN100 constituents from Investing.com (requires network).",
     )
     src.add_argument(
-        "--from-live-vn100-portfolio-profiles",
+        "--from-live-vn100-profiles",
         action="store_true",
-        help="Fetch live VN100 members, merge portfolio/extra tickers, then fetch missing sectors from Vietstock profiles.",
+        help="Fetch live VN100 members, merge extra tickers, then fetch missing sectors from Vietstock profiles.",
     )
     src.add_argument(
         "--from-vietstock-profiles-csv",
@@ -304,11 +324,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--merge-sectors-from",
         metavar="PATH",
         help="CSV providing a Sector mapping (Ticker,Sector). Used when source lacks sectors.",
-    )
-    parser.add_argument(
-        "--portfolio-csv",
-        metavar="PATH",
-        help="Optional portfolio CSV whose Ticker column will be merged into the live VN100 set.",
     )
     parser.add_argument(
         "--extra-ticker",
@@ -360,9 +375,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         default="data/industry_map.csv",
         help="Output CSV path (relative to repo root by default).",
     )
+    parser.add_argument(
+        "--summary-output",
+        default="out/data_hub/industry_map_refresh_summary.csv",
+        help="Write per-ticker refresh status CSV (default: %(default)s).",
+    )
     args = parser.parse_args(argv)
 
     out_path = _resolve_path(args.output)
+    summary_rows: list[dict[str, object]] = []
     sector_lookup = _read_sector_lookup(_resolve_path(args.merge_sectors_from)) if args.merge_sectors_from else {}
     existing_output_lookup = _read_sector_lookup(out_path) if out_path.exists() else {}
 
@@ -376,12 +397,10 @@ def main(argv: Optional[list[str]] = None) -> int:
             ]
         if rows and all(not r.sector for r in rows) and sector_lookup:
             rows = _merge_sectors((r.ticker for r in rows), sector_lookup=sector_lookup, default_sector=args.default_sector)
-    elif args.from_live_vn100_portfolio_profiles:
+    elif args.from_live_vn100_profiles:
         tickers = set(_fetch_investing_vn100_members(timeout=args.timeout))
         if args.expect_count and len(tickers) != args.expect_count:
             raise RefreshError(f"Expected {args.expect_count} tickers, got {len(tickers)} from Investing.com VN100.")
-        if args.portfolio_csv:
-            tickers.update(_read_tickers_from_csv(_resolve_path(args.portfolio_csv)))
         tickers = set(_merge_extra_tickers(tickers, args.extra_ticker))
         cached_rows, missing_tickers = _split_cached_and_missing_tickers(
             tickers,
@@ -394,8 +413,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             missing_tickers,
             include_indices=True,
             sector_level=args.sector_level,
+            default_sector=args.default_sector,
+            fallback_lookup=existing_output_lookup,
             timeout=args.timeout,
             pause_seconds=args.pause_seconds,
+            status_rows=summary_rows,
         )
     elif args.from_vietstock_profiles_csv:
         source_path = _resolve_path(args.from_vietstock_profiles_csv)
@@ -412,8 +434,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             missing_tickers,
             include_indices=True,
             sector_level=args.sector_level,
+            default_sector=args.default_sector,
+            fallback_lookup=existing_output_lookup,
             timeout=args.timeout,
             pause_seconds=args.pause_seconds,
+            status_rows=summary_rows,
         )
     elif args.from_vietstock_profiles_hose:
         tickers = _merge_extra_tickers(sorted(fetch_hose_members(timeout=args.timeout)), args.extra_ticker)
@@ -428,8 +453,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             missing_tickers,
             include_indices=True,
             sector_level=args.sector_level,
+            default_sector=args.default_sector,
+            fallback_lookup=existing_output_lookup,
             timeout=args.timeout,
             pause_seconds=args.pause_seconds,
+            status_rows=summary_rows,
         )
     elif args.from_vietstock_profiles_vn30:
         tickers = _merge_extra_tickers(sorted(fetch_vn30_members(timeout=args.timeout)), args.extra_ticker)
@@ -444,8 +472,11 @@ def main(argv: Optional[list[str]] = None) -> int:
             missing_tickers,
             include_indices=True,
             sector_level=args.sector_level,
+            default_sector=args.default_sector,
+            fallback_lookup=existing_output_lookup,
             timeout=args.timeout,
             pause_seconds=args.pause_seconds,
+            status_rows=summary_rows,
         )
     else:
         tickers = _fetch_investing_vn100_members()
@@ -460,6 +491,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     rows = sorted(rows, key=lambda r: r.ticker)
     _validate_rows(rows)
     _write_industry_map(rows, out_path)
+    _write_refresh_summary(summary_rows, _resolve_path(args.summary_output))
     return 0
 
 

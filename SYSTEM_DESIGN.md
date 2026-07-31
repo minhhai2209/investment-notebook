@@ -1,123 +1,92 @@
 # System Design
 
-## Mục tiêu
+## Mục Tiêu
 
-`investment-notebook` là spin-off interactive-only của repo cũ. Mục tiêu của repo này là:
+Repo này là numeric data hub cho thị trường chứng khoán Việt Nam. Nó thu thập dữ liệu số, chuẩn hóa cache, tính metric cơ bản, rồi đóng gói thành artifact nhỏ để ChatGPT browser nhanh.
 
-- dựng snapshot dữ liệu sạch cho screening và thesis review
-- build các report ML/heuristic theo từng mã
-- cho phép Codex làm việc trực tiếp như một notebook nghiên cứu
+Không có lớp dự báo, không có report khuyến nghị, không có tin tức.
 
-Repo này không còn:
+## Luồng Dữ Liệu
 
-- TCBS browser automation
-- order generation / order placement
-- codex batch runner kiểu `orders.csv`
-- bundle/prompt contract phục vụ execution workflow cũ
-
-## Kiến trúc hiện tại
-
-1. `scripts/tools/refresh_industry_map.py`
-
-- refresh `data/industry_map.csv`
-- hỗ trợ rebuild scope từ `VN30`, `HOSE`, `VN100`, hoặc CSV người dùng cung cấp
-- hỗ trợ force-include extra tickers như `NVL` vào scope live khi cần
-
-2. `scripts/engine/data_engine.py`
-
-- đọc `data/industry_map.csv`
-- lấy history + intraday từ các data fetchers
-- tính technical snapshot, breadth, relative strength, sector context
-- ghi `out/universe.csv`, `out/positions.csv`, `out/market_summary.json`, `out/sector_summary.csv`
-
-3. `scripts/analysis/*`
-
-- build candidate watchlist ở 2 mức `core` và `full`
-- build range forecast
-- build cycle forecast
-- build per-ticker playbook
-- build next-session OHLC forecast
-- build intraday rest-of-session forecast
-- build single-name timing
-- build entry ladder evaluation
-- build single-ticker deep dive that fuses snapshot, ML layers, and research state into one deterministic report
-- giữ các harness offline để replay deterministic/ML baselines
-
-4. `scripts/research/build_research_bundle.py`
-
-- đọc snapshot live và các artifact trong `out/analysis/`
-- dựng `research/manifest.json` và note/state per ticker
-- layer này để Codex đọc nhanh hơn trong session tương tác
-
-## Dòng dữ liệu
-
-```text
-refresh_industry_map -> data/industry_map.csv
-                         |
-                         v
-                    data_engine
-                         |
-                         v
-  out/universe.csv / market_summary.json / sector_summary.csv / positions.csv
-                         |
-                         v
-                 analysis builders
-                         |
-                         v
-                  out/analysis/*
-                         |
-                         v
-                 research bundle
-                         |
-                         v
-               Codex interactive session
-                         |
-                         v
-              live news overlay at answer time
+```mermaid
+flowchart LR
+    A["Numeric APIs"] --> B["Raw caches under out/"]
+    B --> C["Normalize and enrich"]
+    C --> D["data-hub/latest"]
+    D --> E["ChatGPT browsing"]
 ```
 
-## Portfolio handling
+## API Inventory
 
-Danh mục không còn là dependency bắt buộc.
+Nguồn số đang được hỗ trợ hoặc inventory:
 
-- Nếu `data/portfolios/portfolio.csv` tồn tại, engine vẫn merge context vị thế.
-- Nếu file không tồn tại, engine vẫn chạy; `positions.csv` rỗng và các cột vị thế trong `universe.csv` về `0/NaN`.
+- VNDIRECT dchart: OHLCV daily/intraday.
+- VNDIRECT priceboard: snapshot bid/ask depth.
+- CafeF flows: khối ngoại và tự doanh.
+- Vietstock overview: valuation snapshot.
+- Vietstock BCTT: financial statement numeric tables.
+- FRED/Stooq: macro market numeric series.
+- Market membership sources: VN30/VN100/HOSE flags.
 
-Điểm này giúp repo dùng tốt cho screening thuần, không cần scrape portfolio trước.
+`data-hub/latest/api_catalog.csv` là bản catalog để ChatGPT xem nhanh source nào tạo ra loại số nào.
 
-## Wrapper CLI
+## Artifact Contract
 
-`broker.sh` giờ chỉ là utility wrapper mỏng:
+`data-hub/latest/START_HERE.json` là điểm bắt đầu cho ChatGPT/repo connector/Google Drive connector. File này trỏ đến các bundle nhỏ và index trước khi cần mở file chi tiết.
 
-- `engine`
-- `prepare`
-- `prepare_default`
-- `research`
-- các report builder riêng lẻ
-- các harness offline
-- `refresh_vn30_map`, `refresh_hose_map`
-- `map`, `refresh_vn30_nvl_map`
-- `candidates`, `deep`
-- `tests`
+`data-hub/latest/manifest.json` là contract đầy đủ. Manifest chứa:
 
-Không còn subcommand `tcbs`, `orders`, `codex`, `portfolio`.
+- timestamp tạo artifact
+- danh sách ticker
+- mục đích numeric-only
+- thứ tự đọc file cho ChatGPT
+- danh sách file có mặt
+- API catalog
 
-## Nguồn dữ liệu
+Output quan trọng nhất:
 
-- VNDIRECT: daily OHLCV và intraday cache
-- CafeF: foreign/proprietary flow
-- Vietstock overview: valuation / quality snapshot
-- Vietstock BCTT: quarterly financial statements cho harness lift/evaluation
-- Vietstock board/company pages: constituent lists và sector mapping
+- `START_HERE.json`: entrypoint ngắn cho connector.
+- `bundles/source_audit.csv`: trạng thái nguồn cần đọc trước khi tin số liệu.
+- `bundles/market_snapshot.csv`: snapshot thị trường nhỏ, dạng metric/value.
+- `bundles/symbol_latest.csv`: bảng latest compact theo mã.
+- `index/ticker_catalog.csv`: map ticker tới file drill-down.
+- `index/file_catalog.csv`: catalog tất cả file trong artifact.
+- `index/column_catalog.csv`: nhóm cột trong `latest_metrics.csv`.
+- `source_status.csv`: audit nguồn nào đã thử, thành công, partial, lỗi, bị skip, và output bằng chứng.
+- `latest_metrics.csv`: một dòng mỗi ticker, ghép metric mới nhất.
+- `calculation_catalog.csv`: nhóm phép tính đã tạo và input/output của từng nhóm.
+- `market/cross_section_latest.csv`: xếp hạng latest returns, liquidity, volatility, drawdown, relative strength.
+- `market/breadth_daily.csv`: breadth theo ngày trên configured universe.
+- `market/sector_latest.csv`: sector aggregate nếu có `data/industry_map.csv`.
+- `daily/{TICKER}.csv`: daily OHLCV và technical metrics.
+- `intraday/{TICKER}.csv`: intraday 1m recent rows.
+- `intraday/minute_profile/{TICKER}.csv`: latest-day minute-by-minute return, volume, VWAP, volume rate.
+- `depth/latest_depth.csv`: order book metrics nếu có cache.
+- `fundamentals/vietstock_overview.csv`: valuation metrics nếu có cache.
+- `flows/cafef_flows.csv`: flow metrics nếu có cache.
+- `macro/latest_macro.csv`: macro latest values nếu có cache.
 
-## Nguyên tắc repo mới
+## Refresh Policy
 
-- fail-fast nếu thiếu input bắt buộc hoặc schema sai
-- mọi artifact generated nằm dưới `out/` hoặc `research/`
-- không mang giả định execution downstream
-- nếu cần thay workflow research, thay ngay ở tool/script trong repo thay vì vòng vo qua prompt bundle
-- contract của session tương tác là trả lời thực dụng theo `mua ngay / chờ / không mua`, liệt kê đầy đủ ứng viên khả thi thay vì ép đúng `1` mã
-- nếu artifact còn thiếu hoặc stale, Codex phải tự chạy batch và tự đợi xong rồi mới trả lời; không được dừng ở một câu trả lời trung gian kiểu `đang chờ artifact`
-- sau khi artifact đã sẵn sàng, Codex phải tự xem thêm tin tức live cùng ngày hoặc 12-24h gần nhất để overlay macro/geopolitics/policy trước khi chốt câu trả lời `hôm nay mua gì`; lớp này nằm ở interactive session, không phải builder hay subcommand batch
-- chạy tuần tự là mặc định; chỉ song song hóa khi các job thật sự độc lập và không ghi/đọc chung cache hoặc history
-- `prepare` giữ nghĩa là rebuild tuần tự trên scope hiện có; `prepare_default` là shortcut tuần tự cho scope mặc định `VN30 + NVL`
+`./broker.sh hub` chỉ build artifact từ cache, không tự gọi API.
+
+`./broker.sh collect` gọi các API số được bật trong `config/data_hub.yaml`, sau đó build lại artifact. Default bật các nguồn nhanh và hữu ích: OHLCV, depth, CafeF flows, Vietstock overview và macro. Vietstock BCTT là nguồn quarterly dùng Playwright nên có command riêng `./broker.sh refresh_bctt`.
+
+## Calculation Layers
+
+- Trend/momentum: returns 1/5/20/60/120/252 ngày, SMA/EMA distance, RSI, 52-week position.
+- Risk: ATR, realized volatility, downside volatility, drawdown, gap, close-location.
+- Liquidity: traded value, ADV, average value, volume/value ratios.
+- Relative strength: excess return, beta và correlation so với VNINDEX/VN30.
+- Market breadth: advancers/decliners, up-value share, above-MA share, new highs/lows.
+- Intraday microstructure: volume per minute, cumulative VWAP, return per minute, latest-day minute profile.
+- Cross-section: rank các ticker theo return, liquidity, volume spike, volatility, drawdown.
+
+## Non-Goals
+
+- Không backtest.
+- Không model selection.
+- Không forecast.
+- Không tin tức.
+- Không recommendation.
+- Không portfolio/order sizing.

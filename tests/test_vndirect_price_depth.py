@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,7 @@ import pandas as pd
 from scripts.data_fetching.vndirect_price_depth import (
     _decode_stock_snapshot,
     _decode_priceboard_payload,
+    append_depth_snapshot_cache,
     merge_depth_into_intraday_cache,
 )
 
@@ -122,6 +124,23 @@ class VndirectPriceDepthTest(unittest.TestCase):
             self.assertAlmostEqual(float(merged["best_ask"].iloc[0]), 195.5)
             self.assertAlmostEqual(float(merged["bid_volume_1"].iloc[0]), 50.0)
             self.assertAlmostEqual(float(merged["ask_volume_1"].iloc[0]), 970.0)
+
+    def test_depth_cache_trims_snapshots_outside_retention(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            now = datetime.now(timezone.utc)
+            pd.DataFrame(
+                [{"Ticker": "VIC", "FetchedAt": (now - timedelta(days=40)).isoformat(), "BestBid1": 190.0}]
+            ).to_csv(root / "VIC_depth.csv", index=False)
+            incoming = pd.DataFrame(
+                [{"Ticker": "VIC", "FetchedAt": now.isoformat(), "BestBid1": 195.0}]
+            )
+
+            append_depth_snapshot_cache(incoming, root, retention_days=30)
+
+            cached = pd.read_csv(root / "VIC_depth.csv")
+            self.assertEqual(len(cached), 1)
+            self.assertEqual(float(cached["BestBid1"].iloc[0]), 195.0)
 
 
 if __name__ == "__main__":

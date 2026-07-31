@@ -227,7 +227,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--factor", action="append", default=[], help="Optional factor name(s) to refresh.")
     parser.add_argument("--max-age-hours", type=int, default=24, help="Reuse cache newer than this many hours. 0 means trust cache forever.")
     parser.add_argument("--timeout", type=int, default=30, help="HTTP timeout in seconds.")
-    parser.add_argument("--summary-out", default="out/analysis/macro_factor_cache_summary.csv", help="Optional CSV summary output path.")
+    parser.add_argument("--summary-out", default="out/data_hub/macro_factor_cache_summary.csv", help="Optional CSV summary output path.")
     return parser.parse_args()
 
 

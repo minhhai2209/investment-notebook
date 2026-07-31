@@ -1,0 +1,8 @@
+Group,Columns,Inputs,DefaultOutput
+trend_momentum,"returns, SMA/EMA distance, RSI, 52-week position",daily OHLCV,"daily/*.csv, latest_metrics.csv"
+risk_volatility,"ATR, realized volatility, downside volatility, drawdown, close location",daily OHLCV,"daily/*.csv, latest_metrics.csv"
+liquidity,"traded value, ADV, average value, volume/value ratios",daily/intraday OHLCV,"daily/*.csv, latest_metrics.csv"
+relative_strength,"excess return versus VNINDEX/VN30, rolling beta/correlation",ticker daily returns plus index daily returns,"daily/*.csv, latest_metrics.csv"
+market_breadth,"advancers/decliners, up-value share, above moving-average share, new highs/lows",configured ticker daily metrics,market/breadth_daily.csv
+intraday_microstructure,"minute return, cumulative VWAP, volume rate, latest-day profile",1-minute OHLCV plus optional depth snapshot,"intraday/*.csv, intraday/minute_profile/*.csv, intraday/summary_by_ticker.csv"
+cross_section,latest return/liquidity/volume-spike ranks across the configured universe,latest ticker metrics,market/cross_section_latest.csv

@@ -93,6 +93,23 @@ class FetchTickerDataTest(unittest.TestCase):
             self.assertEqual(mocked_fetch.call_count, 1)
             self.assertTrue((outdir / "AAA_1m.csv").exists())
 
+    def test_intraday_cache_trims_rows_outside_retention_after_refresh(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            outdir = Path(tmp)
+            cache_path = outdir / "AAA_1m.csv"
+            now = datetime.now(VN_TZ)
+            old_ts = int((now - timedelta(days=40)).timestamp())
+            recent_ts = int((now - timedelta(days=1)).timestamp())
+            pd.DataFrame(_payload_from_ts([old_ts]) | {"date_vn": [(now - timedelta(days=40)).strftime("%Y-%m-%d")]})[
+                ["t", "o", "h", "l", "c", "v", "date_vn"]
+            ].rename(columns={"o": "open", "h": "high", "l": "low", "c": "close", "v": "volume"}).to_csv(cache_path, index=False)
+
+            with patch("scripts.data_fetching.fetch_ticker_data.fetch_history", return_value=_payload_from_ts([recent_ts])):
+                ensure_intraday_cache("AAA", outdir=str(outdir), min_days=30)
+
+            cached = pd.read_csv(cache_path)
+            self.assertEqual(cached["t"].astype(int).tolist(), [recent_ts])
+
 
 if __name__ == "__main__":
     unittest.main()
