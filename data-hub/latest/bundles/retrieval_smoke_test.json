@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03T08:06:39.198058+00:00",
+  "generated_at": "2026-08-03T11:45:26.180535+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -34,7 +34,7 @@
     {
       "path": "bundles/symbol_latest.csv",
       "exists": true,
-      "bytes": 12956,
+      "bytes": 12952,
       "rows": 32,
       "columns": 28
     },
@@ -53,7 +53,7 @@
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-08-03T08:04:24.582225+00:00",
+  "manifest_generated_at": "2026-08-03T11:42:52.337722+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
@@ -83,14 +83,14 @@
     "IntradayPath": {
       "path": "intraday/VIC.csv",
       "exists": true,
-      "bytes": 86928,
+      "bytes": 86969,
       "rows": 390,
       "columns": 28
     },
     "MinuteProfilePath": {
       "path": "intraday/minute_profile/VIC.csv",
       "exists": true,
-      "bytes": 50229,
+      "bytes": 50270,
       "rows": 226,
       "columns": 28
     },
