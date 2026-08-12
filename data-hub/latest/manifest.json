@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T06:05:15.347422+00:00",
+  "generated_at": "2026-08-12T09:31:27.316845+00:00",
   "config": "config/data_hub.yaml",
   "tickers": [
     "ACB",
@@ -91,7 +91,7 @@
     "file_catalog": "index/file_catalog.csv"
   },
   "retrieval_map": {
-    "generated_at": "2026-08-12T06:05:15.347422+00:00",
+    "generated_at": "2026-08-12T09:31:27.316845+00:00",
     "purpose": "Fast retrieval map for ChatGPT, repo connectors, or Google Drive connectors.",
     "start_here": "START_HERE.json",
     "minimal_read_order": [
