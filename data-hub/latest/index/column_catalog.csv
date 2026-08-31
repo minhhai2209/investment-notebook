@@ -12,12 +12,12 @@ Ret20dPct,trend_momentum,float64,32,0,3.424657534246567
 Ret60dPct,trend_momentum,float64,32,0,0.5281612001242664
 Ret120dPct,trend_momentum,float64,32,0,13.5566028276346
 Ret252dPct,trend_momentum,float64,32,0,0.336670505891723
-SMA20,trend_momentum,float64,32,0,22.33
+SMA20,trend_momentum,float64,32,0,22.330000000000002
 SMA50,trend_momentum,float64,32,0,22.499000000000002
 SMA200,trend_momentum,float64,32,0,21.202194999999996
 EMA20,trend_momentum,float64,32,0,22.35824929221177
-EMA50,trend_momentum,float64,32,0,22.264125070869962
-DistSMA20Pct,trend_momentum,float64,32,0,1.4330497089117822
+EMA50,trend_momentum,float64,32,0,22.264125070877366
+DistSMA20Pct,trend_momentum,float64,32,0,1.43304970891176
 DistSMA50Pct,trend_momentum,float64,32,0,0.6711409395973034
 DistSMA200Pct,trend_momentum,float64,32,0,6.828561854091064
 DistEMA20Pct,trend_momentum,float64,32,0,1.304890664627556
@@ -35,7 +35,7 @@ DailyTradedValue,liquidity,float64,32,0,125943059.99999999
 ADV20Shares,liquidity,float64,32,0,8860910.0
 ADV60Shares,liquidity,float64,32,0,15307684.083333334
 AvgValue20,liquidity,float64,32,0,198158847.5
-AvgValue60,liquidity,float64,32,0,345893294.33833337
+AvgValue60,liquidity,float64,32,0,345893294.3383333
 VolumeRatio20,liquidity,float64,32,0,0.6275201982640609
 ValueRatio20,liquidity,float64,32,0,0.6355661712253347
 High52w,other,float64,32,0,24.642
@@ -43,12 +43,12 @@ Low52w,other,float64,32,0,18.697
 Pos52wPct,trend_momentum,float64,32,0,66.49285113540789
 ExcessRet20dVsVNINDEXPct,trend_momentum,float64,32,0,-2.125585008011077
 ExcessRet60dVsVNINDEXPct,trend_momentum,float64,32,0,0.8968598786821103
-Beta60dVsVNINDEX,other,float64,32,0,0.6684723296377135
-Corr60dVsVNINDEX,other,float64,32,0,0.5029148856098715
+Beta60dVsVNINDEX,other,float64,32,0,0.6684723296377142
+Corr60dVsVNINDEX,other,float64,32,0,0.5029148856098719
 ExcessRet20dVsVN30Pct,trend_momentum,float64,32,0,-2.498732082594679
 ExcessRet60dVsVN30Pct,trend_momentum,float64,32,0,0.6953078259776202
-Beta60dVsVN30,other,float64,32,0,0.8864621878739836
-Corr60dVsVN30,other,float64,32,0,0.6187620725725749
+Beta60dVsVN30,other,float64,32,0,0.8864621878739846
+Corr60dVsVN30,other,float64,32,0,0.6187620725725753
 IntradayDate,intraday,str,32,0,2026-08-28
 IntradayLastTimestamp,intraday,str,32,0,2026-08-28 14:45:00+07:00
 IntradayOpen,price_ohlc,float64,32,0,22.6
@@ -75,7 +75,7 @@ IntradayFirst15mVolume,intraday,float64,32,0,270500.0
 IntradayFirst15mRangePct,intraday,float64,32,0,0.4424778761061852
 IntradayFirst30mVolume,intraday,float64,32,0,442500.0
 IntradayFirst30mRangePct,intraday,float64,32,0,0.4424778761061852
-FetchedAt,other,str,30,2,2026-08-29T03:13:38.640696+07:00
+FetchedAt,other,str,30,2,2026-08-31T18:11:00.510771+07:00
 PriceboardTime,time,str,30,2,14:46:00
 FloorCode,other,float64,30,2,10.0
 BasicPrice,other,float64,30,2,22.6
@@ -138,7 +138,7 @@ BidAskSpreadPct,depth,float64,0,32,
 BidDepthVolume10,depth,float64,30,2,18400.0
 AskDepthVolume10,depth,float64,30,2,207060.0
 DepthImbalance,depth,float64,30,2,-0.8367781424642953
-OverviewFetchedAt,other,str,30,2,2026-08-28T16:58:02.454067
+OverviewFetchedAt,other,str,30,2,2026-08-31T11:11:03.598437
 PE_fwd,fundamentals,object,0,32,
 PB,fundamentals,object,0,32,
 ROE,fundamentals,object,0,32,
