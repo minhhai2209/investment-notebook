@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-07T09:48:00.541792+00:00",
+  "generated_at": "2026-09-07T14:16:31.159184+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -34,7 +34,7 @@
     {
       "path": "bundles/symbol_latest.csv",
       "exists": true,
-      "bytes": 13100,
+      "bytes": 13102,
       "rows": 32,
       "columns": 28
     },
@@ -53,7 +53,7 @@
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-09-07T09:45:53.366268+00:00",
+  "manifest_generated_at": "2026-09-07T14:14:25.764900+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
