@@ -29,10 +29,10 @@
   {
     "Source": "Vietstock overview",
     "Attempted": true,
-    "Status": "ok",
+    "Status": "error",
     "TickerCount": 30,
-    "RowCount": 30,
-    "Detail": "",
+    "RowCount": 0,
+    "Detail": "HTTPSConnectionPool(host='finance.vietstock.vn', port=443): Read timed out. (read timeout=20)",
     "Output": "out/vietstock_overview"
   },
   {

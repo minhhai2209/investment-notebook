@@ -2,7 +2,7 @@ Source,Attempted,Status,TickerCount,RowCount,Detail,Output
 VNDIRECT dchart daily,True,ok,32,0,,out/data
 VNDIRECT dchart intraday 1m,True,ok,32,0,,out/data/intraday_1m
 VNDIRECT priceboard depth,True,ok,30,30,,out/data/depth_snapshots
-Vietstock overview,True,ok,30,30,,out/vietstock_overview
+Vietstock overview,True,error,30,0,"HTTPSConnectionPool(host='finance.vietstock.vn', port=443): Read timed out. (read timeout=20)",out/vietstock_overview
 Vietstock BCTT,False,skipped_disabled_use_refresh_bctt,30,0,,out/vietstock_bctt
 CafeF foreign/proprietary flows,True,ok,30,30,,out/cafef_flows
 FRED/Stooq macro cache,True,ok,0,15,,out/macro_factors
