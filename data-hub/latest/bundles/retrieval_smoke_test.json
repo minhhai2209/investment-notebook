@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-09T13:00:53.885916+00:00",
+  "generated_at": "2026-09-10T09:15:01.360971+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -20,21 +20,21 @@
     {
       "path": "bundles/source_audit.csv",
       "exists": true,
-      "bytes": 835,
+      "bytes": 738,
       "rows": 10,
       "columns": 7
     },
     {
       "path": "bundles/market_snapshot.csv",
       "exists": true,
-      "bytes": 1187,
+      "bytes": 1114,
       "rows": 30,
       "columns": 3
     },
     {
       "path": "bundles/symbol_latest.csv",
       "exists": true,
-      "bytes": 13025,
+      "bytes": 12900,
       "rows": 32,
       "columns": 28
     },
@@ -53,12 +53,11 @@
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-09-09T12:57:26.721063+00:00",
+  "manifest_generated_at": "2026-09-10T09:12:36.459986+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
-      "ok": 7,
-      "error": 1,
+      "ok": 8,
       "skipped_disabled_use_refresh_bctt": 1,
       "cache_loaded": 1
     }
@@ -77,36 +76,34 @@
     "DailyPath": {
       "path": "daily/VIC.csv",
       "exists": true,
-      "bytes": 213387,
+      "bytes": 213375,
       "rows": 260,
       "columns": 54
     },
     "IntradayPath": {
       "path": "intraday/VIC.csv",
       "exists": true,
-      "bytes": 86496,
+      "bytes": 86102,
       "rows": 390,
       "columns": 28
     },
     "MinuteProfilePath": {
       "path": "intraday/minute_profile/VIC.csv",
       "exists": true,
-      "bytes": 50269,
+      "bytes": 49747,
       "rows": 226,
       "columns": 28
     },
     "symbol_latest": {
       "Ticker": "VIC",
-      "LatestDate": "2026-09-09",
+      "LatestDate": "2026-09-10",
       "LastClose": 247.7,
-      "Ret1dPct": -0.7612179487179516,
-      "Ret20dPct": 15.209302325581396,
-      "DailyVolume": 4857800,
+      "Ret1dPct": 0.0,
+      "Ret20dPct": 18.800959232613916,
+      "DailyVolume": 4481800,
       "IntradayLast": 247.7
     }
   },
-  "warnings": [
-    "1 source audit row(s) report error; see bundles/source_audit.csv"
-  ],
+  "warnings": [],
   "failures": []
 }
