@@ -75,7 +75,7 @@ IntradayFirst15mVolume,intraday,float64,32,0,437500.0
 IntradayFirst15mRangePct,intraday,float64,32,0,0.454545454545461
 IntradayFirst30mVolume,intraday,float64,32,0,794600.0
 IntradayFirst30mRangePct,intraday,float64,32,0,0.454545454545461
-FetchedAt,other,str,30,2,2026-09-23T16:35:43.700458+07:00
+FetchedAt,other,str,30,2,2026-09-23T20:39:50.055588+07:00
 PriceboardTime,time,str,30,2,14:46:00
 FloorCode,other,float64,30,2,10.0
 BasicPrice,other,float64,30,2,22.0
@@ -138,7 +138,7 @@ BidAskSpreadPct,depth,float64,0,32,
 BidDepthVolume10,depth,float64,30,2,101810.0
 AskDepthVolume10,depth,float64,30,2,16150.0
 DepthImbalance,depth,float64,30,2,0.7261783655476433
-OverviewFetchedAt,other,str,30,2,2026-09-22T13:25:51.933658
+OverviewFetchedAt,other,str,30,2,2026-09-23T13:39:52.679678
 PE_fwd,fundamentals,object,0,32,
 PB,fundamentals,object,0,32,
 ROE,fundamentals,object,0,32,
