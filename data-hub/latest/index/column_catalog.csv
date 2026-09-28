@@ -75,7 +75,7 @@ IntradayFirst15mVolume,intraday,float64,32,0,394600.0
 IntradayFirst15mRangePct,intraday,float64,32,0,0.468384074941442
 IntradayFirst30mVolume,intraday,float64,32,0,830900.0
 IntradayFirst30mRangePct,intraday,float64,32,0,0.7025761124121713
-FetchedAt,other,str,30,2,2026-09-28T18:16:16.136401+07:00
+FetchedAt,other,str,30,2,2026-09-28T23:46:28.043984+07:00
 PriceboardTime,time,str,30,2,14:46:00
 FloorCode,other,float64,30,2,10.0
 BasicPrice,other,float64,30,2,21.4
