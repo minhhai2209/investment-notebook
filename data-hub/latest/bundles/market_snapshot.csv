@@ -1,5 +1,5 @@
 Section,Metric,Value
-artifact,GeneratedAt,2026-10-06T11:32:07.461157+00:00
+artifact,GeneratedAt,2026-10-06T15:08:43.445182+00:00
 universe,ConfiguredSymbolCount,32
 universe,EquityTickerCount,30
 breadth_latest,Date,2026-10-06
@@ -7,16 +7,16 @@ breadth_latest,TickerCount,30
 breadth_latest,Advancers,16
 breadth_latest,Decliners,8
 breadth_latest,Unchanged,6
-breadth_latest,EqualWeightRet1dPct,0.348937038829162
+breadth_latest,EqualWeightRet1dPct,0.34894240897317225
 breadth_latest,MedianRet1dPct,0.28345350164882266
 breadth_latest,MedianRet20dPct,-5.0269530247283365
-breadth_latest,TotalTradedValue,8873038565.0
-breadth_latest,UpTradedValuePct,48.45571878791896
+breadth_latest,TotalTradedValue,8866439025.6
+breadth_latest,UpTradedValuePct,48.417352932842114
 breadth_latest,AboveSMA20Pct,20.0
 breadth_latest,AboveSMA50Pct,33.33333333333333
 sector_latest,Không rõ.TickerCount,29
 sector_latest,Không rõ.MedianRet1dPct,0.3058103975535076
-sector_latest,Không rõ.TotalTradedValue,7894578565.0
+sector_latest,Không rõ.TotalTradedValue,7887979025.6
 sector_latest,Bất động sản.TickerCount,1
 sector_latest,Bất động sản.MedianRet1dPct,0.0
 sector_latest,Bất động sản.TotalTradedValue,978460000.0
