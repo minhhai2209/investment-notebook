@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-13T12:14:04.505715+00:00",
+  "generated_at": "2026-10-13T15:59:02.747257+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -53,7 +53,7 @@
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-10-13T12:12:22.961831+00:00",
+  "manifest_generated_at": "2026-10-13T15:56:04.781738+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
