@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-16T13:16:50.416962+00:00",
+  "generated_at": "2026-10-19T10:21:50.416465+00:00",
   "status": "ok",
   "hub_dir": "data-hub/latest",
   "ticker": "VIC",
@@ -27,14 +27,14 @@
     {
       "path": "bundles/market_snapshot.csv",
       "exists": true,
-      "bytes": 1182,
+      "bytes": 1158,
       "rows": 30,
       "columns": 3
     },
     {
       "path": "bundles/symbol_latest.csv",
       "exists": true,
-      "bytes": 13023,
+      "bytes": 13060,
       "rows": 32,
       "columns": 28
     },
@@ -48,12 +48,12 @@
     {
       "path": "index/file_catalog.csv",
       "exists": true,
-      "bytes": 6750,
+      "bytes": 6751,
       "rows": 122,
       "columns": 7
     }
   ],
-  "manifest_generated_at": "2026-10-16T13:14:00.861986+00:00",
+  "manifest_generated_at": "2026-10-19T10:19:15.209473+00:00",
   "source_audit": {
     "rows": 10,
     "status_counts": {
@@ -76,32 +76,32 @@
     "DailyPath": {
       "path": "daily/VIC.csv",
       "exists": true,
-      "bytes": 214263,
+      "bytes": 214111,
       "rows": 260,
       "columns": 54
     },
     "IntradayPath": {
       "path": "intraday/VIC.csv",
       "exists": true,
-      "bytes": 85697,
+      "bytes": 85605,
       "rows": 390,
       "columns": 28
     },
     "MinuteProfilePath": {
       "path": "intraday/minute_profile/VIC.csv",
       "exists": true,
-      "bytes": 49007,
-      "rows": 224,
+      "bytes": 49664,
+      "rows": 226,
       "columns": 28
     },
     "symbol_latest": {
       "Ticker": "VIC",
-      "LatestDate": "2026-10-16",
-      "LastClose": 215.0,
-      "Ret1dPct": -1.3761467889908283,
-      "Ret20dPct": -10.86235489220564,
-      "DailyVolume": 2419600,
-      "IntradayLast": 215.0
+      "LatestDate": "2026-10-19",
+      "LastClose": 207.0,
+      "Ret1dPct": -3.72093023255814,
+      "Ret20dPct": -11.91489361702127,
+      "DailyVolume": 2096600,
+      "IntradayLast": 207.0
     }
   },
   "warnings": [],
