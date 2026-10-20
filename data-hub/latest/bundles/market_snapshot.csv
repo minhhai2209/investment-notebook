@@ -1,25 +1,25 @@
 Section,Metric,Value
-artifact,GeneratedAt,2026-10-19T15:34:36.950838+00:00
+artifact,GeneratedAt,2026-10-20T09:39:07.095579+00:00
 universe,ConfiguredSymbolCount,32
 universe,EquityTickerCount,30
-breadth_latest,Date,2026-10-19
+breadth_latest,Date,2026-10-20
 breadth_latest,TickerCount,30
-breadth_latest,Advancers,11
-breadth_latest,Decliners,18
-breadth_latest,Unchanged,1
-breadth_latest,EqualWeightRet1dPct,-0.374728838708381
-breadth_latest,MedianRet1dPct,-0.4408914728682267
-breadth_latest,MedianRet20dPct,-6.065922381711852
-breadth_latest,TotalTradedValue,6606448160.0
-breadth_latest,UpTradedValuePct,30.94769413887295
-breadth_latest,AboveSMA20Pct,30.0
-breadth_latest,AboveSMA50Pct,20.0
+breadth_latest,Advancers,13
+breadth_latest,Decliners,11
+breadth_latest,Unchanged,6
+breadth_latest,EqualWeightRet1dPct,0.0830065826178017
+breadth_latest,MedianRet1dPct,0.0
+breadth_latest,MedianRet20dPct,-5.986776609098388
+breadth_latest,TotalTradedValue,6641862050.0
+breadth_latest,UpTradedValuePct,53.833534001206786
+breadth_latest,AboveSMA20Pct,33.33333333333333
+breadth_latest,AboveSMA50Pct,13.333333333333334
 sector_latest,Không rõ.TickerCount,29
-sector_latest,Không rõ.MedianRet1dPct,-0.4166666666666763
-sector_latest,Không rõ.TotalTradedValue,6172451960.0
+sector_latest,Không rõ.MedianRet1dPct,0.0
+sector_latest,Không rõ.TotalTradedValue,6233726850.0
 sector_latest,Bất động sản.TickerCount,1
-sector_latest,Bất động sản.MedianRet1dPct,-3.7209302325581395
-sector_latest,Bất động sản.TotalTradedValue,433996200.0
+sector_latest,Bất động sản.MedianRet1dPct,0.9661835748792313
+sector_latest,Bất động sản.TotalTradedValue,408135200.0
 macro_latest,BRENT_USD,
 macro_latest,DJIA,52637.01
 macro_latest,NASDAQ,26281.61
